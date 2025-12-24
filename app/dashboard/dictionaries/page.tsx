@@ -47,26 +47,26 @@ export default function DictionariesPage() {
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
   const { toast } = useToast()
 
-  // 加载所有字典
-  const fetchDictionaries = useCallback(async () => {
-    try {
-      setIsLoading(true)
-      const data = await DictionaryService.getAllDictionaries()
-      setDictionaries(data)
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "加载失败",
-        description: error.message || "无法加载字典数据",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }, [toast])
-
+  // 加载字典列表
   useEffect(() => {
-    fetchDictionaries()
-  }, [fetchDictionaries])
+    const loadDictionaries = async () => {
+      try {
+        setIsLoading(true)
+        const data = await DictionaryService.getAllDictionaries()
+        setDictionaries(data)
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "加载失败",
+          description: error.message || "无法加载字典数据",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadDictionaries()
+  }, [])
 
   // 删除字典项
   const handleDelete = async (id: string) => {
@@ -75,7 +75,15 @@ export default function DictionariesPage() {
     try {
       setIsDeleting(id)
       await DictionaryService.deleteDictionary(id)
-      await fetchDictionaries() // 重新加载
+
+      setDictionaries((prev) => {
+        const newDicts = { ...prev }
+        Object.keys(newDicts).forEach(category => {
+          newDicts[category] = newDicts[category].filter(item => item.id !== id)
+        })
+        return newDicts
+      })
+
       toast({
         title: "删除成功",
         description: "字典项已删除",
