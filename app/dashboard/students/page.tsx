@@ -1,0 +1,213 @@
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
+import { Header } from "@/components/dashboard/header"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Plus, Edit, Trash2, Loader2 } from "lucide-react"
+import { format } from "date-fns"
+import Link from "next/link"
+import { StudentsService, Student } from "@/lib/services/students"
+import { DictionaryService } from "@/lib/services/dictionary"
+import { useToast } from "@/hooks/use-toast"
+
+export default function StudentsPage() {
+  const [students, setStudents] = useState<Student[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const [isLoadingDict, setIsLoadingDict] = useState(true)
+  const { toast } = useToast()
+
+  // 字典数据映射
+  const [dictMaps, setDictMaps] = useState<{
+    grades: Map<string, string>
+    regions: Map<string, string>
+  }>({
+    grades: new Map(),
+    regions: new Map(),
+  })
+
+  // 加载学生列表
+  const fetchStudents = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      const data = await StudentsService.getStudents()
+      setStudents(data)
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "加载失败",
+        description: error.message || "无法加载学生列表",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 加载字典数据
+  useEffect(() => {
+    const loadDictionaries = async () => {
+      try {
+        setIsLoadingDict(true)
+        const dicts = await DictionaryService.getAllDictionaries()
+
+        // 将字典数组转换为 Map 以便快速查找
+        setDictMaps({
+          grades: new Map((dicts.grade || []).map(item => [item.code, item.label])),
+          regions: new Map((dicts.province || []).map(item => [item.code, item.label])),
+        })
+      } catch (error) {
+        console.error("加载字典失败:", error)
+      } finally {
+        setIsLoadingDict(false)
+      }
+    }
+
+    loadDictionaries()
+  }, [])
+
+  useEffect(() => {
+    fetchStudents()
+  }, [fetchStudents])
+
+  // 删除学生
+  const handleDelete = async (id: string) => {
+    if (!confirm("确定要删除这个学生吗？")) return
+
+    try {
+      setIsDeleting(id)
+      await StudentsService.deleteStudent(id)
+      toast({
+        title: "删除成功",
+        description: "学生已删除",
+      })
+      fetchStudents()
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "删除失败",
+        description: error.message || "无法删除学生",
+      })
+    } finally {
+      setIsDeleting(null)
+    }
+  }
+
+  // 获取标签的辅助函数
+  const getLabel = (code: string | undefined, map: Map<string, string>) => {
+    if (!code) return "-"
+    return map.get(code) || code
+  }
+
+  if (isLoading || isLoadingDict) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="学生管理" description="管理和查看所有学生信息" />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      <Header
+        title="学生管理"
+        description="管理和查看所有学生信息"
+      />
+
+      <div className="flex-1 overflow-auto p-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-lg font-semibold">学生列表</h3>
+                <p className="text-sm text-muted-foreground">共 {students.length} 名学生</p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={fetchStudents} disabled={isLoading}>
+                  刷新
+                </Button>
+                <Link href="/dashboard/students/new">
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    新增学生
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>学生姓名</TableHead>
+                    <TableHead>学号</TableHead>
+                    <TableHead>年级</TableHead>
+                    <TableHead>地域</TableHead>
+                    <TableHead>学校</TableHead>
+                    <TableHead>状态</TableHead>
+                    <TableHead className="text-right">操作</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {students.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        暂无数据，点击"新增学生"开始添加
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    students.map((student) => (
+                      <TableRow key={student.id}>
+                        <TableCell className="font-medium">{student.student_name || "-"}</TableCell>
+                        <TableCell>{student.student_number || "-"}</TableCell>
+                        <TableCell>{getLabel(student.grade_code, dictMaps.grades)}</TableCell>
+                        <TableCell>{getLabel(student.region, dictMaps.regions)}</TableCell>
+                        <TableCell>{student.school || "-"}</TableCell>
+                        <TableCell>
+                          {student.status === 'active' ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              正常
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              {student.status || '-'}
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Link href={`/dashboard/students/${student.id}/edit`}>
+                              <Button variant="ghost" size="icon">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(student.id)}
+                              disabled={isDeleting === student.id}
+                            >
+                              {isDeleting === student.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              )}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
