@@ -1,35 +1,22 @@
 "use client"
 
-import { useState } from "react"
 import { Header } from "@/components/dashboard/header"
 import { useApp } from "@/lib/app-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Eye, Edit, Trash2 } from "lucide-react"
+import { Plus, Edit, Trash2 } from "lucide-react"
 import { format } from "date-fns"
-import { LeadDialog } from "@/components/leads/lead-dialog"
+import Link from "next/link"
 
 export default function LeadsPage() {
   const { leads, deleteLead } = useApp()
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingLead, setEditingLead] = useState<string | null>(null)
-
-  const handleEdit = (id: string) => {
-    setEditingLead(id)
-    setIsDialogOpen(true)
-  }
 
   const handleDelete = (id: string) => {
     if (confirm("确定要删除这条线索吗？")) {
       deleteLead(id)
     }
-  }
-
-  const handleDialogClose = () => {
-    setIsDialogOpen(false)
-    setEditingLead(null)
   }
 
   const formatSubjects = (subjects: string[]) => {
@@ -65,10 +52,12 @@ export default function LeadsPage() {
                 <h3 className="text-lg font-semibold">线索列表</h3>
                 <p className="text-sm text-muted-foreground">共 {leads.length} 条线索</p>
               </div>
-              <Button onClick={() => setIsDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                新增线索
-              </Button>
+              <Link href="/dashboard/leads/new">
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  新增线索
+                </Button>
+              </Link>
             </div>
 
             <div className="rounded-md border">
@@ -114,13 +103,11 @@ export default function LeadsPage() {
                         <TableCell>{lead.operatorName || "-"}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEdit(lead.id)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
+                            <Link href={`/dashboard/leads/${lead.id}/edit`}>
+                              <Button variant="ghost" size="icon">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </Link>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -139,12 +126,6 @@ export default function LeadsPage() {
           </CardContent>
         </Card>
       </div>
-
-      <LeadDialog
-        open={isDialogOpen}
-        onOpenChange={handleDialogClose}
-        leadId={editingLead}
-      />
     </div>
   )
 }
