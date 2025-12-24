@@ -33,7 +33,7 @@ const navigation = [
   { name: "教师管理", href: "/dashboard/teachers", icon: GraduationCap },
   { name: "试听课程", href: "/dashboard/trial-lessons", icon: BookOpen },
   { name: "正式订单", href: "/dashboard/formal-orders", icon: FileText },
-  { name: "微信号管理", href: "/dashboard/wechat", icon: MessageCircle },
+  { name: "微信号管理", href: "/dashboard/wechat-accounts", icon: MessageCircle },
   { name: "销售人员", href: "/dashboard/sales", icon: UserCheck },
   { name: "异动记录", href: "/dashboard/transactions", icon: RefreshCw },
   { name: "教师招聘", href: "/dashboard/recruitment", icon: School },
