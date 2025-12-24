@@ -3,11 +3,12 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
+import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   Select,
   SelectContent,
@@ -15,20 +16,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import Link from "next/link"
 import { LeadsService, Lead } from "@/lib/services/leads"
+import { DictionaryService } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
-
-// 模拟字典数据
-const MOCK_OPTIONS = {
-  grades: ["小学一年级", "小学二年级", "小学三年级", "小学四年级", "小学五年级", "小学六年级",
-           "初中一年级", "初中二年级", "初中三年级", "高中一年级", "高中二年级", "高中三年级"],
-  subjects: ["语文", "数学", "英语", "物理", "化学", "生物", "历史", "地理", "政治"],
-  addMethods: ["主动添加", "被动添加", "转介绍"],
-  regions: ["北京", "上海", "广州", "深圳", "杭州", "成都", "武汉", "西安", "南京", "其他"],
-  sources: ["小红书", "抖音", "快手", "微信", "知乎", "B站"],
-}
 
 export default function EditLeadPage() {
   const router = useRouter()
@@ -36,10 +28,26 @@ export default function EditLeadPage() {
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingDict, setIsLoadingDict] = useState(true)
   const [lead, setLead] = useState<Lead | null>(null)
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
 
   const leadId = params.id as string
+
+  // 字典数据
+  const [dictOptions, setDictOptions] = useState<{
+    grades: Array<{ code: string; label: string }>
+    subjects: Array<{ code: string; label: string }>
+    addMethods: Array<{ code: string; label: string }>
+    regions: Array<{ code: string; label: string }>
+    sources: Array<{ code: string; label: string }>
+  }>({
+    grades: [],
+    subjects: [],
+    addMethods: [],
+    regions: [],
+    sources: [],
+  })
 
   const [formData, setFormData] = useState({
     report_number: "",
@@ -54,6 +62,30 @@ export default function EditLeadPage() {
     add_status: "pending" as const,
     remark: "",
   })
+
+  // 加载字典数据
+  useEffect(() => {
+    const loadDictionaries = async () => {
+      try {
+        setIsLoadingDict(true)
+        const dicts = await DictionaryService.getAllDictionaries()
+
+        setDictOptions({
+          grades: dicts.grade || [],
+          subjects: dicts.subject || [],
+          addMethods: dicts.add_method || [],
+          regions: dicts.province || [],
+          sources: dicts.xhs_source || [],
+        })
+      } catch (error) {
+        console.error("加载字典失败:", error)
+      } finally {
+        setIsLoadingDict(false)
+      }
+    }
+
+    loadDictionaries()
+  }, [])
 
   // 加载线索数据
   useEffect(() => {
@@ -97,9 +129,9 @@ export default function EditLeadPage() {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const toggleSubject = (subject: string) => {
+  const toggleSubject = (subjectCode: string) => {
     setSelectedSubjects((prev) =>
-      prev.includes(subject) ? prev.filter((s) => s !== subject) : [...prev, subject]
+      prev.includes(subjectCode) ? prev.filter((s) => s !== subjectCode) : [...prev, subjectCode]
     )
   }
 
@@ -141,23 +173,29 @@ export default function EditLeadPage() {
     }
   }
 
-  if (isLoading) {
+  if (isLoading || isLoadingDict) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex flex-col h-full">
+        <Header title="编辑线索" description="修改线索信息" />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
       </div>
     )
   }
 
   if (!lead) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-2">线索不存在</h2>
-          <p className="text-muted-foreground mb-4">未找到该线索信息</p>
-          <Link href="/dashboard/leads">
-            <Button>返回列表</Button>
-          </Link>
+      <div className="flex flex-col h-full">
+        <Header title="编辑线索" description="修改线索信息" />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-semibold mb-2">线索不存在</h2>
+            <p className="text-muted-foreground mb-4">未找到该线索信息</p>
+            <Link href="/dashboard/leads">
+              <Button>返回列表</Button>
+            </Link>
+          </div>
         </div>
       </div>
     )
@@ -165,29 +203,14 @@ export default function EditLeadPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* 顶部导航栏 */}
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center gap-4 p-6">
-          <Link href="/dashboard/leads">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">编辑线索</h1>
-            <p className="text-muted-foreground">修改线索信息</p>
-          </div>
-        </div>
-      </div>
+      <Header
+        title="编辑线索"
+        description="修改线索信息"
+      />
 
-      {/* 表单内容 */}
       <div className="flex-1 overflow-auto p-6">
         <Card className="max-w-3xl mx-auto">
-          <CardHeader>
-            <CardTitle>线索信息</CardTitle>
-            <CardDescription>修改线索的基本资料和联系信息</CardDescription>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-8">
               {/* 基本信息 */}
               <div className="space-y-4">
@@ -222,8 +245,10 @@ export default function EditLeadPage() {
                         <SelectValue placeholder="选择来源账号" />
                       </SelectTrigger>
                       <SelectContent>
-                        {MOCK_OPTIONS.sources.map((source) => (
-                          <SelectItem key={source} value={source}>{source}</SelectItem>
+                        {dictOptions.sources.map((source) => (
+                          <SelectItem key={source.code} value={source.code}>
+                            {source.label}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -236,8 +261,10 @@ export default function EditLeadPage() {
                         <SelectValue placeholder="选择添加方式" />
                       </SelectTrigger>
                       <SelectContent>
-                        {MOCK_OPTIONS.addMethods.map((method) => (
-                          <SelectItem key={method} value={method}>{method}</SelectItem>
+                        {dictOptions.addMethods.map((method) => (
+                          <SelectItem key={method.code} value={method.code}>
+                            {method.label}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -283,8 +310,10 @@ export default function EditLeadPage() {
                         <SelectValue placeholder="选择年级" />
                       </SelectTrigger>
                       <SelectContent>
-                        {MOCK_OPTIONS.grades.map((grade) => (
-                          <SelectItem key={grade} value={grade}>{grade}</SelectItem>
+                        {dictOptions.grades.map((grade) => (
+                          <SelectItem key={grade.code} value={grade.code}>
+                            {grade.label}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -297,8 +326,10 @@ export default function EditLeadPage() {
                         <SelectValue placeholder="选择地域" />
                       </SelectTrigger>
                       <SelectContent>
-                        {MOCK_OPTIONS.regions.map((region) => (
-                          <SelectItem key={region} value={region}>{region}</SelectItem>
+                        {dictOptions.regions.map((region) => (
+                          <SelectItem key={region.code} value={region.code}>
+                            {region.label}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -308,18 +339,18 @@ export default function EditLeadPage() {
                 <div className="space-y-2">
                   <Label>咨询学科（多选）</Label>
                   <div className="grid grid-cols-3 gap-3 p-4 border rounded-lg bg-muted/30">
-                    {MOCK_OPTIONS.subjects.map((subject) => (
-                      <div key={subject} className="flex items-center space-x-2">
+                    {dictOptions.subjects.map((subject) => (
+                      <div key={subject.code} className="flex items-center space-x-2">
                         <Checkbox
-                          id={`subject-${subject}`}
-                          checked={selectedSubjects.includes(subject)}
-                          onCheckedChange={() => toggleSubject(subject)}
+                          id={`subject-${subject.code}`}
+                          checked={selectedSubjects.includes(subject.code)}
+                          onCheckedChange={() => toggleSubject(subject.code)}
                         />
                         <Label
-                          htmlFor={`subject-${subject}`}
+                          htmlFor={`subject-${subject.code}`}
                           className="text-sm font-normal cursor-pointer"
                         >
-                          {subject}
+                          {subject.label}
                         </Label>
                       </div>
                     ))}

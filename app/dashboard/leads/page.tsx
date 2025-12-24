@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect, useCallback } from "react"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -8,15 +9,31 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
-import { useState, useEffect, useCallback } from "react"
 import { LeadsService, Lead } from "@/lib/services/leads"
+import { DictionaryService } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const [isLoadingDict, setIsLoadingDict] = useState(true)
   const { toast } = useToast()
+
+  // 字典数据映射
+  const [dictMaps, setDictMaps] = useState<{
+    grades: Map<string, string>
+    subjects: Map<string, string>
+    addMethods: Map<string, string>
+    regions: Map<string, string>
+    sources: Map<string, string>
+  }>({
+    grades: new Map(),
+    subjects: new Map(),
+    addMethods: new Map(),
+    regions: new Map(),
+    sources: new Map(),
+  })
 
   // 加载线索列表
   const fetchLeads = useCallback(async () => {
@@ -34,6 +51,31 @@ export default function LeadsPage() {
       setIsLoading(false)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 加载字典数据
+  useEffect(() => {
+    const loadDictionaries = async () => {
+      try {
+        setIsLoadingDict(true)
+        const dicts = await DictionaryService.getAllDictionaries()
+
+        // 将字典数组转换为 Map 以便快速查找
+        setDictMaps({
+          grades: new Map((dicts.grade || []).map(item => [item.code, item.label])),
+          subjects: new Map((dicts.subject || []).map(item => [item.code, item.label])),
+          addMethods: new Map((dicts.add_method || []).map(item => [item.code, item.label])),
+          regions: new Map((dicts.province || []).map(item => [item.code, item.label])),
+          sources: new Map((dicts.xhs_source || []).map(item => [item.code, item.label])),
+        })
+      } catch (error) {
+        console.error("加载字典失败:", error)
+      } finally {
+        setIsLoadingDict(false)
+      }
+    }
+
+    loadDictionaries()
+  }, [])
 
   useEffect(() => {
     fetchLeads()
@@ -64,7 +106,15 @@ export default function LeadsPage() {
 
   const formatSubjects = (subjects: string[]) => {
     if (!subjects || subjects.length === 0) return "-"
-    return subjects.join(", ")
+    // 将代码转换为标签
+    const labels = subjects.map(code => dictMaps.subjects.get(code) || code)
+    return labels.join(", ")
+  }
+
+  // 获取标签的辅助函数
+  const getLabel = (code: string | undefined, map: Map<string, string>) => {
+    if (!code) return "-"
+    return map.get(code) || code
   }
 
   const getStatusBadge = (status: string) => {
@@ -148,11 +198,11 @@ export default function LeadsPage() {
                           {lead.entry_date ? format(new Date(lead.entry_date), "yyyy-MM-dd") : "-"}
                         </TableCell>
                         <TableCell className="font-medium">{lead.report_number || "-"}</TableCell>
-                        <TableCell>{lead.xhs_source || "-"}</TableCell>
-                        <TableCell>{lead.grade_code || "-"}</TableCell>
+                        <TableCell>{getLabel(lead.xhs_source, dictMaps.sources)}</TableCell>
+                        <TableCell>{getLabel(lead.grade_code, dictMaps.grades)}</TableCell>
                         <TableCell>{formatSubjects(lead.subject_codes)}</TableCell>
-                        <TableCell>{lead.region_ip || "-"}</TableCell>
-                        <TableCell>{lead.add_method_code || "-"}</TableCell>
+                        <TableCell>{getLabel(lead.region_ip, dictMaps.regions)}</TableCell>
+                        <TableCell>{getLabel(lead.add_method_code, dictMaps.addMethods)}</TableCell>
                         <TableCell>{lead.parent_wechat || "-"}</TableCell>
                         <TableCell>{lead.grab_wechat || "-"}</TableCell>
                         <TableCell>{getStatusBadge(lead.add_status || "")}</TableCell>
