@@ -1,20 +1,23 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('Auth:Signup')
 
 export async function POST(request: NextRequest) {
   try {
     const { email, password, name } = await request.json()
 
     if (!email || !password) {
+      logger.warn('注册请求缺少必填字段')
       return NextResponse.json(
         { error: '邮箱和密码必填' },
         { status: 400 }
       )
     }
 
-    console.log('注册尝试:', { email, name })
+    logger.info('用户注册尝试', { email, name })
 
-    // 使用 supabaseServer（anon key）而不是 supabaseAdmin
     const { data, error } = await supabaseServer.auth.signUp({
       email,
       password,
@@ -28,14 +31,14 @@ export async function POST(request: NextRequest) {
     })
 
     if (error) {
-      console.error('注册错误:', error)
+      logger.error('注册失败', { message: error.message, status: error.status })
       return NextResponse.json(
         { error: error.message || '注册失败' },
         { status: 400 }
       )
     }
 
-    console.log('注册成功:', { userId: data.user?.id, email: data.user?.email })
+    logger.info('注册成功', { userId: data.user?.id, email: data.user?.email })
 
     return NextResponse.json({
       data: {
@@ -46,7 +49,7 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error: any) {
-    console.error('注册 API 错误:', error)
+    logger.error('注册 API 异常', { message: error.message, stack: error.stack })
     return NextResponse.json(
       { error: error.message || '注册失败' },
       { status: 500 }

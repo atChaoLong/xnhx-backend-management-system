@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/fetch'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('useAuth')
 
 export function useAuth() {
   const router = useRouter()
@@ -12,36 +15,25 @@ export function useAuth() {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        // 检查 localStorage 中的 token
         const token = typeof window !== 'undefined'
           ? localStorage.getItem('supabase.auth.token')
           : null
 
-        console.log('检查会话 - 前端:', {
-          hasToken: !!token,
-          tokenLength: token?.length,
-        })
+        logger.debug('检查会话状态', { hasToken: !!token })
 
-        // api.get() 会自动添加 Authorization header
         const response = await api.get('/api/auth/session')
-
-        console.log('会话检查响应:', {
-          ok: response.ok,
-          status: response.status,
-        })
 
         if (response.ok) {
           const { data } = await response.json()
           if (data.user) {
-            console.log('会话有效，用户已登录:', data.user.email)
+            logger.info('用户已登录', { email: data.user.email })
             setUser(data.user)
           }
         } else {
-          const errorData = await response.json().catch(() => ({}))
-          console.log('会话无效或已过期:', errorData)
+          logger.debug('会话无效或已过期')
         }
       } catch (err) {
-        console.error('会话检查错误:', err)
+        logger.error('会话检查错误', { message: err instanceof Error ? err.message : String(err) })
       } finally {
         setIsLoading(false)
       }
@@ -51,15 +43,14 @@ export function useAuth() {
   }, [router])
 
   const handleLogout = useCallback(async () => {
-    // 清除 localStorage 中的 token
     localStorage.removeItem('supabase.auth.token')
     setUser(null)
 
-    // 调用后端登出
     try {
       await api.post('/api/auth/signout')
+      logger.info('用户已登出')
     } catch (err) {
-      console.error('登出错误:', err)
+      logger.error('登出错误', { message: err instanceof Error ? err.message : String(err) })
     }
 
     router.push('/login')

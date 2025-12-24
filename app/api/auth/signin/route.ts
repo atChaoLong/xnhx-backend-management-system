@@ -1,18 +1,22 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('Auth:Signin')
 
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json()
 
     if (!email || !password) {
+      logger.warn('登录请求缺少必填字段')
       return NextResponse.json(
         { error: '邮箱和密码必填' },
         { status: 400 }
       )
     }
 
-    console.log('登录尝试:', { email, passwordLength: password?.length })
+    logger.info('用户登录尝试', { email, passwordLength: password?.length })
 
     const { data, error } = await supabaseServer.auth.signInWithPassword({
       email,
@@ -20,7 +24,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (error) {
-      console.error('Supabase 认证错误:', {
+      logger.error('认证失败', {
         message: error.message,
         status: error.status,
         name: error.name,
@@ -35,7 +39,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('登录成功:', { userId: data.user?.id, email: data.user?.email })
+    logger.info('登录成功', { userId: data.user?.id, email: data.user?.email })
 
     return NextResponse.json({
       data: {
@@ -45,7 +49,7 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error: any) {
-    console.error('登录 API 错误:', error)
+    logger.error('登录 API 异常', { message: error.message, stack: error.stack })
     return NextResponse.json(
       {
         error: error.message || '登录失败',

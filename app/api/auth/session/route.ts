@@ -1,39 +1,31 @@
 import { supabaseServer } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('Auth:Session')
 
 export async function GET(request: NextRequest) {
   try {
-    // Get token from Authorization header
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '')
 
-    console.log('Session API 调用:', {
-      hasAuthHeader: !!authHeader,
-      tokenLength: token?.length,
-      tokenPrefix: token?.substring(0, 30) + '...',
-    })
-
     if (!token) {
-      console.log('Session API: 未找到 token')
+      logger.warn('Session 验证请求缺少 token')
       return NextResponse.json(
         { error: '未认证', hint: '未找到 Authorization header 或 token' },
         { status: 401 }
       )
     }
 
-    // 验证 access_token（使用 supabaseServer/anon key）
+    logger.debug('验证用户 session', { tokenLength: token?.length })
+
     const { data: { user }, error } = await supabaseServer.auth.getUser(token)
 
-    console.log('Token 验证结果:', {
-      hasUser: !!user,
-      userId: user?.id,
-      email: user?.email,
-      error: error?.message,
-      errorStatus: error?.status,
-    })
-
     if (error || !user) {
-      console.error('Session API: Token 验证失败')
+      logger.warn('Token 验证失败', {
+        error: error?.message,
+        status: error?.status,
+      })
       return NextResponse.json(
         {
           error: '未认证',
@@ -44,7 +36,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    console.log('Session API: 验证成功', { userId: user.id, email: user.email })
+    logger.debug('Session 验证成功', { userId: user.id, email: user.email })
     return NextResponse.json({
       data: {
         user: {
@@ -56,7 +48,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error: any) {
-    console.error('Session API 异常:', error)
+    logger.error('Session API 异常', { message: error.message, stack: error.stack })
     return NextResponse.json(
       { error: '未授权', details: error.message },
       { status: 401 }
