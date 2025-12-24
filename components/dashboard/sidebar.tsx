@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { useApp } from "@/lib/app-context"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -43,9 +42,13 @@ const navigation = [
   { name: "设置", href: "/dashboard/settings", icon: Settings },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  user: any
+  onLogout: () => void
+}
+
+export function Sidebar({ user, onLogout }: SidebarProps) {
   const pathname = usePathname()
-  const { user, logout } = useApp()
 
   return (
     <div className="flex h-full w-64 flex-col border-r bg-card">
@@ -89,7 +92,7 @@ export function Sidebar() {
             <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
           </div>
         </div>
-        <Button variant="outline" size="sm" className="w-full bg-transparent" onClick={logout}>
+        <Button variant="outline" size="sm" className="w-full bg-transparent" onClick={onLogout}>
           <LogOut className="mr-2 h-4 w-4" />
           退出登录
         </Button>
