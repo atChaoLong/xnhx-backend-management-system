@@ -37,7 +37,7 @@ const navigation = [
   { name: "销售人员", href: "/dashboard/sales", icon: UserCheck },
   { name: "异动记录", href: "/dashboard/transactions", icon: RefreshCw },
   { name: "教师招聘", href: "/dashboard/recruitment", icon: School },
-  { name: "元数据管理", href: "/dashboard/dictionary", icon: List },
+  { name: "字典管理", href: "/dashboard/dictionaries", icon: List },
   { name: "自定义视图", href: "/dashboard/teachers-views", icon: Eye },
   { name: "设置", href: "/dashboard/settings", icon: Settings },
 ]
