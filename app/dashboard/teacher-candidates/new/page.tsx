@@ -8,10 +8,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2 } from "lucide-react"
 import { TeacherCandidatesService, NewTeacherCandidate } from "@/lib/services/teacherCandidates"
 import { DailyLeadsService, DailyLead } from "@/lib/services/dailyLeads"
+import { getDictionaryItems, DictionaryItem } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 
@@ -21,6 +21,9 @@ export default function NewTeacherCandidatePage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [dailyLeads, setDailyLeads] = useState<DailyLead[]>([])
   const [isLoadingLeads, setIsLoadingLeads] = useState(true)
+  const [gradeLevels, setGradeLevels] = useState<DictionaryItem[]>([])
+  const [subjects, setSubjects] = useState<DictionaryItem[]>([])
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
 
   const [formData, setFormData] = useState({
     // 基本信息
@@ -45,8 +48,8 @@ export default function NewTeacherCandidatePage() {
     interview_officer: "",
 
     // 复核状态
-    review_status: "待复核" as '待复核' | '已复核' | '不符合',
-    reviewer_name: "",
+    review_status: "" as '' | '已复核' | '已通过',
+    reviewed_by: "",
     review_result: "",
     review_evaluation_comment: "",
 
@@ -73,6 +76,24 @@ export default function NewTeacherCandidatePage() {
     loadDailyLeads()
   }, [])
 
+  // 加载字典数据
+  useEffect(() => {
+    const loadDictionaries = async () => {
+      try {
+        const [gradeData, subjectData] = await Promise.all([
+          getDictionaryItems('grade'),
+          getDictionaryItems('subject')
+        ])
+        setGradeLevels(gradeData)
+        setSubjects(subjectData)
+      } catch (error: any) {
+        console.error("加载字典数据失败:", error)
+      }
+    }
+
+    loadDictionaries()
+  }, [])
+
   // 处理每日线索选择
   const handleLeadSelect = (leadId: string) => {
     const selectedLead = dailyLeads.find(lead => lead.id === leadId)
@@ -88,6 +109,17 @@ export default function NewTeacherCandidatePage() {
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  // 处理学科多选
+  const handleSubjectToggle = (subjectCode: string) => {
+    setSelectedSubjects((prev) => {
+      if (prev.includes(subjectCode)) {
+        return prev.filter((s) => s !== subjectCode)
+      } else {
+        return [...prev, subjectCode]
+      }
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -122,7 +154,7 @@ export default function NewTeacherCandidatePage() {
         resume_url: formData.resume_url.trim() || undefined,
         profile_photo_url: formData.profile_photo_url.trim() || undefined,
         grade_level: formData.grade_level || undefined,
-        subjects_taught: formData.subjects_taught ? formData.subjects_taught.split(',').map(s => s.trim()) : undefined,
+        subjects_taught: selectedSubjects.length > 0 ? selectedSubjects : undefined,
         teacher_type: formData.teacher_type || undefined,
         trial_subject: formData.trial_subject || undefined,
         teaching_style: formData.teaching_style || undefined,
@@ -132,7 +164,7 @@ export default function NewTeacherCandidatePage() {
         interview_link: formData.interview_link || undefined,
         interview_officer: formData.interview_officer || undefined,
         review_status: formData.review_status,
-        reviewer_name: formData.reviewer_name || undefined,
+        reviewed_by: formData.reviewed_by || undefined,
         review_result: formData.review_result || undefined,
         review_evaluation_comment: formData.review_evaluation_comment || undefined,
         is_hired: formData.is_hired,
@@ -144,7 +176,7 @@ export default function NewTeacherCandidatePage() {
 
       toast({
         title: "创建成功",
-        description: "教师候选已创建",
+        description: "老师面试记录已创建",
       })
 
       router.push("/dashboard/teacher-candidates")
@@ -163,8 +195,8 @@ export default function NewTeacherCandidatePage() {
     return (
       <div className="flex flex-col h-full">
         <Header
-          title="新增教师候选"
-          description="填写教师候选信息（核心字段）"
+          title="新增老师面试"
+          description="填写老师面试信息（核心字段）"
         />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -176,42 +208,41 @@ export default function NewTeacherCandidatePage() {
   return (
     <div className="flex flex-col h-full">
       <Header
-        title="新增教师候选"
-        description="填写教师候选信息（核心字段）"
+        title="新增老师面试"
+        description="填写老师面试信息（核心字段）"
       />
 
       <div className="flex-1 overflow-auto p-6">
         <Card className="max-w-3xl mx-auto">
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* 每日线索选择 */}
+              <div className="space-y-2">
+                <Label htmlFor="daily_lead_id">从每日线索选择（可选）</Label>
+                <select
+                  id="daily_lead_id"
+                  value={formData.daily_lead_id}
+                  onChange={(e) => handleLeadSelect(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                >
+                  <option value="">请选择每日线索</option>
+                  {dailyLeads.map((lead) => (
+                    <option key={lead.id} value={lead.id}>
+                      {lead.name} - {lead.wechat_number} ({lead.assigned_person})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* 基本信息 */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">基本信息</h3>
 
-                <div className="space-y-2">
-                  <Label htmlFor="daily_lead_id">从每日线索选择（可选）</Label>
-                  <select
-                    id="daily_lead_id"
-                    value={formData.daily_lead_id}
-                    onChange={(e) => handleLeadSelect(e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                  >
-                    <option value="">请选择每日线索（自动填充信息）</option>
-                    {dailyLeads.map((lead) => (
-                      <option key={lead.id} value={lead.id}>
-                        {lead.name} - {lead.wechat_number} ({lead.assigned_person})
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-muted-foreground">
-                    选择线索后将自动填充姓名和微信号
-                  </p>
-                </div>
-
                 <div className="grid grid-cols-2 gap-4">
+                  {/* 1. 候选人称呼 */}
                   <div className="space-y-2">
                     <Label htmlFor="name">
-                      姓名 <span className="text-destructive">*</span>
+                      候选人称呼 <span className="text-destructive">*</span>
                     </Label>
                     <Input
                       id="name"
@@ -222,6 +253,7 @@ export default function NewTeacherCandidatePage() {
                     />
                   </div>
 
+                  {/* 4. 微信号（必填） */}
                   <div className="space-y-2">
                     <Label htmlFor="wechat_id">
                       微信号 <span className="text-destructive">*</span>
@@ -234,39 +266,60 @@ export default function NewTeacherCandidatePage() {
                       required
                     />
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                  {/* 5. 简历 */}
                   <div className="space-y-2">
-                    <Label htmlFor="grade_level">年级</Label>
+                    <Label htmlFor="resume_url">简历</Label>
                     <Input
+                      id="resume_url"
+                      type="url"
+                      placeholder="简历链接URL"
+                      value={formData.resume_url}
+                      onChange={(e) => handleInputChange("resume_url", e.target.value)}
+                    />
+                  </div>
+
+                  {/* 6. 年级段 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="grade_level">年级段</Label>
+                    <select
                       id="grade_level"
-                      placeholder="例如：小学、初中、高中"
                       value={formData.grade_level}
                       onChange={(e) => handleInputChange("grade_level", e.target.value)}
-                    />
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                    >
+                      <option value="">请选择年级段</option>
+                      {gradeLevels.map((grade) => (
+                        <option key={grade.id} value={grade.code}>
+                          {grade.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="subjects_taught">科目（逗号分隔）</Label>
-                    <Input
-                      id="subjects_taught"
-                      placeholder="例如：数学,英语,物理"
-                      value={formData.subjects_taught}
-                      onChange={(e) => handleInputChange("subjects_taught", e.target.value)}
-                    />
+                  {/* 7. 教授学科 */}
+                  <div className="space-y-2 col-span-2">
+                    <Label>教授学科</Label>
+                    <div className="border rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
+                      {subjects.map((subject) => (
+                        <div key={subject.id} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={`subject-${subject.code}`}
+                            checked={selectedSubjects.includes(subject.code)}
+                            onChange={() => handleSubjectToggle(subject.code)}
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                          <label
+                            htmlFor={`subject-${subject.code}`}
+                            className="text-sm cursor-pointer"
+                          >
+                            {subject.label}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="teaching_style">教学风格</Label>
-                  <Textarea
-                    id="teaching_style"
-                    placeholder="请描述教学风格"
-                    value={formData.teaching_style}
-                    onChange={(e) => handleInputChange("teaching_style", e.target.value)}
-                    rows={3}
-                  />
                 </div>
               </div>
 
@@ -275,28 +328,45 @@ export default function NewTeacherCandidatePage() {
                 <h3 className="text-sm font-semibold">约面信息</h3>
 
                 <div className="grid grid-cols-2 gap-4">
+                  {/* 3/9. 面试时间 */}
                   <div className="space-y-2">
-                    <Label htmlFor="interview_date">面试日期</Label>
+                    <Label htmlFor="interview_datetime">面试时间</Label>
                     <Input
-                      id="interview_date"
-                      type="date"
-                      value={formData.interview_date}
-                      onChange={(e) => handleInputChange("interview_date", e.target.value)}
+                      id="interview_datetime"
+                      type="datetime-local"
+                      value={formData.interview_date && formData.interview_time ? `${formData.interview_date}T${formData.interview_time}` : ''}
+                      onChange={(e) => {
+                        const [date, time] = e.target.value.split('T')
+                        handleInputChange("interview_date", date)
+                        handleInputChange("interview_time", time || '')
+                      }}
                     />
                   </div>
 
+                  {/* 8. 约面人 */}
                   <div className="space-y-2">
-                    <Label htmlFor="interview_time">面试时间</Label>
+                    <Label htmlFor="interview_officer">约面人</Label>
                     <Input
-                      id="interview_time"
-                      type="time"
-                      value={formData.interview_time}
-                      onChange={(e) => handleInputChange("interview_time", e.target.value)}
+                      id="interview_officer"
+                      placeholder="约面人姓名"
+                      value={formData.interview_officer}
+                      onChange={(e) => handleInputChange("interview_officer", e.target.value)}
                     />
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                  {/* 10. 面试链接 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="interview_link">面试链接</Label>
+                    <Input
+                      id="interview_link"
+                      type="url"
+                      placeholder="面试链接URL"
+                      value={formData.interview_link}
+                      onChange={(e) => handleInputChange("interview_link", e.target.value)}
+                    />
+                  </div>
+
+                  {/* 11. 面试官 */}
                   <div className="space-y-2">
                     <Label htmlFor="interviewer_name">面试官</Label>
                     <Input
@@ -306,83 +376,26 @@ export default function NewTeacherCandidatePage() {
                       onChange={(e) => handleInputChange("interviewer_name", e.target.value)}
                     />
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="interview_link">面试链接</Label>
-                    <Input
-                      id="interview_link"
-                      placeholder="面试链接"
-                      value={formData.interview_link}
-                      onChange={(e) => handleInputChange("interview_link", e.target.value)}
-                    />
-                  </div>
                 </div>
               </div>
 
               {/* 复核状态 */}
               <div className="space-y-4">
-                <h3 className="text-sm font-semibold">复核状态</h3>
+                <h3 className="text-sm font-semibold">复核信息（勿填）</h3>
 
+                {/* 2. 复核信息（勿填） */}
                 <div className="space-y-2">
                   <Label htmlFor="review_status">复核状态</Label>
                   <select
                     id="review_status"
                     value={formData.review_status}
-                    onChange={(e) => handleInputChange("review_status", e.target.value as '待复核' | '已复核' | '不符合')}
+                    onChange={(e) => handleInputChange("review_status", e.target.value as '' | '已复核' | '已通过')}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                   >
-                    <option value="待复核">待复核</option>
+                    <option value="">（空白）</option>
                     <option value="已复核">已复核</option>
-                    <option value="不符合">不符合</option>
+                    <option value="已通过">已通过</option>
                   </select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="review_result">复核结果</Label>
-                  <Textarea
-                    id="review_result"
-                    placeholder="复核结果"
-                    value={formData.review_result}
-                    onChange={(e) => handleInputChange("review_result", e.target.value)}
-                    rows={3}
-                  />
-                </div>
-              </div>
-
-              {/* 招聘决定 */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold">招聘决定</h3>
-
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="is_hired"
-                    checked={formData.is_hired}
-                    onCheckedChange={(checked) => handleInputChange("is_hired", checked as boolean)}
-                  />
-                  <Label htmlFor="is_hired" className="cursor-pointer">
-                    已录用
-                  </Label>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="can_teach_graduation_class"
-                    checked={formData.can_teach_graduation_class}
-                    onCheckedChange={(checked) => handleInputChange("can_teach_graduation_class", checked as boolean)}
-                  />
-                  <Label htmlFor="can_teach_graduation_class" className="cursor-pointer">
-                    可带毕业班
-                  </Label>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="teacher_level">教师级别</Label>
-                  <Input
-                    id="teacher_level"
-                    placeholder="例如：初级、中级、高级"
-                    value={formData.teacher_level}
-                    onChange={(e) => handleInputChange("teacher_level", e.target.value)}
-                  />
                 </div>
               </div>
 

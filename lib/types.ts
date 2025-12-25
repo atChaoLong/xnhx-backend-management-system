@@ -33,7 +33,7 @@ export interface Lead {
 }
 
 // ============================================
-// 教师候选人类型
+// 老师面试类型
 // ============================================
 export interface TeacherCandidate {
   id: string
@@ -69,7 +69,6 @@ export interface TeacherCandidate {
 
   // 素质评价
   initialEvaluation?: string
-  interviewEvaluation?: string
   teacherCharacteristics?: string
   mandarinLevel?: string
   researchAbility?: string
@@ -88,7 +87,6 @@ export interface TeacherCandidate {
   teacherFeeling?: string
   suitableForStudents?: string
   schedulingPreference?: string
-  enrolledTeacherName?: string
   teacherLevel?: string
   canTeachGraduationClass: boolean
 
@@ -116,7 +114,7 @@ export interface Student {
 }
 
 // ============================================
-// 教师类型
+// 老师类型
 // ============================================
 export interface Teacher {
   id: string

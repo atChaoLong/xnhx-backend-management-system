@@ -170,7 +170,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setTeacherCandidates((prev) => [newCandidate, ...prev])
       addActivity({
         type: "note",
-        description: `新增教师候选人：${candidate.name}`,
+        description: `新增老师面试：${candidate.name}`,
         createdBy: user?.name || "系统",
       })
     },
@@ -226,7 +226,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setTeachers((prev) => [newTeacher, ...prev])
       addActivity({
         type: "note",
-        description: `新增教师：${teacher.name}`,
+        description: `新增老师：${teacher.name}`,
         createdBy: user?.name || "系统",
       })
     },

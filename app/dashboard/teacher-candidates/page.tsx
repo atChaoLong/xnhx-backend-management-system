@@ -27,7 +27,7 @@ export default function TeacherCandidatesPage() {
       toast({
         variant: "destructive",
         title: "加载失败",
-        description: error.message || "无法加载教师候选列表",
+        description: error.message || "无法加载老师面试列表",
       })
     } finally {
       setIsLoading(false)
@@ -38,23 +38,23 @@ export default function TeacherCandidatesPage() {
     fetchCandidates()
   }, [fetchCandidates])
 
-  // 删除候选
+  // 删除面试
   const handleDelete = async (id: string) => {
-    if (!confirm("确定要删除这个候选吗？")) return
+    if (!confirm("确定要删除这个面试记录吗？")) return
 
     try {
       setIsDeleting(id)
       await TeacherCandidatesService.deleteTeacherCandidate(id)
       toast({
         title: "删除成功",
-        description: "候选已删除",
+        description: "面试记录已删除",
       })
       fetchCandidates()
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "删除失败",
-        description: error.message || "无法删除候选",
+        description: error.message || "无法删除面试记录",
       })
     } finally {
       setIsDeleting(null)
@@ -85,7 +85,7 @@ export default function TeacherCandidatesPage() {
   if (isLoading) {
     return (
       <div className="flex flex-col h-full">
-        <Header title="教师候选" description="管理教师招聘候选信息" />
+        <Header title="老师面试" description="管理老师面试信息" />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -96,8 +96,8 @@ export default function TeacherCandidatesPage() {
   return (
     <div className="flex flex-col h-full">
       <Header
-        title="教师候选"
-        description="管理教师招聘候选信息"
+        title="老师面试"
+        description="管理老师面试信息"
       />
 
       <div className="flex-1 overflow-auto p-6">
@@ -105,8 +105,8 @@ export default function TeacherCandidatesPage() {
           <CardContent className="p-6">
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h3 className="text-lg font-semibold">候选列表</h3>
-                <p className="text-sm text-muted-foreground">共 {candidates.length} 位候选</p>
+                <h3 className="text-lg font-semibold">面试列表</h3>
+                <p className="text-sm text-muted-foreground">共 {candidates.length} 位面试者</p>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={fetchCandidates} disabled={isLoading}>
@@ -115,7 +115,7 @@ export default function TeacherCandidatesPage() {
                 <Link href="/dashboard/teacher-candidates/new">
                   <Button>
                     <Plus className="mr-2 h-4 w-4" />
-                    新增候选
+                    新增面试
                   </Button>
                 </Link>
               </div>
@@ -139,7 +139,7 @@ export default function TeacherCandidatesPage() {
                   {candidates.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        暂无数据，点击"新增候选"开始添加
+                        暂无数据，点击"新增面试"开始添加
                       </TableCell>
                     </TableRow>
                   ) : (

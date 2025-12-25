@@ -48,7 +48,7 @@ export default function EditTeacherCandidatePage() {
 
     // 复核状态
     review_status: "待复核" as '待复核' | '已复核' | '不符合',
-    reviewer_name: "",
+    reviewed_by: "",
     review_result: "",
     review_evaluation_comment: "",
 
@@ -84,7 +84,7 @@ export default function EditTeacherCandidatePage() {
           interview_link: data.interview_link || "",
           interview_officer: data.interview_officer || "",
           review_status: data.review_status || "待复核",
-          reviewer_name: data.reviewer_name || "",
+          reviewed_by: data.reviewed_by || "",
           review_result: data.review_result || "",
           review_evaluation_comment: data.review_evaluation_comment || "",
           is_hired: data.is_hired || false,
@@ -95,7 +95,7 @@ export default function EditTeacherCandidatePage() {
         toast({
           variant: "destructive",
           title: "加载失败",
-          description: error.message || "无法加载候选数据",
+          description: error.message || "无法加载面试数据",
         })
       } finally {
         setIsLoading(false)
@@ -153,7 +153,7 @@ export default function EditTeacherCandidatePage() {
         interview_link: formData.interview_link || undefined,
         interview_officer: formData.interview_officer || undefined,
         review_status: formData.review_status,
-        reviewer_name: formData.reviewer_name || undefined,
+        reviewed_by: formData.reviewed_by || undefined,
         review_result: formData.review_result || undefined,
         review_evaluation_comment: formData.review_evaluation_comment || undefined,
         is_hired: formData.is_hired,
@@ -165,7 +165,7 @@ export default function EditTeacherCandidatePage() {
 
       toast({
         title: "保存成功",
-        description: "候选信息已更新",
+        description: "面试信息已更新",
       })
 
       router.push("/dashboard/teacher-candidates")
@@ -173,7 +173,7 @@ export default function EditTeacherCandidatePage() {
       toast({
         variant: "destructive",
         title: "保存失败",
-        description: error.message || "无法更新候选",
+        description: error.message || "无法更新面试记录",
       })
     } finally {
       setIsSubmitting(false)
@@ -183,7 +183,7 @@ export default function EditTeacherCandidatePage() {
   if (isLoading) {
     return (
       <div className="flex flex-col h-full">
-        <Header title="编辑教师候选" description="修改候选信息" />
+        <Header title="编辑老师面试" description="修改面试信息" />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -194,11 +194,11 @@ export default function EditTeacherCandidatePage() {
   if (!candidate) {
     return (
       <div className="flex flex-col h-full">
-        <Header title="编辑教师候选" description="修改候选信息" />
+        <Header title="编辑老师面试" description="修改面试信息" />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <h2 className="text-2xl font-semibold mb-2">候选不存在</h2>
-            <p className="text-muted-foreground mb-4">未找到该候选信息</p>
+            <h2 className="text-2xl font-semibold mb-2">面试记录不存在</h2>
+            <p className="text-muted-foreground mb-4">未找到该面试记录</p>
             <Link href="/dashboard/teacher-candidates">
               <Button>返回列表</Button>
             </Link>
@@ -211,8 +211,8 @@ export default function EditTeacherCandidatePage() {
   return (
     <div className="flex flex-col h-full">
       <Header
-        title="编辑教师候选"
-        description="修改候选信息（核心字段）"
+        title="编辑老师面试"
+        description="修改面试信息（核心字段）"
       />
 
       <div className="flex-1 overflow-auto p-6">
@@ -401,7 +401,7 @@ export default function EditTeacherCandidatePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="teacher_level">教师级别</Label>
+                  <Label htmlFor="teacher_level">老师级别</Label>
                   <Input
                     id="teacher_level"
                     placeholder="例如：初级、中级、高级"

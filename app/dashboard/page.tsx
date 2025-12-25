@@ -24,10 +24,10 @@ export default function DashboardPage() {
       description: "所有线索记录",
     },
     {
-      title: "教师候选人",
+      title: "老师面试",
       value: "0",
       icon: UserPlus,
-      description: "招聘中的候选人",
+      description: "面试中的老师",
     },
     {
       title: "学生总数",
@@ -36,10 +36,10 @@ export default function DashboardPage() {
       description: "已注册学生",
     },
     {
-      title: "在职教师",
+      title: "在职老师",
       value: "0",
       icon: GraduationCap,
-      description: "活跃教师数量",
+      description: "活跃老师数量",
     },
     {
       title: "试听课程",

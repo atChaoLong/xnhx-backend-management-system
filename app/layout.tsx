@@ -9,7 +9,7 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "小牛好学 - 教育管理系统",
-  description: "教育行业全流程管理系统 - 线索管理、教师招聘、学生管理、订单管理",
+  description: "教育行业全流程管理系统 - 线索管理、老师面试、学生管理、订单管理",
   generator: "Xiaoniuhaoxue",
   icons: {
     icon: [

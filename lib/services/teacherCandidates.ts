@@ -1,12 +1,12 @@
 /**
- * 教师候选服务层
- * 提供教师候选 CRUD 操作的统一接口
+ * 老师面试服务层
+ * 提供老师面试 CRUD 操作的统一接口
  */
 
 import { api } from '@/lib/fetch'
 
 /**
- * 教师候选类型定义
+ * 老师面试类型定义
  */
 export interface TeacherCandidate {
   id: string
@@ -42,10 +42,8 @@ export interface TeacherCandidate {
   // 面试评分
   interview_month?: string
   interview_week?: number
-  appointment_week?: number
   registration_date?: string
   interview_score?: number
-  interview_score_total?: number
   logical_expression_score?: number
   dress_appearance_score?: number
   material_preparation_score?: number
@@ -53,7 +51,6 @@ export interface TeacherCandidate {
 
   // 素质评价
   initial_evaluation?: string
-  interview_evaluation?: string
   teacher_characteristics?: string
   mandarin_level?: string
   research_ability?: string
@@ -61,12 +58,11 @@ export interface TeacherCandidate {
   affinity?: string
 
   // 复核状态
-  review_status?: '待复核' | '已复核' | '不符合'
-  reviewer_name?: string
+  review_status?: '已通过' | '已复核' | ''
+  reviewed_by?: string
   review_result?: string
   review_evaluation_comment?: string
   review_date?: string
-  reviewed_by?: string
   teacher_level?: string
   can_teach_graduation_class?: boolean
 
@@ -75,9 +71,8 @@ export interface TeacherCandidate {
   teacher_feeling?: string
   suitable_for_students?: string
   scheduling_preference?: string
-  enrolled_teacher_name?: string
   hired_notes?: string
-  qr_code?: string
+  qr_code_url?: string
 
   // 薪资信息
   current_rate?: number
@@ -85,19 +80,19 @@ export interface TeacherCandidate {
 }
 
 /**
- * 新建教师候选类型（不包含 id, created_at, updated_at）
+ * 新建老师面试类型（不包含 id, created_at, updated_at）
  */
 export type NewTeacherCandidate = Omit<TeacherCandidate, 'id' | 'created_at' | 'updated_at'>
 
 /**
- * 获取所有教师候选
+ * 获取所有老师面试
  */
 export async function getTeacherCandidates(): Promise<TeacherCandidate[]> {
   const response = await api.get("/api/teacher-candidates")
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: '获取教师候选列表失败' }))
-    throw new Error(error.error || '获取教师候选列表失败')
+    const error = await response.json().catch(() => ({ error: '获取老师面试列表失败' }))
+    throw new Error(error.error || '获取老师面试列表失败')
   }
 
   const { data } = await response.json()
@@ -105,14 +100,14 @@ export async function getTeacherCandidates(): Promise<TeacherCandidate[]> {
 }
 
 /**
- * 根据ID获取单个教师候选
+ * 根据ID获取单个老师面试
  */
 export async function getTeacherCandidateById(id: string): Promise<TeacherCandidate> {
   const response = await api.get(`/api/teacher-candidates?id=${encodeURIComponent(id)}`)
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: '获取教师候选失败' }))
-    throw new Error(error.error || '获取教师候选失败')
+    const error = await response.json().catch(() => ({ error: '获取老师面试失败' }))
+    throw new Error(error.error || '获取老师面试失败')
   }
 
   const { data } = await response.json()
@@ -120,14 +115,14 @@ export async function getTeacherCandidateById(id: string): Promise<TeacherCandid
 }
 
 /**
- * 创建新教师候选
+ * 创建新老师面试
  */
 export async function createTeacherCandidate(candidate: NewTeacherCandidate): Promise<TeacherCandidate> {
   const response = await api.post("/api/teacher-candidates", candidate)
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: '创建教师候选失败' }))
-    throw new Error(error.error || '创建教师候选失败')
+    const error = await response.json().catch(() => ({ error: '创建老师面试失败' }))
+    throw new Error(error.error || '创建老师面试失败')
   }
 
   const { data } = await response.json()
@@ -135,20 +130,20 @@ export async function createTeacherCandidate(candidate: NewTeacherCandidate): Pr
 }
 
 /**
- * 更新教师候选信息
+ * 更新老师面试信息
  */
 export async function updateTeacherCandidate(candidate: TeacherCandidate & { id?: string }): Promise<TeacherCandidate> {
   const { id, ...updateData } = candidate
 
   if (!id) {
-    throw new Error('教师候选ID不能为空')
+    throw new Error('老师面试ID不能为空')
   }
 
   const response = await api.put("/api/teacher-candidates", { id, ...updateData })
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: '更新教师候选失败' }))
-    throw new Error(error.error || '更新教师候选失败')
+    const error = await response.json().catch(() => ({ error: '更新老师面试失败' }))
+    throw new Error(error.error || '更新老师面试失败')
   }
 
   const { data } = await response.json()
@@ -156,21 +151,21 @@ export async function updateTeacherCandidate(candidate: TeacherCandidate & { id?
 }
 
 /**
- * 删除教师候选
+ * 删除老师面试
  */
 export async function deleteTeacherCandidate(id: string): Promise<boolean> {
   const response = await api.delete(`/api/teacher-candidates?id=${encodeURIComponent(id)}`)
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: '删除教师候选失败' }))
-    throw new Error(error.error || '删除教师候选失败')
+    const error = await response.json().catch(() => ({ error: '删除老师面试失败' }))
+    throw new Error(error.error || '删除老师面试失败')
   }
 
   return true
 }
 
 /**
- * 教师候选服务对象
+ * 老师面试服务对象
  */
 export const TeacherCandidatesService = {
   getTeacherCandidates,

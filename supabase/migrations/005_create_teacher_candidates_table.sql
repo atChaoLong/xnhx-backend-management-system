@@ -33,10 +33,8 @@ CREATE TABLE IF NOT EXISTS public.teacher_candidates (
   -- 面试评分
   interview_month TEXT,
   interview_week INTEGER,
-  appointment_week INTEGER,
   registration_date DATE,
   interview_score DECIMAL(5,2),
-  interview_score_total DECIMAL(5,2),
   logical_expression_score DECIMAL(5,2),
   dress_appearance_score DECIMAL(5,2),
   material_preparation_score DECIMAL(5,2),
@@ -44,7 +42,6 @@ CREATE TABLE IF NOT EXISTS public.teacher_candidates (
 
   -- 素质评价
   initial_evaluation TEXT,
-  interview_evaluation TEXT,
   teacher_characteristics TEXT,
   mandarin_level TEXT,
   research_ability TEXT,
@@ -53,7 +50,6 @@ CREATE TABLE IF NOT EXISTS public.teacher_candidates (
 
   -- 复核状态
   review_status TEXT DEFAULT '待复核' CHECK (review_status IN ('待复核', '已复核', '不符合')),
-  reviewer_name TEXT,
   review_result TEXT,
   review_evaluation_comment TEXT,
   review_date DATE,
@@ -68,11 +64,10 @@ CREATE TABLE IF NOT EXISTS public.teacher_candidates (
   teacher_feeling TEXT,
   suitable_for_students TEXT,
   scheduling_preference TEXT,
-  enrolled_teacher_name TEXT,
   hired_notes TEXT,
   teacher_level TEXT,
   can_teach_graduation_class BOOLEAN,
-  qr_code TEXT
+  qr_code_url TEXT
 );
 
 -- 创建索引
