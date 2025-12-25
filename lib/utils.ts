@@ -20,14 +20,6 @@ export function handleDatabaseError(error: any): { message: string; status: numb
     const constraintMatch = errorMessage.match(/unique constraint "([^"]+)"/)
     const constraintName = constraintMatch ? constraintMatch[1] : ''
 
-    // 根据约束名称返回具体的错误消息
-    if (constraintName.includes('category_code')) {
-      return {
-        message: '该字典分类和编码已存在，请使用不同的分类或编码',
-        status: 409  // Conflict
-      }
-    }
-
     // 通用唯一约束错误
     return {
       message: '数据已存在，请勿重复添加',
@@ -38,7 +30,7 @@ export function handleDatabaseError(error: any): { message: string; status: numb
   // 外键约束冲突 (PostgreSQL error code 23503)
   if (errorCode === '23503' || errorMessage.includes('foreign key') || errorMessage.includes('violates foreign key')) {
     return {
-      message: '关联的数据不存在，请检查后重试',
+      message: '该数据已被其他记录关联，无法删除',
       status: 400
     }
   }
