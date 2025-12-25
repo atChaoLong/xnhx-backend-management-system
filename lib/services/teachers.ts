@@ -39,7 +39,6 @@ export interface Teacher {
 
   // 教学经历
   teaching_style?: string
-  teaching_experience?: string
   success_cases?: string
 
   // 附件

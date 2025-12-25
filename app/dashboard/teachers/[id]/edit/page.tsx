@@ -45,7 +45,6 @@ export default function EditTeacherPage() {
     // 教学能力
     teaching_years: "",
     teaching_style: "",
-    teaching_experience: "",
     success_cases: "",
 
     // 其他
@@ -75,7 +74,6 @@ export default function EditTeacherPage() {
           university: data.university || "",
           teaching_years: data.teaching_years?.toString() || "",
           teaching_style: data.teaching_style || "",
-          teaching_experience: data.teaching_experience || "",
           success_cases: data.success_cases || "",
           notes: data.notes || "",
         })
@@ -143,7 +141,6 @@ export default function EditTeacherPage() {
         university: formData.university,
         teaching_years: formData.teaching_years ? parseInt(formData.teaching_years) : undefined,
         teaching_style: formData.teaching_style || undefined,
-        teaching_experience: formData.teaching_experience || undefined,
         success_cases: formData.success_cases || undefined,
         notes: formData.notes || undefined,
       }
@@ -404,17 +401,6 @@ export default function EditTeacherPage() {
                     placeholder="请描述教学特点"
                     value={formData.teaching_style}
                     onChange={(e) => handleInputChange("teaching_style", e.target.value)}
-                    rows={3}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="teaching_experience">教学经历</Label>
-                  <Textarea
-                    id="teaching_experience"
-                    placeholder="请描述教学经历"
-                    value={formData.teaching_experience}
-                    onChange={(e) => handleInputChange("teaching_experience", e.target.value)}
                     rows={3}
                   />
                 </div>

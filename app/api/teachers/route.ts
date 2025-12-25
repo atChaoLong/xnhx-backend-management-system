@@ -94,7 +94,6 @@ export async function POST(request: NextRequest) {
       student_levels: body.student_levels || null,
       teaching_years: body.teaching_years || null,
       teaching_style: body.teaching_style || null,
-      teaching_experience: body.teaching_experience || null,
       success_cases: body.success_cases || null,
       photo_url: body.photo_url || null,
       review_screenshots: body.review_screenshots || null,
@@ -151,7 +150,7 @@ export async function PUT(request: NextRequest) {
       'subjects', 'grade_levels', 'used_classin', 'has_certificate',
       'education', 'university', 'available_times', 'textbook_versions',
       'student_regions', 'student_levels', 'teaching_years',
-      'teaching_style', 'teaching_experience', 'success_cases',
+      'teaching_style', 'success_cases',
       'photo_url', 'review_screenshots', 'notes', 'bank_card_info'
     ]
 

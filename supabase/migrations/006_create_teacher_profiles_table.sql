@@ -30,7 +30,6 @@ CREATE TABLE IF NOT EXISTS public.teacher_profiles (
 
   -- 教学经历
   teaching_style TEXT,                   -- 教学特点
-  teaching_experience TEXT,              -- 教学经历
   success_cases TEXT,                    -- 优秀学员提分案例
 
   -- 附件
