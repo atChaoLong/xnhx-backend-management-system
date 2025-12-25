@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
+import { handleDatabaseError } from "@/lib/utils"
 
 const logger = createLogger('API:Transactions')
 
@@ -121,10 +122,8 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       logger.error('创建异动记录失败', { message: error.message, code: error.code, details: error.details })
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      )
+      const { message, status } = handleDatabaseError(error)
+      return NextResponse.json({ error: message }, { status })
     }
 
     logger.info('创建异动记录成功', { id: data.id, student_name: data.student_name })
@@ -197,10 +196,8 @@ export async function PUT(request: NextRequest) {
 
     if (error) {
       logger.error('更新异动记录失败', { id, message: error.message, code: error.code })
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      )
+      const { message, status } = handleDatabaseError(error)
+      return NextResponse.json({ error: message }, { status })
     }
 
     logger.info('更新异动记录成功', { id, student_name: data.student_name })
@@ -236,10 +233,8 @@ export async function DELETE(request: NextRequest) {
 
     if (error) {
       logger.error('删除异动记录失败', { id, message: error.message, code: error.code })
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      )
+      const { message, status } = handleDatabaseError(error)
+      return NextResponse.json({ error: message }, { status })
     }
 
     logger.info('删除异动记录成功', { id })

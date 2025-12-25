@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
+import { handleDatabaseError } from "@/lib/utils"
 
 const logger = createLogger('API:WechatAccounts')
 
@@ -146,10 +147,8 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       logger.error('创建微信号失败', { message: error.message, code: error.code, details: error.details })
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      )
+      const { message, status } = handleDatabaseError(error)
+      return NextResponse.json({ error: message }, { status })
     }
 
     logger.info('创建微信号成功', { id: data.id, wechat_id: data.wechat_id })
@@ -212,10 +211,8 @@ export async function PUT(request: NextRequest) {
 
     if (error) {
       logger.error('更新微信号失败', { id, message: error.message, code: error.code })
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      )
+      const { message, status } = handleDatabaseError(error)
+      return NextResponse.json({ error: message }, { status })
     }
 
     logger.info('更新微信号成功', { id, wechat_id: data.wechat_id })
@@ -251,10 +248,8 @@ export async function DELETE(request: NextRequest) {
 
     if (error) {
       logger.error('删除微信号失败', { id, message: error.message, code: error.code })
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      )
+      const { message, status } = handleDatabaseError(error)
+      return NextResponse.json({ error: message }, { status })
     }
 
     logger.info('删除微信号成功', { id })

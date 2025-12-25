@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
+import { handleDatabaseError } from "@/lib/utils"
 
 const logger = createLogger('API:Teachers')
 
@@ -111,10 +112,8 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       logger.error('创建老师失败', { message: error.message, code: error.code, details: error.details })
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      )
+      const { message, status } = handleDatabaseError(error)
+      return NextResponse.json({ error: message }, { status })
     }
 
     logger.info('创建老师成功', { id: data.id, teacher_name: data.teacher_name })
@@ -171,10 +170,8 @@ export async function PUT(request: NextRequest) {
 
     if (error) {
       logger.error('更新老师失败', { id, message: error.message, code: error.code })
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      )
+      const { message, status } = handleDatabaseError(error)
+      return NextResponse.json({ error: message }, { status })
     }
 
     logger.info('更新老师成功', { id, teacher_name: data.teacher_name })
@@ -210,10 +207,8 @@ export async function DELETE(request: NextRequest) {
 
     if (error) {
       logger.error('删除老师失败', { id, message: error.message, code: error.code })
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      )
+      const { message, status } = handleDatabaseError(error)
+      return NextResponse.json({ error: message }, { status })
     }
 
     logger.info('删除老师成功', { id })

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
+import { handleDatabaseError } from '@/lib/utils'
 
 const logger = createLogger('API:Leads')
 
@@ -55,10 +56,8 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       logger.error('创建线索失败', { message: error.message, code: error.code })
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      )
+      const { message, status } = handleDatabaseError(error)
+      return NextResponse.json({ error: message }, { status })
     }
 
     logger.info('创建线索成功', { leadId: data.id })
@@ -103,10 +102,8 @@ export async function PUT(request: NextRequest) {
         message: error.message,
         code: error.code,
       })
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      )
+      const { message, status } = handleDatabaseError(error)
+      return NextResponse.json({ error: message }, { status })
     }
 
     logger.info('更新线索成功', { leadId: data.id })

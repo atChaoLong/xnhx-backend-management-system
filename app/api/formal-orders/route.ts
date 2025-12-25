@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
+import { handleDatabaseError } from "@/lib/utils"
 
 const logger = createLogger('API:FormalOrders')
 
@@ -235,10 +236,8 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       logger.error('创建正式订单失败', { message: error.message, code: error.code, details: error.details })
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      )
+      const { message, status } = handleDatabaseError(error)
+      return NextResponse.json({ error: message }, { status })
     }
 
     logger.info('创建正式订单成功', { id: data.id, order_number: data.order_number })
@@ -311,10 +310,8 @@ export async function PUT(request: NextRequest) {
 
     if (error) {
       logger.error('更新正式订单失败', { id, message: error.message, code: error.code })
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      )
+      const { message, status } = handleDatabaseError(error)
+      return NextResponse.json({ error: message }, { status })
     }
 
     logger.info('更新正式订单成功', { id, order_number: data.order_number })
@@ -350,10 +347,8 @@ export async function DELETE(request: NextRequest) {
 
     if (error) {
       logger.error('删除正式订单失败', { id, message: error.message, code: error.code })
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      )
+      const { message, status } = handleDatabaseError(error)
+      return NextResponse.json({ error: message }, { status })
     }
 
     logger.info('删除正式订单成功', { id })
