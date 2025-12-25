@@ -57,10 +57,13 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <Header title="控制台" description={`欢迎回来，${user?.name || '用户'}`} />
+      <Header
+        title="欢迎使用小牛好学教育管理系统"
+        description={`欢迎回来，${user?.name || '用户'}`}
+      />
 
       <div className="flex-1 overflow-auto p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {stats.map((stat) => (
             <Card key={stat.title}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -74,17 +77,6 @@ export default function DashboardPage() {
             </Card>
           ))}
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>欢迎使用小牛好学教育管理系统</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              系统已成功连接到 Supabase，所有功能正在运行中。
-            </p>
-          </CardContent>
-        </Card>
       </div>
     </div>
   )
