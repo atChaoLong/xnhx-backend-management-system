@@ -40,12 +40,12 @@ export default function EditFormalOrderPage() {
   const [students, setStudents] = useState<any[]>([])
 
   // 多选
-  const [selectedTeachers, setSelectedTeachers] = useState<string[]>([])
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
 
   const [formData, setFormData] = useState({
     // 关联字段
     student_id: "",
+    teacher_name: "", // 单选老师
 
     // 订单基本信息
     order_number: "",
@@ -84,6 +84,7 @@ export default function EditFormalOrderPage() {
         // 设置表单数据
         setFormData({
           student_id: data.student_id || "",
+          teacher_name: data.teacher_names?.[0] || "", // 取第一个老师
           order_number: data.order_number || "",
           order_type: data.order_type || "",
           consultant_teacher: data.consultant_teacher || "",
@@ -104,7 +105,6 @@ export default function EditFormalOrderPage() {
         })
 
         // 设置多选数组
-        setSelectedTeachers(data.teacher_names || [])
         setSelectedSubjects(data.subjects || [])
       } catch (error: any) {
         toast({
@@ -152,17 +152,6 @@ export default function EditFormalOrderPage() {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  // 处理老师多选
-  const handleTeacherToggle = (teacherName: string) => {
-    setSelectedTeachers((prev) => {
-      if (prev.includes(teacherName)) {
-        return prev.filter((t) => t !== teacherName)
-      } else {
-        return [...prev, teacherName]
-      }
-    })
-  }
-
   // 处理学科多选
   const handleSubjectToggle = (subjectLabel: string) => {
     setSelectedSubjects((prev) => {
@@ -187,11 +176,11 @@ export default function EditFormalOrderPage() {
       return
     }
 
-    if (selectedTeachers.length === 0) {
+    if (!formData.teacher_name) {
       toast({
         variant: "destructive",
         title: "验证失败",
-        description: "至少选择一位老师",
+        description: "请选择老师",
       })
       return
     }
@@ -244,7 +233,7 @@ export default function EditFormalOrderPage() {
         order_type: formData.order_type.trim(),
         consultant_teacher: formData.consultant_teacher.trim(),
         order_notes: formData.order_notes.trim() || undefined,
-        teacher_names: selectedTeachers,
+        teacher_names: [formData.teacher_name], // 单选老师转为数组
         subjects: selectedSubjects,
         total_sessions: parseInt(formData.total_sessions),
         session_duration: parseFloat(formData.session_duration),
@@ -415,31 +404,23 @@ export default function EditFormalOrderPage() {
                 <h3 className="text-sm font-semibold">课程安排</h3>
 
                 <div className="space-y-2">
-                  <Label>
-                    老师姓名 (多选) <span className="text-destructive">*</span>
+                  <Label htmlFor="teacher_name">
+                    老师姓名 <span className="text-destructive">*</span>
                   </Label>
-                  <div className="border rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
+                  <select
+                    id="teacher_name"
+                    value={formData.teacher_name}
+                    onChange={(e) => handleInputChange("teacher_name", e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                    required
+                  >
+                    <option value="">请选择老师</option>
                     {teachers.map((teacher) => (
-                      <div key={teacher.id} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={`teacher-${teacher.id}`}
-                          checked={selectedTeachers.includes(teacher.teacher_name)}
-                          onChange={() => handleTeacherToggle(teacher.teacher_name)}
-                          className="h-4 w-4"
-                        />
-                        <label
-                          htmlFor={`teacher-${teacher.id}`}
-                          className="text-sm cursor-pointer flex-1"
-                        >
-                          {teacher.teacher_name}
-                        </label>
-                      </div>
+                      <option key={teacher.id} value={teacher.teacher_name}>
+                        {teacher.teacher_name}
+                      </option>
                     ))}
-                  </div>
-                  {selectedTeachers.length === 0 && (
-                    <p className="text-xs text-destructive">至少选择一位老师</p>
-                  )}
+                  </select>
                 </div>
 
                 <div className="space-y-2">
