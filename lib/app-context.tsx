@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react"
+import { Toaster } from "@/hooks/use-toast"
 import type {
   User,
   Lead,
@@ -489,7 +490,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addActivity,
   }
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>
+  return (
+    <AppContext.Provider value={value}>
+      {children}
+      <Toaster />
+    </AppContext.Provider>
+  )
 }
 
 export function useApp() {
