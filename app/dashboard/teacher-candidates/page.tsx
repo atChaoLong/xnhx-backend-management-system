@@ -5,7 +5,15 @@ import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Edit, Trash2, Loader2 } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { TeacherCandidatesService, TeacherCandidate } from "@/lib/services/teacherCandidates"
@@ -15,6 +23,8 @@ export default function TeacherCandidatesPage() {
   const [candidates, setCandidates] = useState<TeacherCandidate[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [candidateToDelete, setCandidateToDelete] = useState<string | null>(null)
   const { toast } = useToast()
 
   // 加载候选列表
@@ -39,17 +49,24 @@ export default function TeacherCandidatesPage() {
   }, [fetchCandidates])
 
   // 删除面试
-  const handleDelete = async (id: string) => {
-    if (!confirm("确定要删除这个面试记录吗？")) return
+  const handleDeleteClick = (id: string) => {
+    setCandidateToDelete(id)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!candidateToDelete) return
 
     try {
-      setIsDeleting(id)
-      await TeacherCandidatesService.deleteTeacherCandidate(id)
+      setIsDeleting(candidateToDelete)
+      await TeacherCandidatesService.deleteTeacherCandidate(candidateToDelete)
       toast({
         title: "删除成功",
         description: "面试记录已删除",
       })
       fetchCandidates()
+      setDeleteDialogOpen(false)
+      setCandidateToDelete(null)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -59,6 +76,11 @@ export default function TeacherCandidatesPage() {
     } finally {
       setIsDeleting(null)
     }
+  }
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false)
+    setCandidateToDelete(null)
   }
 
   // 获取复核状态标签样式
@@ -178,7 +200,7 @@ export default function TeacherCandidatesPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDelete(candidate.id)}
+                              onClick={() => handleDeleteClick(candidate.id)}
                               disabled={isDeleting === candidate.id}
                             >
                               {isDeleting === candidate.id ? (
@@ -198,6 +220,36 @@ export default function TeacherCandidatesPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 删除确认对话框 */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <DialogTitle>确认删除</DialogTitle>
+            </div>
+            <DialogDescription>
+              确定要删除这个面试记录吗？此操作无法撤销。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleDeleteCancel} disabled={isDeleting !== null}>
+              取消
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteConfirm} disabled={isDeleting !== null}>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  删除中...
+                </>
+              ) : (
+                "确认删除"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

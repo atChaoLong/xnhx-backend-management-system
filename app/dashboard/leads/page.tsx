@@ -6,7 +6,15 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, Loader2 } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { LeadsService, Lead } from "@/lib/services/leads"
@@ -18,6 +26,8 @@ export default function LeadsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
   const [isLoadingDict, setIsLoadingDict] = useState(true)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [leadToDelete, setLeadToDelete] = useState<string | null>(null)
   const { toast } = useToast()
 
   // 字典数据映射
@@ -82,17 +92,24 @@ export default function LeadsPage() {
   }, [fetchLeads])
 
   // 删除线索
-  const handleDelete = async (id: string) => {
-    if (!confirm("确定要删除这条线索吗？")) return
+  const handleDeleteClick = (id: string) => {
+    setLeadToDelete(id)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!leadToDelete) return
 
     try {
-      setIsDeleting(id)
-      await LeadsService.deleteLead(id)
-      setLeads((prev) => prev.filter((l) => l.id !== id))
+      setIsDeleting(leadToDelete)
+      await LeadsService.deleteLead(leadToDelete)
+      setLeads((prev) => prev.filter((l) => l.id !== leadToDelete))
       toast({
         title: "删除成功",
         description: "线索已删除",
       })
+      setDeleteDialogOpen(false)
+      setLeadToDelete(null)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -102,6 +119,11 @@ export default function LeadsPage() {
     } finally {
       setIsDeleting(null)
     }
+  }
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false)
+    setLeadToDelete(null)
   }
 
   const formatSubjects = (subjects: string[]) => {
@@ -217,7 +239,7 @@ export default function LeadsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDelete(lead.id)}
+                              onClick={() => handleDeleteClick(lead.id)}
                               disabled={isDeleting === lead.id}
                             >
                               {isDeleting === lead.id ? (
@@ -237,6 +259,36 @@ export default function LeadsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 删除确认对话框 */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <DialogTitle>确认删除</DialogTitle>
+            </div>
+            <DialogDescription>
+              确定要删除这条线索吗？此操作无法撤销。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleDeleteCancel} disabled={isDeleting !== null}>
+              取消
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteConfirm} disabled={isDeleting !== null}>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  删除中...
+                </>
+              ) : (
+                "确认删除"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

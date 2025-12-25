@@ -5,7 +5,15 @@ import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Edit, Trash2, Loader2 } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { TransactionsService } from "@/lib/services/transactions"
@@ -15,6 +23,8 @@ export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null)
   const { toast } = useToast()
 
   // 加载异动记录列表
@@ -39,17 +49,24 @@ export default function TransactionsPage() {
   }, [fetchTransactions])
 
   // 删除异动记录
-  const handleDelete = async (id: string) => {
-    if (!confirm("确定要删除这个异动记录吗？")) return
+  const handleDeleteClick = (id: string) => {
+    setTransactionToDelete(id)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!transactionToDelete) return
 
     try {
-      setIsDeleting(id)
-      await TransactionsService.deleteTransaction(id)
+      setIsDeleting(transactionToDelete)
+      await TransactionsService.deleteTransaction(transactionToDelete)
       toast({
         title: "删除成功",
         description: "异动记录已删除",
       })
       fetchTransactions()
+      setDeleteDialogOpen(false)
+      setTransactionToDelete(null)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -59,6 +76,11 @@ export default function TransactionsPage() {
     } finally {
       setIsDeleting(null)
     }
+  }
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false)
+    setTransactionToDelete(null)
   }
 
   // 获取状态标签样式
@@ -198,7 +220,7 @@ export default function TransactionsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDelete(transaction.id)}
+                              onClick={() => handleDeleteClick(transaction.id)}
                               disabled={isDeleting === transaction.id}
                             >
                               {isDeleting === transaction.id ? (
@@ -218,6 +240,36 @@ export default function TransactionsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 删除确认对话框 */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <DialogTitle>确认删除</DialogTitle>
+            </div>
+            <DialogDescription>
+              确定要删除这个异动记录吗？此操作无法撤销。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleDeleteCancel} disabled={isDeleting !== null}>
+              取消
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteConfirm} disabled={isDeleting !== null}>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  删除中...
+                </>
+              ) : (
+                "确认删除"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

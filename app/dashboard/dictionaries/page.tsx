@@ -7,9 +7,17 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, Loader2 } from "lucide-react"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle } from "lucide-react"
 import { DictionaryService, DictionaryItem } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
 
@@ -45,6 +53,8 @@ export default function DictionariesPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [dictToDelete, setDictToDelete] = useState<string | null>(null)
   const { toast } = useToast()
 
   // 加载字典列表
@@ -69,17 +79,22 @@ export default function DictionariesPage() {
   }, [])
 
   // 删除字典项
-  const handleDelete = async (id: string) => {
-    if (!confirm("确定要删除这条字典项吗？")) return
+  const handleDeleteClick = (id: string) => {
+    setDictToDelete(id)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!dictToDelete) return
 
     try {
-      setIsDeleting(id)
-      await DictionaryService.deleteDictionary(id)
+      setIsDeleting(dictToDelete)
+      await DictionaryService.deleteDictionary(dictToDelete)
 
       setDictionaries((prev) => {
         const newDicts = { ...prev }
         Object.keys(newDicts).forEach(category => {
-          newDicts[category] = newDicts[category].filter(item => item.id !== id)
+          newDicts[category] = newDicts[category].filter(item => item.id !== dictToDelete)
         })
         return newDicts
       })
@@ -88,6 +103,8 @@ export default function DictionariesPage() {
         title: "删除成功",
         description: "字典项已删除",
       })
+      setDeleteDialogOpen(false)
+      setDictToDelete(null)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -97,6 +114,11 @@ export default function DictionariesPage() {
     } finally {
       setIsDeleting(null)
     }
+  }
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false)
+    setDictToDelete(null)
   }
 
   // 获取当前显示的字典项
@@ -213,7 +235,7 @@ export default function DictionariesPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDelete(item.id)}
+                              onClick={() => handleDeleteClick(item.id)}
                               disabled={isDeleting === item.id}
                             >
                               {isDeleting === item.id ? (
@@ -233,6 +255,36 @@ export default function DictionariesPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 删除确认对话框 */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <DialogTitle>确认删除</DialogTitle>
+            </div>
+            <DialogDescription>
+              确定要删除这条字典项吗？此操作无法撤销。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleDeleteCancel} disabled={isDeleting !== null}>
+              取消
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteConfirm} disabled={isDeleting !== null}>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  删除中...
+                </>
+              ) : (
+                "确认删除"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

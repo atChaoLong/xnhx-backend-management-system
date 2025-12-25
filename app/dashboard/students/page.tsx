@@ -5,7 +5,15 @@ import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Edit, Trash2, Loader2 } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { StudentsService, Student } from "@/lib/services/students"
@@ -17,6 +25,8 @@ export default function StudentsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
   const [isLoadingDict, setIsLoadingDict] = useState(true)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [studentToDelete, setStudentToDelete] = useState<string | null>(null)
   const { toast } = useToast()
 
   // 字典数据映射
@@ -72,17 +82,24 @@ export default function StudentsPage() {
   }, [fetchStudents])
 
   // 删除学生
-  const handleDelete = async (id: string) => {
-    if (!confirm("确定要删除这个学生吗？")) return
+  const handleDeleteClick = (id: string) => {
+    setStudentToDelete(id)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!studentToDelete) return
 
     try {
-      setIsDeleting(id)
-      await StudentsService.deleteStudent(id)
+      setIsDeleting(studentToDelete)
+      await StudentsService.deleteStudent(studentToDelete)
       toast({
         title: "删除成功",
         description: "学生已删除",
       })
       fetchStudents()
+      setDeleteDialogOpen(false)
+      setStudentToDelete(null)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -92,6 +109,11 @@ export default function StudentsPage() {
     } finally {
       setIsDeleting(null)
     }
+  }
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false)
+    setStudentToDelete(null)
   }
 
   // 获取标签的辅助函数
@@ -188,7 +210,7 @@ export default function StudentsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDelete(student.id)}
+                              onClick={() => handleDeleteClick(student.id)}
                               disabled={isDeleting === student.id}
                             >
                               {isDeleting === student.id ? (
@@ -208,6 +230,36 @@ export default function StudentsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 删除确认对话框 */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <DialogTitle>确认删除</DialogTitle>
+            </div>
+            <DialogDescription>
+              确定要删除这个学生吗？此操作无法撤销。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleDeleteCancel} disabled={isDeleting !== null}>
+              取消
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteConfirm} disabled={isDeleting !== null}>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  删除中...
+                </>
+              ) : (
+                "确认删除"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

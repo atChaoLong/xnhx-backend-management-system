@@ -5,7 +5,15 @@ import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Edit, Trash2, Loader2 } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { TrialLessonsService, TrialLesson } from "@/lib/services/trialLessons"
@@ -15,6 +23,8 @@ export default function TrialLessonsPage() {
   const [lessons, setLessons] = useState<TrialLesson[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [lessonToDelete, setLessonToDelete] = useState<string | null>(null)
   const { toast } = useToast()
 
   // 加载试听课程列表
@@ -39,17 +49,24 @@ export default function TrialLessonsPage() {
   }, [fetchLessons])
 
   // 删除试听课程
-  const handleDelete = async (id: string) => {
-    if (!confirm("确定要删除这个试听课程吗？")) return
+  const handleDeleteClick = (id: string) => {
+    setLessonToDelete(id)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!lessonToDelete) return
 
     try {
-      setIsDeleting(id)
-      await TrialLessonsService.deleteTrialLesson(id)
+      setIsDeleting(lessonToDelete)
+      await TrialLessonsService.deleteTrialLesson(lessonToDelete)
       toast({
         title: "删除成功",
         description: "试听课程已删除",
       })
       fetchLessons()
+      setDeleteDialogOpen(false)
+      setLessonToDelete(null)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -59,6 +76,11 @@ export default function TrialLessonsPage() {
     } finally {
       setIsDeleting(null)
     }
+  }
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false)
+    setLessonToDelete(null)
   }
 
   // 获取状态标签样式
@@ -237,7 +259,7 @@ export default function TrialLessonsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDelete(lesson.id)}
+                              onClick={() => handleDeleteClick(lesson.id)}
                               disabled={isDeleting === lesson.id}
                             >
                               {isDeleting === lesson.id ? (
@@ -257,6 +279,36 @@ export default function TrialLessonsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 删除确认对话框 */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <DialogTitle>确认删除</DialogTitle>
+            </div>
+            <DialogDescription>
+              确定要删除这个试听课程吗？此操作无法撤销。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleDeleteCancel} disabled={isDeleting !== null}>
+              取消
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteConfirm} disabled={isDeleting !== null}>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  删除中...
+                </>
+              ) : (
+                "确认删除"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

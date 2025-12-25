@@ -5,7 +5,15 @@ import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Edit, Trash2, Loader2 } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { WechatAccountsService, WechatAccount } from "@/lib/services/wechatAccounts"
@@ -15,6 +23,8 @@ export default function WechatAccountsPage() {
   const [accounts, setAccounts] = useState<WechatAccount[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [accountToDelete, setAccountToDelete] = useState<string | null>(null)
   const { toast } = useToast()
 
   // 加载微信号列表
@@ -39,17 +49,24 @@ export default function WechatAccountsPage() {
   }, [fetchAccounts])
 
   // 删除微信号
-  const handleDelete = async (id: string) => {
-    if (!confirm("确定要删除这个微信号吗？")) return
+  const handleDeleteClick = (id: string) => {
+    setAccountToDelete(id)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!accountToDelete) return
 
     try {
-      setIsDeleting(id)
-      await WechatAccountsService.deleteWechatAccount(id)
+      setIsDeleting(accountToDelete)
+      await WechatAccountsService.deleteWechatAccount(accountToDelete)
       toast({
         title: "删除成功",
         description: "微信号已删除",
       })
       fetchAccounts()
+      setDeleteDialogOpen(false)
+      setAccountToDelete(null)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -59,6 +76,11 @@ export default function WechatAccountsPage() {
     } finally {
       setIsDeleting(null)
     }
+  }
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false)
+    setAccountToDelete(null)
   }
 
   // 获取状态标签样式
@@ -180,7 +202,7 @@ export default function WechatAccountsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDelete(account.id)}
+                              onClick={() => handleDeleteClick(account.id)}
                               disabled={isDeleting === account.id}
                             >
                               {isDeleting === account.id ? (
@@ -200,6 +222,36 @@ export default function WechatAccountsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 删除确认对话框 */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <DialogTitle>确认删除</DialogTitle>
+            </div>
+            <DialogDescription>
+              确定要删除这个微信号吗？此操作无法撤销。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleDeleteCancel} disabled={isDeleting !== null}>
+              取消
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteConfirm} disabled={isDeleting !== null}>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  删除中...
+                </>
+              ) : (
+                "确认删除"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
