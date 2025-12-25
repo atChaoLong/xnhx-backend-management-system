@@ -158,7 +158,6 @@ export async function POST(request: NextRequest) {
       student_type: body.student_type?.trim() || null,
       matched_teacher: body.matched_teacher?.trim() || null,
       confirmed_teacher: body.confirmed_teacher?.trim() || null,
-      class_link: body.class_link?.trim() || null,
     }
 
     logger.debug('创建试听课程 - 准备插入的数据', { insertData })
@@ -218,8 +217,7 @@ export async function PUT(request: NextRequest) {
       'child_name', 'status', 'lead_id', 'region', 'grade', 'trial_subject',
       'trial_time', 'trial_duration', 'phone', 'channel', 'trial_amount',
       'payment_proof', 'urgency_level', 'notes', 'assigned_consultant',
-      'course_status', 'student_type', 'matched_teacher', 'confirmed_teacher',
-      'class_link'
+      'course_status', 'student_type', 'matched_teacher', 'confirmed_teacher'
     ]
 
     optionalFields.forEach(field => {

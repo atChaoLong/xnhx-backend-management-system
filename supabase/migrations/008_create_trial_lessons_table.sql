@@ -35,8 +35,7 @@ CREATE TABLE IF NOT EXISTS public.trial_lessons (
 
     -- 教务信息
     matched_teacher TEXT,
-    confirmed_teacher TEXT,
-    class_link TEXT
+    confirmed_teacher TEXT
 );
 
 -- 创建索引
@@ -47,7 +46,6 @@ CREATE INDEX IF NOT EXISTS idx_trial_lessons_trial_time ON public.trial_lessons(
 CREATE INDEX IF NOT EXISTS idx_trial_lessons_region ON public.trial_lessons(region);
 CREATE INDEX IF NOT EXISTS idx_trial_lessons_grade ON public.trial_lessons(grade);
 CREATE INDEX IF NOT EXISTS idx_trial_lessons_urgency ON public.trial_lessons(urgency_level);
-CREATE INDEX IF NOT EXISTS idx_trial_lessons_class_link ON public.trial_lessons(class_link);
 
 -- 创建更新时间触发器
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -84,4 +82,3 @@ COMMENT ON COLUMN public.trial_lessons.course_status IS '课程状态';
 COMMENT ON COLUMN public.trial_lessons.student_type IS '学生类型';
 COMMENT ON COLUMN public.trial_lessons.matched_teacher IS '匹配老师';
 COMMENT ON COLUMN public.trial_lessons.confirmed_teacher IS '确认老师（教务）';
-COMMENT ON COLUMN public.trial_lessons.class_link IS '上课链接';

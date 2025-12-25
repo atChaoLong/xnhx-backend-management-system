@@ -55,7 +55,6 @@ export default function EditTrialLessonPage() {
     // 教务信息
     matched_teacher: "",
     confirmed_teacher: "",
-    class_link: "",
   })
 
   // 加载试听课程数据
@@ -87,7 +86,6 @@ export default function EditTrialLessonPage() {
           student_type: data.student_type || "",
           matched_teacher: data.matched_teacher || "",
           confirmed_teacher: data.confirmed_teacher || "",
-          class_link: data.class_link || "",
         })
       } catch (error: any) {
         toast({
@@ -159,7 +157,6 @@ export default function EditTrialLessonPage() {
         student_type: formData.student_type.trim() || undefined,
         matched_teacher: formData.matched_teacher.trim() || undefined,
         confirmed_teacher: formData.confirmed_teacher.trim() || undefined,
-        class_link: formData.class_link.trim() || undefined,
       }
 
       await TrialLessonsService.updateTrialLesson(payload)
@@ -488,26 +485,14 @@ export default function EditTrialLessonPage() {
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">教务信息</h3>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmed_teacher">确认老师（教务）</Label>
-                    <Input
-                      id="confirmed_teacher"
-                      placeholder="请输入确认老师"
-                      value={formData.confirmed_teacher}
-                      onChange={(e) => handleInputChange("confirmed_teacher", e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="class_link">上课链接</Label>
-                    <Input
-                      id="class_link"
-                      placeholder="请输入上课链接"
-                      value={formData.class_link}
-                      onChange={(e) => handleInputChange("class_link", e.target.value)}
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmed_teacher">确认老师（教务）</Label>
+                  <Input
+                    id="confirmed_teacher"
+                    placeholder="请输入确认老师"
+                    value={formData.confirmed_teacher}
+                    onChange={(e) => handleInputChange("confirmed_teacher", e.target.value)}
+                  />
                 </div>
               </div>
 

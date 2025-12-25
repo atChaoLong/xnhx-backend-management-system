@@ -179,7 +179,7 @@ export default function NewDailyLeadPage() {
                     onCheckedChange={(checked) => handleInputChange("is_added", checked as boolean)}
                   />
                   <Label htmlFor="is_added" className="cursor-pointer">
-                    已添加（转为候选人）
+                    已添加
                   </Label>
                 </div>
 

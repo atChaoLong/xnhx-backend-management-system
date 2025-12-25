@@ -37,7 +37,6 @@ export interface TrialLesson {
   // 教务信息
   matched_teacher?: string
   confirmed_teacher?: string
-  class_link?: string
 }
 
 export interface NewTrialLesson {
@@ -73,7 +72,6 @@ export interface NewTrialLesson {
   // 教务信息
   matched_teacher?: string
   confirmed_teacher?: string
-  class_link?: string
 }
 
 /**
