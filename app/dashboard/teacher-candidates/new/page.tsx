@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2 } from "lucide-react"
 import { TeacherCandidatesService, NewTeacherCandidate } from "@/lib/services/teacherCandidates"
+import { DailyLeadsService, DailyLead } from "@/lib/services/dailyLeads"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 
@@ -18,6 +19,8 @@ export default function NewTeacherCandidatePage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [dailyLeads, setDailyLeads] = useState<DailyLead[]>([])
+  const [isLoadingLeads, setIsLoadingLeads] = useState(true)
 
   const [formData, setFormData] = useState({
     // 基本信息
@@ -52,6 +55,36 @@ export default function NewTeacherCandidatePage() {
     teacher_level: "",
     can_teach_graduation_class: false,
   })
+
+  // 加载每日线索列表
+  useEffect(() => {
+    const loadDailyLeads = async () => {
+      try {
+        setIsLoadingLeads(true)
+        const data = await DailyLeadsService.getDailyLeads()
+        setDailyLeads(data)
+      } catch (error: any) {
+        console.error("加载每日线索失败:", error)
+      } finally {
+        setIsLoadingLeads(false)
+      }
+    }
+
+    loadDailyLeads()
+  }, [])
+
+  // 处理每日线索选择
+  const handleLeadSelect = (leadId: string) => {
+    const selectedLead = dailyLeads.find(lead => lead.id === leadId)
+    if (selectedLead) {
+      setFormData((prev) => ({
+        ...prev,
+        daily_lead_id: leadId,
+        name: selectedLead.name,
+        wechat_id: selectedLead.wechat_number,
+      }))
+    }
+  }
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -126,6 +159,20 @@ export default function NewTeacherCandidatePage() {
     }
   }
 
+  if (isLoadingLeads) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header
+          title="新增教师候选"
+          description="填写教师候选信息（核心字段）"
+        />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col h-full">
       <Header
@@ -140,6 +187,26 @@ export default function NewTeacherCandidatePage() {
               {/* 基本信息 */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">基本信息</h3>
+
+                <div className="space-y-2">
+                  <Label htmlFor="daily_lead_id">从每日线索选择（可选）</Label>
+                  <select
+                    id="daily_lead_id"
+                    value={formData.daily_lead_id}
+                    onChange={(e) => handleLeadSelect(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                  >
+                    <option value="">请选择每日线索（自动填充信息）</option>
+                    {dailyLeads.map((lead) => (
+                      <option key={lead.id} value={lead.id}>
+                        {lead.name} - {lead.wechat_number} ({lead.assigned_person})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    选择线索后将自动填充姓名和微信号
+                  </p>
+                </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -167,16 +234,6 @@ export default function NewTeacherCandidatePage() {
                       required
                     />
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="daily_lead_id">每日线索ID</Label>
-                  <Input
-                    id="daily_lead_id"
-                    placeholder="关联的每日线索ID（可选）"
-                    value={formData.daily_lead_id}
-                    onChange={(e) => handleInputChange("daily_lead_id", e.target.value)}
-                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
