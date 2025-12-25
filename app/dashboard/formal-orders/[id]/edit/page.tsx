@@ -9,8 +9,12 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
 import { FormalOrdersService, FormalOrder, generateOrderNumber } from "@/lib/services/formalOrders"
+import { TeachersService } from "@/lib/services/teachers"
+import { StudentsService } from "@/lib/services/students"
+import { getDictionaryItems } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
+import { Textarea } from "@/components/ui/textarea"
 
 export default function EditFormalOrderPage() {
   const router = useRouter()
@@ -21,6 +25,23 @@ export default function EditFormalOrderPage() {
   const [order, setOrder] = useState<FormalOrder | null>(null)
 
   const orderId = params.id as string
+
+  // 字典数据
+  const [orderTypes, setOrderTypes] = useState<any[]>([])
+  const [paymentChannels, setPaymentChannels] = useState<any[]>([])
+  const [consultants, setConsultants] = useState<any[]>([])
+  const [sessionDurations, setSessionDurations] = useState<any[]>([])
+  const [fixedModes, setFixedModes] = useState<any[]>([])
+  const [frequencies, setFrequencies] = useState<any[]>([])
+  const [subjects, setSubjects] = useState<any[]>([])
+
+  // 列表数据
+  const [teachers, setTeachers] = useState<any[]>([])
+  const [students, setStudents] = useState<any[]>([])
+
+  // 多选
+  const [selectedTeachers, setSelectedTeachers] = useState<string[]>([])
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
 
   const [formData, setFormData] = useState({
     // 关联字段
@@ -33,8 +54,6 @@ export default function EditFormalOrderPage() {
     order_notes: "",
 
     // 课程安排
-    teacher_names: "",
-    subjects: "",
     total_sessions: "",
     session_duration: "",
     fixed_mode: "",
@@ -69,8 +88,6 @@ export default function EditFormalOrderPage() {
           order_type: data.order_type || "",
           consultant_teacher: data.consultant_teacher || "",
           order_notes: data.order_notes || "",
-          teacher_names: data.teacher_names?.join(', ') || "",
-          subjects: data.subjects?.join(', ') || "",
           total_sessions: data.total_sessions?.toString() || "",
           session_duration: data.session_duration?.toString() || "",
           fixed_mode: data.fixed_mode || "",
@@ -85,6 +102,10 @@ export default function EditFormalOrderPage() {
           payment_time: data.payment_time ? new Date(data.payment_time).toISOString().slice(0, 16) : "",
           status: data.status || "active",
         })
+
+        // 设置多选数组
+        setSelectedTeachers(data.teacher_names || [])
+        setSelectedSubjects(data.subjects || [])
       } catch (error: any) {
         toast({
           variant: "destructive",
@@ -100,20 +121,93 @@ export default function EditFormalOrderPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId])
 
+  // 加载字典数据和列表数据
+  useEffect(() => {
+    const loadData = async () => {
+      const [orderTypeData, paymentChannelData, consultantData, sessionDurationData, fixedModeData, frequencyData, subjectData, teachersData, studentsData] = await Promise.all([
+        getDictionaryItems('payment_type'),
+        getDictionaryItems('payment_channel'),
+        getDictionaryItems('consultant'),
+        getDictionaryItems('class_duration'),
+        getDictionaryItems('fixed_mode'),
+        getDictionaryItems('class_frequency'),
+        getDictionaryItems('subject'),
+        TeachersService.getTeachers(),
+        StudentsService.getStudents(),
+      ])
+      setOrderTypes(orderTypeData)
+      setPaymentChannels(paymentChannelData)
+      setConsultants(consultantData)
+      setSessionDurations(sessionDurationData)
+      setFixedModes(fixedModeData)
+      setFrequencies(frequencyData)
+      setSubjects(subjectData)
+      setTeachers(teachersData)
+      setStudents(studentsData)
+    }
+    loadData()
+  }, [])
+
   const handleInputChange = (field: string, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  // 处理老师多选
+  const handleTeacherToggle = (teacherName: string) => {
+    setSelectedTeachers((prev) => {
+      if (prev.includes(teacherName)) {
+        return prev.filter((t) => t !== teacherName)
+      } else {
+        return [...prev, teacherName]
+      }
+    })
+  }
+
+  // 处理学科多选
+  const handleSubjectToggle = (subjectLabel: string) => {
+    setSelectedSubjects((prev) => {
+      if (prev.includes(subjectLabel)) {
+        return prev.filter((s) => s !== subjectLabel)
+      } else {
+        return [...prev, subjectLabel]
+      }
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     // 验证必填字段
+    if (!formData.student_id) {
+      toast({
+        variant: "destructive",
+        title: "验证失败",
+        description: "请选择学生",
+      })
+      return
+    }
+
+    if (selectedTeachers.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "验证失败",
+        description: "至少选择一位老师",
+      })
+      return
+    }
+
+    if (selectedSubjects.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "验证失败",
+        description: "至少选择一个学科",
+      })
+      return
+    }
+
     const requiredFields = [
-      { field: 'student_id', name: '学生ID' },
       { field: 'order_type', name: '订单类型' },
       { field: 'consultant_teacher', name: '签约顾问' },
-      { field: 'teacher_names', name: '老师姓名' },
-      { field: 'subjects', name: '学科' },
       { field: 'total_sessions', name: '总课时数' },
       { field: 'session_duration', name: '单课时长' },
       { field: 'fixed_mode', name: '固定模式' },
@@ -140,28 +234,6 @@ export default function EditFormalOrderPage() {
       }
     }
 
-    // 验证数组字段
-    const teacherArray = formData.teacher_names.split(',').map(s => s.trim()).filter(s => s)
-    const subjectArray = formData.subjects.split(',').map(s => s.trim()).filter(s => s)
-
-    if (teacherArray.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "验证失败",
-        description: "至少选择一位老师",
-      })
-      return
-    }
-
-    if (subjectArray.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "验证失败",
-        description: "至少选择一个学科",
-      })
-      return
-    }
-
     setIsSubmitting(true)
 
     try {
@@ -172,8 +244,8 @@ export default function EditFormalOrderPage() {
         order_type: formData.order_type.trim(),
         consultant_teacher: formData.consultant_teacher.trim(),
         order_notes: formData.order_notes.trim() || undefined,
-        teacher_names: teacherArray,
-        subjects: subjectArray,
+        teacher_names: selectedTeachers,
+        subjects: selectedSubjects,
         total_sessions: parseInt(formData.total_sessions),
         session_duration: parseFloat(formData.session_duration),
         fixed_mode: formData.fixed_mode.trim(),
@@ -254,15 +326,22 @@ export default function EditFormalOrderPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="student_id">
-                      学生ID <span className="text-destructive">*</span>
+                      选择学生 <span className="text-destructive">*</span>
                     </Label>
-                    <Input
+                    <select
                       id="student_id"
-                      placeholder="请输入学生ID"
                       value={formData.student_id}
                       onChange={(e) => handleInputChange("student_id", e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                       required
-                    />
+                    >
+                      <option value="">请选择学生</option>
+                      {students.map((student) => (
+                        <option key={student.id} value={student.id}>
+                          {student.student_name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="space-y-2">
@@ -282,37 +361,51 @@ export default function EditFormalOrderPage() {
                     <Label htmlFor="order_type">
                       订单类型 <span className="text-destructive">*</span>
                     </Label>
-                    <Input
+                    <select
                       id="order_type"
-                      placeholder="请输入订单类型"
                       value={formData.order_type}
                       onChange={(e) => handleInputChange("order_type", e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                       required
-                    />
+                    >
+                      <option value="">请选择订单类型</option>
+                      {orderTypes.map((type) => (
+                        <option key={type.id} value={type.label}>
+                          {type.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="consultant_teacher">
                       签约顾问/班主任 <span className="text-destructive">*</span>
                     </Label>
-                    <Input
+                    <select
                       id="consultant_teacher"
-                      placeholder="请输入签约顾问"
                       value={formData.consultant_teacher}
                       onChange={(e) => handleInputChange("consultant_teacher", e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                       required
-                    />
+                    >
+                      <option value="">请选择签约顾问/班主任</option>
+                      {consultants.map((consultant) => (
+                        <option key={consultant.id} value={consultant.label}>
+                          {consultant.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="order_notes">订单备注</Label>
-                  <textarea
+                  <Textarea
                     id="order_notes"
                     placeholder="请输入订单备注"
                     value={formData.order_notes}
                     onChange={(e) => handleInputChange("order_notes", e.target.value)}
-                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    rows={3}
                   />
                 </div>
               </div>
@@ -322,31 +415,59 @@ export default function EditFormalOrderPage() {
                 <h3 className="text-sm font-semibold">课程安排</h3>
 
                 <div className="space-y-2">
-                  <Label htmlFor="teacher_names">
-                    老师姓名 <span className="text-destructive">*</span>
+                  <Label>
+                    老师姓名 (多选) <span className="text-destructive">*</span>
                   </Label>
-                  <Input
-                    id="teacher_names"
-                    placeholder="多个老师用逗号分隔，如: 张老师,李老师"
-                    value={formData.teacher_names}
-                    onChange={(e) => handleInputChange("teacher_names", e.target.value)}
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground">多个老师用逗号分隔</p>
+                  <div className="border rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
+                    {teachers.map((teacher) => (
+                      <div key={teacher.id} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`teacher-${teacher.id}`}
+                          checked={selectedTeachers.includes(teacher.teacher_name)}
+                          onChange={() => handleTeacherToggle(teacher.teacher_name)}
+                          className="h-4 w-4"
+                        />
+                        <label
+                          htmlFor={`teacher-${teacher.id}`}
+                          className="text-sm cursor-pointer flex-1"
+                        >
+                          {teacher.teacher_name}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  {selectedTeachers.length === 0 && (
+                    <p className="text-xs text-destructive">至少选择一位老师</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="subjects">
-                    学科 <span className="text-destructive">*</span>
+                  <Label>
+                    学科 (多选) <span className="text-destructive">*</span>
                   </Label>
-                  <Input
-                    id="subjects"
-                    placeholder="多个学科用逗号分隔，如: 数学,英语"
-                    value={formData.subjects}
-                    onChange={(e) => handleInputChange("subjects", e.target.value)}
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground">多个学科用逗号分隔</p>
+                  <div className="border rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
+                    {subjects.map((subject) => (
+                      <div key={subject.id} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`subject-${subject.id}`}
+                          checked={selectedSubjects.includes(subject.label)}
+                          onChange={() => handleSubjectToggle(subject.label)}
+                          className="h-4 w-4"
+                        />
+                        <label
+                          htmlFor={`subject-${subject.id}`}
+                          className="text-sm cursor-pointer flex-1"
+                        >
+                          {subject.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  {selectedSubjects.length === 0 && (
+                    <p className="text-xs text-destructive">至少选择一个学科</p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -368,15 +489,20 @@ export default function EditFormalOrderPage() {
                     <Label htmlFor="session_duration">
                       单课时长(小时) <span className="text-destructive">*</span>
                     </Label>
-                    <Input
+                    <select
                       id="session_duration"
-                      type="number"
-                      step="0.5"
-                      placeholder="例如: 1.0"
                       value={formData.session_duration}
                       onChange={(e) => handleInputChange("session_duration", e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                       required
-                    />
+                    >
+                      <option value="">请选择单课时长</option>
+                      {sessionDurations.map((duration) => (
+                        <option key={duration.id} value={duration.code}>
+                          {duration.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -385,26 +511,48 @@ export default function EditFormalOrderPage() {
                     <Label htmlFor="fixed_mode">
                       固定模式 <span className="text-destructive">*</span>
                     </Label>
-                    <Input
+                    <select
                       id="fixed_mode"
-                      placeholder="请输入固定模式"
                       value={formData.fixed_mode}
                       onChange={(e) => handleInputChange("fixed_mode", e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                       required
-                    />
+                    >
+                      <option value="">请选择固定模式</option>
+                      {fixedModes.length > 0 ? (
+                        fixedModes.map((mode) => (
+                          <option key={mode.id} value={mode.label}>
+                            {mode.label}
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="固定">固定</option>
+                          <option value="半固定">半固定</option>
+                          <option value="每周约">每周约</option>
+                        </>
+                      )}
+                    </select>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="frequency">
                       频次 <span className="text-destructive">*</span>
                     </Label>
-                    <Input
+                    <select
                       id="frequency"
-                      placeholder="请输入频次"
                       value={formData.frequency}
                       onChange={(e) => handleInputChange("frequency", e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                       required
-                    />
+                    >
+                      <option value="">请选择频次</option>
+                      {frequencies.map((freq) => (
+                        <option key={freq.id} value={freq.label}>
+                          {freq.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -461,13 +609,20 @@ export default function EditFormalOrderPage() {
                     <Label htmlFor="payment_channel">
                       付款渠道 <span className="text-destructive">*</span>
                     </Label>
-                    <Input
+                    <select
                       id="payment_channel"
-                      placeholder="请输入付款渠道"
                       value={formData.payment_channel}
                       onChange={(e) => handleInputChange("payment_channel", e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                       required
-                    />
+                    >
+                      <option value="">请选择付款渠道</option>
+                      {paymentChannels.map((channel) => (
+                        <option key={channel.id} value={channel.label}>
+                          {channel.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
