@@ -139,22 +139,22 @@ export interface StudentClassin {
   createdAt: string
   updatedAt: string
 
-  // ClassIn API 原始字段
-  studId?: number                   // 学生ID
+  // 数据库字段（snake_case）
+  stud_id?: number                  // 学生ID (对应 API: studId)
   name: string                      // 学生姓名
-  joinType?: number                 // 加入类型
+  join_type?: number                // 加入类型 (对应 API: joinType)
   mobile?: string                   // 手机号
   email?: string                    // 邮箱
-  accountStatus?: number            // 账号状态
-  catInfo?: any[]                   // 分类信息
-  lableInfo?: any[]                 // 标签信息
+  account_status?: number           // 账号状态 (对应 API: accountStatus)
+  cat_info?: any[]                  // 分类信息 (对应 API: catInfo)
+  lable_info?: any[]                // 标签信息 (对应 API: lableInfo)
   stuno?: string                    // 学号
   isdel?: number                    // 是否删除 (0=正常, 1=已删除)
   addtime?: number                  // 添加时间 (Unix时间戳)
-  serveState?: number               // 服务状态
+  serve_state?: number              // 服务状态 (对应 API: serveState)
 
   // 同步相关字段
-  syncTime?: string                 // 最后同步时间
+  sync_time?: string                // 最后同步时间
   notes?: string                    // 备注
 }
 
@@ -255,21 +255,21 @@ export interface TeacherClassin {
   createdAt: string
   updatedAt: string
 
-  // ClassIn API 原始字段
-  stId?: number                    // 老师ID
+  // 数据库字段（snake_case）
+  st_id?: number                   // 老师ID (对应 API: stId)
   name: string                     // 老师姓名
   logo?: string                    // 头像URL
-  empNo?: string                   // 工号
+  emp_no?: string                  // 工号 (对应 API: empNo)
   position?: string                // 职位
-  isDel?: number                   // 是否删除 (0=正常, 1=已删除)
-  joinType?: number                // 加入类型 (1=正常加入)
-  departmentsInfo?: any[]          // 部门信息
+  is_del?: number                  // 是否删除 (0=正常, 1=已删除, 对应 API: isDel)
+  join_type?: number               // 加入类型 (1=正常加入, 对应 API: joinType)
+  departments_info?: any[]         // 部门信息 (对应 API: departmentsInfo)
   mobile?: string                  // 手机号
   email?: string                   // 邮箱
-  accountStatus?: number           // 账号状态
+  account_status?: number          // 账号状态 (对应 API: accountStatus)
 
   // 同步相关字段
-  syncTime?: string                // 最后同步时间
+  sync_time?: string               // 最后同步时间
   notes?: string                   // 备注
 }
 
