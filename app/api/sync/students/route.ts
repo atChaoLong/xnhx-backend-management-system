@@ -55,15 +55,16 @@ export async function POST(request: NextRequest) {
 
     for (const student of students) {
       try {
-        // 检查学生是否已存在（通过 student_number）
+        // 检查学生是否已存在（通过 classin_uid）
         const { data: existing } = await supabaseAdmin
           .from('students')
           .select('id')
-          .eq('student_number', student.stuno?.toString())
+          .eq('classin_uid', student.uid)
           .single()
 
         // 准备数据
         const studentData = {
+          classin_uid: student.uid, // ClassIn 唯一标识符
           student_number: student.stuno?.toString() || '',
           student_name: student.name || student.nickname || '',
           grade_code: student.grade || '',

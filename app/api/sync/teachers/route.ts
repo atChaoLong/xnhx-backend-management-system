@@ -55,15 +55,16 @@ export async function POST(request: NextRequest) {
 
     for (const teacher of teachers) {
       try {
-        // 检查老师是否已存在（通过 classin_phone）
+        // 检查老师是否已存在（通过 classin_uid）
         const { data: existing } = await supabaseAdmin
           .from('teacher_profiles')
           .select('id')
-          .eq('classin_phone', teacher.mobile || teacher.phone)
+          .eq('classin_uid', teacher.uid)
           .single()
 
         // 准备数据
         const teacherData = {
+          classin_uid: teacher.uid, // ClassIn 唯一标识符
           teacher_name: teacher.name || teacher.nickname || '',
           gender: teacher.gender || '未知',
           wechat: teacher.wechat || '',

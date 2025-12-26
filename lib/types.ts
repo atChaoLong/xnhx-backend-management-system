@@ -103,6 +103,7 @@ export interface TeacherCandidate {
 // ============================================
 export interface Student {
   id: string
+  classinUid: number               // ClassIn 唯一标识符
   studentNumber?: string          // 学生学号
   name: string
   grade: string
@@ -127,6 +128,7 @@ export interface TeacherProfile {
   updatedAt: string
 
   // 基本信息
+  classinUid: number                  // ClassIn 唯一标识符
   teacherName: string              // 老师姓名
   gender: string                   // 性别
   wechat: string                   // 微信号

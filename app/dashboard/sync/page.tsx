@@ -242,6 +242,7 @@ export default function SyncPage() {
                   <div className="space-y-2">
                     <h4 className="font-medium">数据映射说明</h4>
                     <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• uid → classin_uid (唯一标识符)</li>
                       <li>• ClassIn 手机号 → classin_phone 和 mobile</li>
                       <li>• 老师姓名 → teacher_name</li>
                       <li>• 微信号 → wechat</li>
@@ -253,7 +254,7 @@ export default function SyncPage() {
                   <div className="space-y-2">
                     <h4 className="font-medium">同步策略</h4>
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• 根据 classin_phone 判断是否已存在</li>
+                      <li>• 根据 ClassIn uid 判断是否已存在</li>
                       <li>• 已存在：更新记录</li>
                       <li>• 不存在：插入新记录</li>
                     </ul>
@@ -348,6 +349,7 @@ export default function SyncPage() {
                   <div className="space-y-2">
                     <h4 className="font-medium">数据映射说明</h4>
                     <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• uid → classin_uid (唯一标识符)</li>
                       <li>• 学号 → student_number</li>
                       <li>• 学生姓名 → student_name</li>
                       <li>• 年级 → grade_code</li>
@@ -360,7 +362,7 @@ export default function SyncPage() {
                   <div className="space-y-2">
                     <h4 className="font-medium">同步策略</h4>
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• 根据 student_number 判断是否已存在</li>
+                      <li>• 根据 ClassIn uid 判断是否已存在</li>
                       <li>• 已存在：更新记录</li>
                       <li>• 不存在：插入新记录</li>
                     </ul>
