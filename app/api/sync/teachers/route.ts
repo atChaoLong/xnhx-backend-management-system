@@ -8,16 +8,23 @@ import { createClient } from '@supabase/supabase-js'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { limit = 100 } = body
+    const { limit = 100, cookie } = body
 
     // 1. 从 ClassIn API 获取老师列表
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+
+    // 如果提供了 Cookie，添加到请求头
+    if (cookie) {
+      headers['Cookie'] = cookie
+    }
+
     const classinResponse = await fetch(
       `${process.env.NEXT_PUBLIC_CLASSIN_API_URL || 'https://dynamic.eeo.cn'}/coreapi/teacher/v1/searchTeacherList`,
       {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           page: 1,
           pageSize: limit,

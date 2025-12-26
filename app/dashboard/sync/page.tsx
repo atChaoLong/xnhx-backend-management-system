@@ -1,13 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, Users, UserCheck, CheckCircle, XCircle, RefreshCw } from "lucide-react"
+import { Loader2, Users, UserCheck, CheckCircle, XCircle, RefreshCw, Save, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface SyncResult {
@@ -22,11 +23,48 @@ export default function SyncPage() {
   const { toast } = useToast()
   const [isSyncing, setIsSyncing] = useState(false)
   const [limit, setLimit] = useState(100)
+  const [cookie, setCookie] = useState("")
   const [teacherResult, setTeacherResult] = useState<SyncResult | null>(null)
   const [studentResult, setStudentResult] = useState<SyncResult | null>(null)
 
+  // 从 localStorage 加载保存的 Cookie
+  useEffect(() => {
+    const savedCookie = localStorage.getItem('classin_cookie')
+    if (savedCookie) {
+      setCookie(savedCookie)
+    }
+  }, [])
+
+  // 保存 Cookie 到 localStorage
+  const handleSaveCookie = () => {
+    localStorage.setItem('classin_cookie', cookie)
+    toast({
+      title: "保存成功",
+      description: "Cookie 已保存到浏览器本地存储",
+    })
+  }
+
+  // 清除 Cookie
+  const handleClearCookie = () => {
+    localStorage.removeItem('classin_cookie')
+    setCookie("")
+    toast({
+      title: "已清除",
+      description: "Cookie 已从浏览器本地存储中删除",
+    })
+  }
+
   // 同步老师
   const handleSyncTeachers = async () => {
+    if (!cookie.trim()) {
+      toast({
+        variant: "destructive",
+        title: "请先配置 Cookie",
+        description: "请先在下方配置并保存 ClassIn Cookie",
+      })
+      return
+    }
+
     setIsSyncing(true)
     setTeacherResult(null)
 
@@ -34,7 +72,7 @@ export default function SyncPage() {
       const response = await fetch("/api/sync/teachers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ limit }),
+        body: JSON.stringify({ limit, cookie }),
       })
 
       const data = await response.json()
@@ -62,6 +100,15 @@ export default function SyncPage() {
 
   // 同步学生
   const handleSyncStudents = async () => {
+    if (!cookie.trim()) {
+      toast({
+        variant: "destructive",
+        title: "请先配置 Cookie",
+        description: "请先在下方配置并保存 ClassIn Cookie",
+      })
+      return
+    }
+
     setIsSyncing(true)
     setStudentResult(null)
 
@@ -69,7 +116,7 @@ export default function SyncPage() {
       const response = await fetch("/api/sync/students", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ limit }),
+        body: JSON.stringify({ limit, cookie }),
       })
 
       const data = await response.json()
@@ -107,35 +154,64 @@ export default function SyncPage() {
           {/* 配置卡片 */}
           <Card>
             <CardHeader>
-              <CardTitle>同步配置</CardTitle>
+              <CardTitle>ClassIn 配置</CardTitle>
               <CardDescription>
-                配置同步参数和数据来源
+                配置 ClassIn Cookie 以同步数据
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="limit">同步数量限制</Label>
-                  <Input
-                    id="limit"
-                    type="number"
-                    min="1"
-                    max="1000"
-                    value={limit}
-                    onChange={(e) => setLimit(parseInt(e.target.value) || 100)}
+            <CardContent className="space-y-4">
+              {/* Cookie 配置 */}
+              <div className="space-y-2">
+                <Label htmlFor="cookie">ClassIn Cookie</Label>
+                <Textarea
+                  id="cookie"
+                  placeholder="粘贴从浏览器开发者工具中获取的 Cookie..."
+                  value={cookie}
+                  onChange={(e) => setCookie(e.target.value)}
+                  rows={6}
+                  className="font-mono text-xs"
+                  disabled={isSyncing}
+                />
+                <p className="text-xs text-muted-foreground">
+                  从浏览器开发者工具 → Application → Cookies 中复制 dynamic.eeo.cn 的 Cookie
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleSaveCookie}
+                    variant="outline"
+                    size="sm"
                     disabled={isSyncing}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    每次同步的最大记录数（1-1000）
-                  </p>
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    保存 Cookie
+                  </Button>
+                  <Button
+                    onClick={handleClearCookie}
+                    variant="outline"
+                    size="sm"
+                    disabled={isSyncing}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    清除
+                  </Button>
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <Label>数据来源</Label>
-                  <div className="flex items-center h-10 px-3 rounded-md border bg-muted">
-                    <span className="text-sm">ClassIn API (dynamic.eeo.cn)</span>
-                  </div>
-                </div>
+              {/* 同步数量配置 */}
+              <div className="space-y-2">
+                <Label htmlFor="limit">同步数量限制</Label>
+                <Input
+                  id="limit"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  value={limit}
+                  onChange={(e) => setLimit(parseInt(e.target.value) || 100)}
+                  disabled={isSyncing}
+                />
+                <p className="text-xs text-muted-foreground">
+                  每次同步的最大记录数（1-1000）
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -374,8 +450,20 @@ export default function SyncPage() {
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
               <div>
+                <h4 className="font-semibold mb-2">获取 ClassIn Cookie</h4>
+                <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                  <li>登录 ClassIn Web 端 (dynamic.eeo.cn)</li>
+                  <li>打开浏览器开发者工具（F12）</li>
+                  <li>进入 Application → Cookies</li>
+                  <li>复制 dynamic.eeo.cn 的所有 Cookie</li>
+                  <li>粘贴到上方 Cookie 输入框并保存</li>
+                </ol>
+              </div>
+
+              <div>
                 <h4 className="font-semibold mb-2">同步流程</h4>
                 <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                  <li>配置并保存 ClassIn Cookie</li>
                   <li>从 ClassIn API 获取数据</li>
                   <li>检查本地数据库是否已存在</li>
                   <li>存在则更新，不存在则插入</li>
@@ -386,23 +474,12 @@ export default function SyncPage() {
               <div>
                 <h4 className="font-semibold mb-2">注意事项</h4>
                 <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                  <li>Cookie 保存在浏览器本地存储中，不会上传到服务器</li>
                   <li>同步数据会覆盖本地已存在的记录</li>
                   <li>建议首次同步前备份本地数据</li>
-                  <li> ClassIn API 可能有请求限制，建议分批同步</li>
-                  <li>如遇到大量失败，请检查网络连接和 API 配置</li>
+                  <li>Cookie 有效期约 2 小时，过期后需重新配置</li>
+                  <li>ClassIn API 可能有请求限制，建议分批同步</li>
                 </ul>
-              </div>
-
-              <div>
-                <h4 className="font-semibold mb-2">字段映射说明</h4>
-                <div className="space-y-2 text-muted-foreground">
-                  <div>
-                    <span className="font-medium">老师数据:</span> classin_phone → mobile（自动复制）
-                  </div>
-                  <div>
-                    <span className="font-medium">学生数据:</span> mobile → parent_phone（如果 parent_phone 为空）
-                  </div>
-                </div>
               </div>
             </CardContent>
           </Card>
