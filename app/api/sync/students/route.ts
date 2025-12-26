@@ -66,13 +66,23 @@ export async function POST(request: NextRequest) {
         const studentData = {
           classin_uid: student.uid, // ClassIn 唯一标识符
           student_number: student.stuno?.toString() || '',
-          student_name: student.name || student.nickname || '',
+          student_name: student.studentName || '',
           grade_code: student.grade || '',
           region: student.region || '',
           school: student.school || '',
-          mobile: student.mobile || student.phone || '',
-          parent_phone: student.parentPhone || student.mobile || student.phone || '',
-          status: 'active',
+          mobile: student.mobile || '',
+          parent_phone: student.parentPhone || student.mobile || '',
+          status: student.serveState === 2 ? 'active' : 'inactive', // 2=在籍
+          // 额外的 ClassIn 字段
+          school_uid: student.schoolUid,
+          serve_state: student.serveState,
+          join_type: student.joinType,
+          stud_id: student.studId,
+          classin_extra: {
+            labelInfo: student.labelInfo || [],
+            progressInfo: student.progressInfo || {},
+            publicResourceStatus: student.publicResourceStatus,
+          },
           updated_at: new Date().toISOString(),
         }
 

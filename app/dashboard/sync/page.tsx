@@ -350,12 +350,12 @@ export default function SyncPage() {
                     <h4 className="font-medium">数据映射说明</h4>
                     <ul className="text-sm text-muted-foreground space-y-1">
                       <li>• uid → classin_uid (唯一标识符)</li>
-                      <li>• 学号 → student_number</li>
-                      <li>• 学生姓名 → student_name</li>
-                      <li>• 年级 → grade_code</li>
-                      <li>• 地域 → region</li>
-                      <li>• 学校 → school</li>
-                      <li>• 手机号 → mobile 和 parent_phone</li>
+                      <li>• studentName → student_name</li>
+                      <li>• stuno → student_number</li>
+                      <li>• mobile → mobile 和 parent_phone</li>
+                      <li>• serveState → status (2=在籍/active)</li>
+                      <li>• schoolUid, joinType, studId → 额外字段</li>
+                      <li>• labelInfo, progressInfo → classin_extra (JSON)</li>
                     </ul>
                   </div>
 
@@ -481,6 +481,7 @@ export default function SyncPage() {
                   <li>建议首次同步前备份本地数据</li>
                   <li>Cookie 有效期约 2 小时，过期后需重新配置</li>
                   <li>ClassIn API 可能有请求限制，建议分批同步</li>
+                  <li>uid 是 ClassIn 系统的唯一标识，用于准确去重</li>
                 </ul>
               </div>
             </CardContent>

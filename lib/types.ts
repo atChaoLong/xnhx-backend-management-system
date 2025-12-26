@@ -114,6 +114,18 @@ export interface Student {
   school?: string                 // 学校
   headTeacherId?: string          // 班主任ID
   status?: string                 // 状态
+
+  // ClassIn 额外字段
+  schoolUid?: number              // ClassIn 学校 UID
+  serveState?: number             // 服务状态 (2=在籍)
+  joinType?: number               // 加入类型
+  studId?: number                 // ClassIn 学生 ID
+  classinExtra?: {                // ClassIn 额外信息
+    labelInfo?: any[]
+    progressInfo?: any
+    publicResourceStatus?: number
+  }
+
   notes?: string
   createdAt: string
   updatedAt: string
