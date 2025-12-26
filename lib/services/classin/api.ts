@@ -3,7 +3,16 @@
  * 用于对接 dynamic.eeo.cn 页面端接口
  */
 
-import { ClassInApiResponse, PageParams, PageResponse, ClassInSession } from './types'
+import {
+  ClassInApiResponse,
+  PageParams,
+  PageResponse,
+  TeacherPageResponse,
+  StudentPageResponse,
+  CoursePageResponse,
+  ClassPageResponse,
+  ClassInSession
+} from './types'
 
 /**
  * ClassIn API 客户端类
@@ -132,8 +141,8 @@ export class ClassInApiClient {
   /**
    * 获取老师列表
    */
-  async getTeacherList(params: PageParams = { page: 1, pageSize: 1000 }): Promise<PageResponse<any>> {
-    const response = await this.request<PageResponse<any>>(
+  async getTeacherList(params: PageParams = { page: 1, pageSize: 1000 }): Promise<TeacherPageResponse> {
+    const response = await this.request<TeacherPageResponse>(
       'POST',
       '/coreapi/teacher/v1/searchTeacherList',
       params
@@ -150,8 +159,8 @@ export class ClassInApiClient {
   /**
    * 获取学生列表
    */
-  async getStudentList(params: PageParams = { page: 1, pageSize: 1000 }): Promise<PageResponse<any>> {
-    const response = await this.request<PageResponse<any>>(
+  async getStudentList(params: PageParams = { page: 1, pageSize: 1000 }): Promise<StudentPageResponse> {
+    const response = await this.request<StudentPageResponse>(
       'POST',
       '/coreapi/student/v1/searchStudentList',
       params
@@ -167,8 +176,8 @@ export class ClassInApiClient {
   /**
    * 获取课程列表
    */
-  async getCourseList(params: PageParams = { page: 1, pageSize: 1000 }): Promise<PageResponse<any>> {
-    const response = await this.request<PageResponse<any>>(
+  async getCourseList(params: PageParams = { page: 1, pageSize: 1000 }): Promise<CoursePageResponse> {
+    const response = await this.request<CoursePageResponse>(
       'POST',
       '/coreapi/course/v1/searchCourseList',
       params
@@ -184,8 +193,8 @@ export class ClassInApiClient {
   /**
    * 获取课节列表
    */
-  async getClassList(params: PageParams & { courseId?: number } = { page: 1, pageSize: 1000 }): Promise<PageResponse<any>> {
-    const response = await this.request<PageResponse<any>>(
+  async getClassList(params: PageParams & { courseId?: number } = { page: 1, pageSize: 1000 }): Promise<ClassPageResponse> {
+    const response = await this.request<ClassPageResponse>(
       'POST',
       '/coreapi/class/v1/searchClassList',
       params

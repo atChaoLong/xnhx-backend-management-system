@@ -23,12 +23,42 @@ export interface PageParams {
   sid?: string // 可能需要的学生ID
 }
 
+// 通用分页响应基础类型
+export interface BasePageResponse<T> {
+  list: T[]
+  page: number
+  serverTime: number
+}
+
+// 老师列表分页响应
+export interface TeacherPageResponse extends BasePageResponse<ClassInTeacher> {
+  totalNum: number // 老师总数
+}
+
+// 学生列表分页响应
+export interface StudentPageResponse extends BasePageResponse<ClassInStudent> {
+  totalStudentNum: number // 学生总数
+  schoolMaxFolderNum: number // 学校最大文件夹数
+  studentMaxFolderNum: number // 学生最大文件夹数
+  timeRange: string | null // 时间范围
+}
+
+// 课程列表分页响应
+export interface CoursePageResponse extends BasePageResponse<ClassInCourse> {
+  totalNum: number // 课程总数
+}
+
+// 课节列表分页响应
+export interface ClassPageResponse extends BasePageResponse<ClassInClass> {
+  totalNum: number // 课节总数
+}
+
+// 通用分页响应（用于兼容）
 export interface PageResponse<T> {
   list: T[]
   totalNum: number // 总数
   page: number // 当前页码
-  pageSize?: number // 每页大小（可选）
-  serverTime?: number // 服务器时间戳（可选）
+  serverTime: number // 服务器时间戳
 }
 
 export interface ClassInSession {

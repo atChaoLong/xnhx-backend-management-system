@@ -57,7 +57,7 @@ export class ClassInService {
   }> {
     const result = await this.apiClient.getTeacherList(params)
     return {
-      list: result.list as ClassInTeacher[],
+      list: result.list,
       total: result.totalNum,
     }
   }
@@ -71,7 +71,7 @@ export class ClassInService {
   }> {
     const result = await this.apiClient.getTeacherList(params)
     return {
-      list: result.list as ClassInTeacher[],
+      list: result.list,
       total: result.totalNum,
     }
   }
@@ -89,8 +89,8 @@ export class ClassInService {
   }> {
     const result = await this.apiClient.getStudentList(params)
     return {
-      list: result.list as ClassInStudent[],
-      total: result.totalNum,
+      list: result.list,
+      total: result.totalStudentNum, // 学生列表使用 totalStudentNum 字段
     }
   }
 
@@ -103,8 +103,8 @@ export class ClassInService {
   }> {
     const result = await this.apiClient.getStudentList(params)
     return {
-      list: result.list as ClassInStudent[],
-      total: result.totalNum,
+      list: result.list,
+      total: result.totalStudentNum, // 学生列表使用 totalStudentNum 字段
     }
   }
 
@@ -121,7 +121,7 @@ export class ClassInService {
   }> {
     const result = await this.apiClient.getCourseList(params)
     return {
-      list: result.list as ClassInCourse[],
+      list: result.list,
       total: result.totalNum,
     }
   }
@@ -135,7 +135,7 @@ export class ClassInService {
   }> {
     const result = await this.apiClient.getCourseList(params)
     return {
-      list: result.list as ClassInCourse[],
+      list: result.list,
       total: result.totalNum,
     }
   }
@@ -153,7 +153,7 @@ export class ClassInService {
   }> {
     const result = await this.apiClient.getClassList(params)
     return {
-      list: result.list as ClassInClass[],
+      list: result.list,
       total: result.totalNum,
     }
   }
@@ -167,7 +167,7 @@ export class ClassInService {
   }> {
     const result = await this.apiClient.getClassList(params)
     return {
-      list: result.list as ClassInClass[],
+      list: result.list,
       total: result.totalNum,
     }
   }
