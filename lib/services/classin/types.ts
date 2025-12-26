@@ -19,14 +19,16 @@ export interface ClassInApiResponse<T = any> {
 
 export interface PageParams {
   page: number
-  pageSize: number
+  pageSize?: number
+  sid?: string // 可能需要的学生ID
 }
 
 export interface PageResponse<T> {
   list: T[]
-  total: number
-  page: number
-  pageSize: number
+  totalNum: number // 总数
+  page: number // 当前页码
+  pageSize?: number // 每页大小（可选）
+  serverTime?: number // 服务器时间戳（可选）
 }
 
 export interface ClassInSession {

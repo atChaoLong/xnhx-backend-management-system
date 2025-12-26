@@ -58,7 +58,7 @@ export class ClassInService {
     const result = await this.apiClient.getTeacherList(params)
     return {
       list: result.list as ClassInTeacher[],
-      total: result.total,
+      total: result.totalNum,
     }
   }
 
@@ -72,7 +72,7 @@ export class ClassInService {
     const result = await this.apiClient.getTeacherList(params)
     return {
       list: result.list as ClassInTeacher[],
-      total: result.total,
+      total: result.totalNum,
     }
   }
 
@@ -90,7 +90,7 @@ export class ClassInService {
     const result = await this.apiClient.getStudentList(params)
     return {
       list: result.list as ClassInStudent[],
-      total: result.total,
+      total: result.totalNum,
     }
   }
 
@@ -104,7 +104,7 @@ export class ClassInService {
     const result = await this.apiClient.getStudentList(params)
     return {
       list: result.list as ClassInStudent[],
-      total: result.total,
+      total: result.totalNum,
     }
   }
 
@@ -122,7 +122,7 @@ export class ClassInService {
     const result = await this.apiClient.getCourseList(params)
     return {
       list: result.list as ClassInCourse[],
-      total: result.total,
+      total: result.totalNum,
     }
   }
 
@@ -136,7 +136,7 @@ export class ClassInService {
     const result = await this.apiClient.getCourseList(params)
     return {
       list: result.list as ClassInCourse[],
-      total: result.total,
+      total: result.totalNum,
     }
   }
 
@@ -154,7 +154,7 @@ export class ClassInService {
     const result = await this.apiClient.getClassList(params)
     return {
       list: result.list as ClassInClass[],
-      total: result.total,
+      total: result.totalNum,
     }
   }
 
@@ -168,7 +168,7 @@ export class ClassInService {
     const result = await this.apiClient.getClassList(params)
     return {
       list: result.list as ClassInClass[],
-      total: result.total,
+      total: result.totalNum,
     }
   }
 }
