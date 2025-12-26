@@ -13,6 +13,7 @@ import {
   StudentSearchParams,
   CourseSearchParams,
   ClassSearchParams,
+  AddStudentParams,
 } from './classin/types'
 import { getClassInApiClient } from './classin/api'
 
@@ -106,6 +107,13 @@ export class ClassInService {
       list: result.list,
       total: result.totalStudentNum, // 学生列表使用 totalStudentNum 字段
     }
+  }
+
+  /**
+   * 添加单个学生
+   */
+  async addStudent(params: AddStudentParams): Promise<any> {
+    return await this.apiClient.addStudent(params)
   }
 
   // ============================================

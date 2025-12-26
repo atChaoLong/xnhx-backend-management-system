@@ -100,6 +100,15 @@ export interface ClassInStudent {
   created_at?: string
 }
 
+export interface AddStudentParams {
+  name: string // 学生姓名
+  mobile: string // 手机号
+  email?: string // 邮箱（可选）
+  stuno?: string // 学号（可选）
+  labelIds?: number[] // 标签ID数组（可选）
+  autoRegister?: number // 是否自动注册（1: 是, 0: 否）
+}
+
 // ============================================
 // 课程相关类型
 // ============================================

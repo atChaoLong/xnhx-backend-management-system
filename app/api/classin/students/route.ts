@@ -27,3 +27,41 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+/**
+ * 添加学生到 ClassIn
+ * POST /api/classin/students
+ * Body: { name, mobile, email?, stuno?, labelIds?, autoRegister? }
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+
+    // 验证必填字段
+    if (!body.name || !body.mobile) {
+      return NextResponse.json(
+        { error: '学生姓名和手机号为必填项' },
+        { status: 400 }
+      )
+    }
+
+    const result = await classInService.addStudent({
+      name: body.name,
+      mobile: body.mobile,
+      email: body.email || '',
+      stuno: body.stuno || '',
+      labelIds: body.labelIds || [],
+      autoRegister: body.autoRegister !== undefined ? body.autoRegister : 1,
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: result,
+    })
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error.message || '添加学生失败' },
+      { status: 500 }
+    )
+  }
+}
