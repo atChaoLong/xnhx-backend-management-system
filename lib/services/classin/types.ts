@@ -7,9 +7,13 @@
 // 通用类型
 // ============================================
 
+export interface ClassInErrorInfo {
+  errno: number
+  error: string
+}
+
 export interface ClassInApiResponse<T = any> {
-  code: number
-  msg: string
+  error_info: ClassInErrorInfo
   data: T
 }
 

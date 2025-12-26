@@ -130,6 +130,26 @@ const results = await classInService.searchTeachers({
 | 课程列表 | POST | /coreapi/course/v1/searchCourseList | 搜索课程 |
 | 课节列表 | POST | /coreapi/class/v1/searchClassList | 搜索课节 |
 
+### 响应格式
+
+ClassIn API 的响应格式统一为：
+
+```json
+{
+  "error_info": {
+    "errno": 1,
+    "error": "程序正常执行"
+  },
+  "data": {
+    // 实际数据
+  }
+}
+```
+
+**错误码说明**：
+- `errno === 1` 表示成功
+- `errno !== 1` 表示错误，error 字段包含错误描述
+
 ## 类型定义
 
 ### 老师类型

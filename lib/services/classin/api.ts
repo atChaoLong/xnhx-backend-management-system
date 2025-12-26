@@ -139,8 +139,9 @@ export class ClassInApiClient {
       params
     )
 
-    if (response.code !== 0) {
-      throw new Error(`获取老师列表失败: ${response.msg}`)
+    // errno === 1 表示成功
+    if (response.error_info.errno !== 1) {
+      throw new Error(`获取老师列表失败: ${response.error_info.error}`)
     }
 
     return response.data
@@ -156,8 +157,8 @@ export class ClassInApiClient {
       params
     )
 
-    if (response.code !== 0) {
-      throw new Error(`获取学生列表失败: ${response.msg}`)
+    if (response.error_info.errno !== 1) {
+      throw new Error(`获取学生列表失败: ${response.error_info.error}`)
     }
 
     return response.data
@@ -173,8 +174,8 @@ export class ClassInApiClient {
       params
     )
 
-    if (response.code !== 0) {
-      throw new Error(`获取课程列表失败: ${response.msg}`)
+    if (response.error_info.errno !== 1) {
+      throw new Error(`获取课程列表失败: ${response.error_info.error}`)
     }
 
     return response.data
@@ -190,8 +191,8 @@ export class ClassInApiClient {
       params
     )
 
-    if (response.code !== 0) {
-      throw new Error(`获取课节列表失败: ${response.msg}`)
+    if (response.error_info.errno !== 1) {
+      throw new Error(`获取课节列表失败: ${response.error_info.error}`)
     }
 
     return response.data
