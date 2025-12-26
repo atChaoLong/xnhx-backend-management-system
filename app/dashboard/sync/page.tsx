@@ -349,12 +349,13 @@ export default function SyncPage() {
                   <div className="space-y-2">
                     <h4 className="font-medium">数据映射说明</h4>
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• uid → classin_uid (唯一标识符)</li>
+                      <li>• <strong>uid</strong> → classin_uid (ClassIn 唯一标识符，用于去重)</li>
+                      <li>• <strong>schoolUid</strong> → school_uid (学校编号 1304802)</li>
+                      <li>• <strong>studId</strong> → stud_id (学生编号)</li>
                       <li>• studentName → student_name</li>
                       <li>• stuno → student_number</li>
                       <li>• mobile → mobile 和 parent_phone</li>
                       <li>• serveState → status (2=在籍/active)</li>
-                      <li>• schoolUid, joinType, studId → 额外字段</li>
                       <li>• labelInfo, progressInfo → classin_extra (JSON)</li>
                     </ul>
                   </div>
@@ -452,6 +453,24 @@ export default function SyncPage() {
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
               <div>
+                <h4 className="font-semibold mb-2">重要字段说明</h4>
+                <div className="space-y-2 text-muted-foreground">
+                  <div>
+                    <span className="font-medium">uid (classin_uid):</span>
+                    <span> ClassIn 系统的唯一标识符，用于准确去重和更新数据</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">schoolUid:</span>
+                    <span> ClassIn 学校编号，标识学生所属的机构（例如：1304802）</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">studId:</span>
+                    <span> ClassIn 学生编号，学生在 ClassIn 系统中的唯一标识</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
                 <h4 className="font-semibold mb-2">获取 ClassIn Cookie</h4>
                 <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
                   <li>登录 ClassIn Web 端 (dynamic.eeo.cn)</li>
@@ -467,8 +486,9 @@ export default function SyncPage() {
                 <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
                   <li>配置并保存 ClassIn Cookie</li>
                   <li>从 ClassIn API 获取数据</li>
-                  <li>检查本地数据库是否已存在</li>
+                  <li>根据 uid 判断数据是否存在</li>
                   <li>存在则更新，不存在则插入</li>
+                  <li>保存完整的 ClassIn 字段信息</li>
                   <li>显示同步结果和错误信息</li>
                 </ol>
               </div>
@@ -482,6 +502,7 @@ export default function SyncPage() {
                   <li>Cookie 有效期约 2 小时，过期后需重新配置</li>
                   <li>ClassIn API 可能有请求限制，建议分批同步</li>
                   <li>uid 是 ClassIn 系统的唯一标识，用于准确去重</li>
+                  <li>schoolUid 和 studId 用于关联 ClassIn 系统数据</li>
                 </ul>
               </div>
             </CardContent>

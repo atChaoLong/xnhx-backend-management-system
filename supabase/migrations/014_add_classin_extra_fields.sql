@@ -12,8 +12,8 @@ CREATE INDEX IF NOT EXISTS idx_students_school_uid ON public.students(school_uid
 CREATE INDEX IF NOT EXISTS idx_students_serve_state ON public.students(serve_state);
 
 -- 添加注释
-COMMENT ON COLUMN public.students.school_uid IS 'ClassIn 学校 UID';
-COMMENT ON COLUMN public.students.serve_state IS 'ClassIn 服务状态 (2=在籍)';
-COMMENT ON COLUMN public.students.join_type IS 'ClassIn 加入类型';
-COMMENT ON COLUMN public.students.stud_id IS 'ClassIn 学生 ID';
-COMMENT ON COLUMN public.students.classin_extra IS 'ClassIn 额外信息 (JSON格式)';
+COMMENT ON COLUMN public.students.school_uid IS 'ClassIn 学校编号（例如：1304802）';
+COMMENT ON COLUMN public.students.serve_state IS 'ClassIn 服务状态（2=在籍）';
+COMMENT ON COLUMN public.students.join_type IS 'ClassIn 加入类型（1=正常加入）';
+COMMENT ON COLUMN public.students.stud_id IS 'ClassIn 学生编号（例如：128129523）';
+COMMENT ON COLUMN public.students.classin_extra IS 'ClassIn 额外信息 (JSON格式，包含标签、进度等)';
