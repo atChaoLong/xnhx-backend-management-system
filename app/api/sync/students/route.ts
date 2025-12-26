@@ -10,6 +10,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { limit = 100, cookie } = body
 
+    // 验证环境变量
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Supabase 配置缺失，请检查环境变量')
+    }
+
     // 1. 从 ClassIn API 获取学生列表
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -44,11 +52,13 @@ export async function POST(request: NextRequest) {
 
     const students = classinData.data.list || []
 
-    // 2. 连接到 Supabase
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    // 2. 连接到 Supabase（使用 service role 以绕过 RLS）
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
 
     // 3. 同步每个学生到数据库
     const results = {
