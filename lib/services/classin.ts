@@ -14,6 +14,7 @@ import {
   CourseSearchParams,
   ClassSearchParams,
   AddStudentParams,
+  AddTeacherParams,
 } from './classin/types'
 import { getClassInApiClient } from './classin/api'
 
@@ -75,6 +76,13 @@ export class ClassInService {
       list: result.list,
       total: result.totalNum,
     }
+  }
+
+  /**
+   * 添加单个老师
+   */
+  async addTeacher(params: AddTeacherParams): Promise<any> {
+    return await this.apiClient.addTeacher(params)
   }
 
   // ============================================

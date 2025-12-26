@@ -85,6 +85,14 @@ export interface ClassInTeacher {
   created_at?: string
 }
 
+export interface AddTeacherParams {
+  name: string // 老师姓名
+  mobile: string // 手机号
+  email?: string // 邮箱（可选）
+  subject?: string // 科目（可选）
+  autoRegister?: number // 是否自动注册（1: 是, 0: 否）
+}
+
 // ============================================
 // 学生相关类型
 // ============================================

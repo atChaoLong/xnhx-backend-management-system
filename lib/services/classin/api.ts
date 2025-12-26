@@ -12,7 +12,8 @@ import {
   CoursePageResponse,
   ClassPageResponse,
   ClassInSession,
-  AddStudentParams
+  AddStudentParams,
+  AddTeacherParams
 } from './types'
 
 /**
@@ -220,6 +221,23 @@ export class ClassInApiClient {
 
     if (response.error_info.errno !== 1) {
       throw new Error(`添加学生失败: ${response.error_info.error}`)
+    }
+
+    return response.data
+  }
+
+  /**
+   * 添加单个老师
+   */
+  async addTeacher(params: AddTeacherParams): Promise<any> {
+    const response = await this.request<any>(
+      'POST',
+      '/coreapi/teacher/v1/addOneTeacher',
+      params
+    )
+
+    if (response.error_info.errno !== 1) {
+      throw new Error(`添加老师失败: ${response.error_info.error}`)
     }
 
     return response.data
