@@ -40,6 +40,7 @@ const navigation = [
   { name: "异动记录", href: "/dashboard/transactions", icon: RefreshCw },
   // { name: "老师面试", href: "/dashboard/recruitment", icon: School },
   { name: "字典管理", href: "/dashboard/dictionaries", icon: List },
+  { name: "数据同步", href: "/dashboard/sync", icon: RefreshCw },
   { name: "ClassIn SDK", href: "/dashboard/classin-sdk", icon: Database },
   // { name: "ClassIn 集成", href: "/dashboard/classin", icon: Database },
   // { name: "ClassIn 测试", href: "/dashboard/classin/test", icon: TestTube },
