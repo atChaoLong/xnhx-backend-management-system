@@ -103,14 +103,65 @@ export interface TeacherCandidate {
 // ============================================
 export interface Student {
   id: string
+  studentNumber?: string          // 学生学号
   name: string
   grade: string
   region: string
   parentPhone: string
   parentWechat: string
+  mobile?: string                 // 学生本人联系电话
+  school?: string                 // 学校
+  headTeacherId?: string          // 班主任ID
+  status?: string                 // 状态
   notes?: string
   createdAt: string
   updatedAt: string
+}
+
+// ============================================
+// 老师档案类型
+// ============================================
+export interface TeacherProfile {
+  id: string
+  createdAt: string
+  updatedAt: string
+
+  // 基本信息
+  teacherName: string              // 老师姓名
+  gender: string                   // 性别
+  wechat: string                   // 微信号
+  classinPhone: string             // ClassIn注册手机号
+  mobile?: string                  // 常用联系电话
+  location: string                 // 老师所在地
+
+  // 教学信息
+  subjects: string[]               // 教授学科
+  gradeLevels: string[]            // 教授年级段
+  usedClassin: boolean             // 是否用过Classin
+  hasCertificate: boolean          // 是否有教资证
+
+  // 学历背景
+  education: string                // 学历
+  university: string               // 毕业院校
+
+  // 教学能力
+  availableTimes?: string[]        // 可排课时间
+  textbookVersions?: string[]      // 熟悉的教材版本
+  studentRegions?: string[]        // 带过学生地域
+  studentLevels?: string[]         // 擅长的学生水平
+  teachingYears?: number           // 教学年限
+
+  // 教学经历
+  teachingStyle?: string           // 教学特点
+  successCases?: string            // 优秀学员提分案例
+
+  // 附件
+  photoUrl?: string                // 老师形象照URL
+  reviewScreenshots?: string[]     // 提分/好评截图URLs
+
+  // 其他
+  notes?: string                   // 备注
+  bankCardInfo?: any               // 银行卡信息 (JSONB)
 }
 
 // ============================================
@@ -314,6 +365,9 @@ export type UpdateLead = Partial<NewLead> & { id: string }
 
 export type NewTeacherCandidate = Omit<TeacherCandidate, "id" "createdAt" "updatedAt">
 export type UpdateTeacherCandidate = Partial<NewTeacherCandidate> & { id: string }
+
+export type NewTeacherProfile = Omit<TeacherProfile, "id" "createdAt" "updatedAt">
+export type UpdateTeacherProfile = Partial<NewTeacherProfile> & { id: string }
 
 export type NewStudent = Omit<Student, "id" "createdAt" "updatedAt">
 export type UpdateStudent = Partial<NewStudent> & { id: string }
