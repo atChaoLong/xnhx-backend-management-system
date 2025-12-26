@@ -135,13 +135,12 @@ export interface Student {
 // ClassIn 学生原始数据类型
 // ============================================
 export interface StudentClassin {
-  id: string
+  uid: number                       // ClassIn 唯一标识符（主键）
   createdAt: string
   updatedAt: string
 
   // ClassIn API 原始字段
   studId?: number                   // 学生ID
-  uid: number                       // 唯一标识符
   name: string                      // 学生姓名
   joinType?: number                 // 加入类型
   mobile?: string                   // 手机号
@@ -157,11 +156,6 @@ export interface StudentClassin {
   // 同步相关字段
   syncTime?: string                 // 最后同步时间
   notes?: string                    // 备注
-
-  // ClassIn 额外信息
-  classinExtra?: {                  // ClassIn API 返回的其他额外字段
-    [key: string]: any
-  }
 }
 
 // ============================================
@@ -257,13 +251,12 @@ export interface Teacher {
 // ClassIn 老师原始数据类型
 // ============================================
 export interface TeacherClassin {
-  id: string
+  uid: number                      // ClassIn 唯一标识符（主键）
   createdAt: string
   updatedAt: string
 
   // ClassIn API 原始字段
   stId?: number                    // 老师ID
-  uid: number                      // 唯一标识符
   name: string                     // 老师姓名
   logo?: string                    // 头像URL
   empNo?: string                   // 工号
@@ -278,11 +271,6 @@ export interface TeacherClassin {
   // 同步相关字段
   syncTime?: string                // 最后同步时间
   notes?: string                   // 备注
-
-  // ClassIn 额外信息
-  classinExtra?: {                 // ClassIn API 返回的其他额外字段
-    [key: string]: any
-  }
 }
 
 // ============================================
@@ -493,14 +481,14 @@ export type UpdateTeacherProfile = Partial<NewTeacherProfile> & { id: string }
 export type NewStudent = Omit<Student, "id" "createdAt" "updatedAt">
 export type UpdateStudent = Partial<NewStudent> & { id: string }
 
-export type NewStudentClassin = Omit<StudentClassin, "id" "createdAt" "updatedAt">
-export type UpdateStudentClassin = Partial<NewStudentClassin> & { id: string }
+export type NewStudentClassin = Omit<StudentClassin, "uid" "createdAt" "updatedAt">
+export type UpdateStudentClassin = Partial<NewStudentClassin> & { uid: number }
 
 export type NewTeacher = Omit<Teacher, "id" "createdAt" "updatedAt">
 export type UpdateTeacher = Partial<NewTeacher> & { id: string }
 
-export type NewTeacherClassin = Omit<TeacherClassin, "id" "createdAt" "updatedAt">
-export type UpdateTeacherClassin = Partial<NewTeacherClassin> & { id: string }
+export type NewTeacherClassin = Omit<TeacherClassin, "uid" "createdAt" "updatedAt">
+export type UpdateTeacherClassin = Partial<NewTeacherClassin> & { uid: number }
 
 export type NewTrialLesson = Omit<TrialLesson, "id" "createdAt" "updatedAt">
 export type UpdateTrialLesson = Partial<NewTrialLesson> & { id: string }

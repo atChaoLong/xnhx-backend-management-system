@@ -48,24 +48,15 @@ export async function POST(request: NextRequest) {
     const results = {
       total: teachers.length,
       success: 0,
-      updated: 0,
       failed: 0,
       errors: [] as Array<{ name: string; error: string }>,
     }
 
     for (const teacher of teachers) {
       try {
-        // 检查老师是否已存在（通过 uid）
-        const { data: existing } = await supabaseAdmin
-          .from('teacher_classin')
-          .select('id')
-          .eq('uid', teacher.uid)
-          .single()
-
         // 准备数据 - 使用 ClassIn 原始字段名
         const teacherData = {
           st_id: teacher.stId, // ClassIn 老师ID
-          uid: teacher.uid, // 唯一标识符
           name: teacher.name || '',
           logo: teacher.logo || '',
           emp_no: teacher.empNo || '',
@@ -78,32 +69,23 @@ export async function POST(request: NextRequest) {
           account_status: teacher.accountStatus,
           // 同步时间
           sync_time: new Date().toISOString(),
-          // 额外信息 - 保存 API 返回的其他字段
-          classin_extra: teacher,
-          updated_at: new Date().toISOString(),
         }
 
-        if (existing) {
-          // 更新现有老师
-          const { error: updateError } = await supabaseAdmin
-            .from('teacher_classin')
-            .update(teacherData)
-            .eq('id', existing.id)
+        // 使用 upsert（基于 uid 主键）
+        const { error } = await supabaseAdmin
+          .from('teacher_classin')
+          .upsert({
+            uid: teacher.uid, // 主键
+            ...teacherData,
+          }, {
+            onConflict: 'uid',
+            ignoreDuplicates: false,
+          })
 
-          if (updateError) throw updateError
-          results.updated++
-        } else {
-          // 插入新老师
-          const { error: insertError } = await supabaseAdmin
-            .from('teacher_classin')
-            .insert({
-              ...teacherData,
-              created_at: new Date().toISOString(),
-            })
+        if (error) throw error
 
-          if (insertError) throw insertError
-          results.success++
-        }
+        // 由于使用 upsert，无法区分是新增还是更新，统一计入 success
+        results.success++
       } catch (error: any) {
         results.failed++
         results.errors.push({

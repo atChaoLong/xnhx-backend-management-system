@@ -85,7 +85,7 @@ export default function SyncPage() {
 
       toast({
         title: "同步完成",
-        description: `成功: ${data.data.success}, 更新: ${data.data.updated}, 失败: ${data.data.failed}`,
+        description: `成功: ${data.data.success}, 失败: ${data.data.failed}`,
       })
     } catch (error: any) {
       toast({
@@ -129,7 +129,7 @@ export default function SyncPage() {
 
       toast({
         title: "同步完成",
-        description: `成功: ${data.data.success}, 更新: ${data.data.updated}, 失败: ${data.data.failed}`,
+        description: `成功: ${data.data.success}, 失败: ${data.data.failed}`,
       })
     } catch (error: any) {
       toast({
@@ -242,8 +242,8 @@ export default function SyncPage() {
                   <div className="space-y-2">
                     <h4 className="font-medium">数据映射说明</h4>
                     <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• <strong>uid</strong> → uid (主键，唯一标识符)</li>
                       <li>• <strong>stId</strong> → st_id (ClassIn 老师ID)</li>
-                      <li>• <strong>uid</strong> → uid (唯一标识符，用于去重)</li>
                       <li>• <strong>name</strong> → name (老师姓名)</li>
                       <li>• <strong>logo</strong> → logo (头像URL)</li>
                       <li>• <strong>empNo</strong> → emp_no (工号)</li>
@@ -254,17 +254,15 @@ export default function SyncPage() {
                       <li>• <strong>mobile</strong> → mobile (手机号)</li>
                       <li>• <strong>email</strong> → email (邮箱)</li>
                       <li>• <strong>accountStatus</strong> → account_status (账号状态)</li>
-                      <li>• 完整 API 响应 → classin_extra (JSON)</li>
                     </ul>
                   </div>
 
                   <div className="space-y-2">
                     <h4 className="font-medium">同步策略</h4>
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• 根据 ClassIn uid 判断是否已存在于 teacher_classin 表</li>
-                      <li>• 已存在：更新 teacher_classin 表记录</li>
-                      <li>• 不存在：插入新记录到 teacher_classin 表</li>
-                      <li>• 保存完整的 ClassIn API 响应到 classin_extra</li>
+                      <li>• 使用 ClassIn uid 作为主键</li>
+                      <li>• 使用 upsert 操作：存在则更新，不存在则插入</li>
+                      <li>• 不额外保存 classin_extra，避免数据重复</li>
                     </ul>
                   </div>
 
@@ -291,18 +289,14 @@ export default function SyncPage() {
                     <div className="space-y-4 pt-4 border-t">
                       <h4 className="font-medium">同步结果</h4>
 
-                      <div className="grid grid-cols-4 gap-4">
+                      <div className="grid grid-cols-3 gap-4">
                         <div className="text-center">
                           <div className="text-2xl font-bold">{teacherResult.total}</div>
                           <div className="text-xs text-muted-foreground">总数</div>
                         </div>
                         <div className="text-center">
                           <div className="text-2xl font-bold text-green-600">{teacherResult.success}</div>
-                          <div className="text-xs text-muted-foreground">新增</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-blue-600">{teacherResult.updated}</div>
-                          <div className="text-xs text-muted-foreground">更新</div>
+                          <div className="text-xs text-muted-foreground">成功</div>
                         </div>
                         <div className="text-center">
                           <div className="text-2xl font-bold text-red-600">{teacherResult.failed}</div>
@@ -357,8 +351,8 @@ export default function SyncPage() {
                   <div className="space-y-2">
                     <h4 className="font-medium">数据映射说明</h4>
                     <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• <strong>uid</strong> → uid (主键，唯一标识符)</li>
                       <li>• <strong>studId</strong> → stud_id (ClassIn 学生ID)</li>
-                      <li>• <strong>uid</strong> → uid (唯一标识符，用于去重)</li>
                       <li>• <strong>name</strong> → name (学生姓名)</li>
                       <li>• <strong>joinType</strong> → join_type (加入类型)</li>
                       <li>• <strong>mobile</strong> → mobile (手机号)</li>
@@ -370,17 +364,15 @@ export default function SyncPage() {
                       <li>• <strong>isdel</strong> → isdel (是否删除)</li>
                       <li>• <strong>addtime</strong> → addtime (添加时间戳)</li>
                       <li>• <strong>serveState</strong> → serve_state (服务状态)</li>
-                      <li>• 完整 API 响应 → classin_extra (JSON)</li>
                     </ul>
                   </div>
 
                   <div className="space-y-2">
                     <h4 className="font-medium">同步策略</h4>
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• 根据 ClassIn uid 判断是否已存在于 students_classin 表</li>
-                      <li>• 已存在：更新 students_classin 表记录</li>
-                      <li>• 不存在：插入新记录到 students_classin 表</li>
-                      <li>• 保存完整的 ClassIn API 响应到 classin_extra</li>
+                      <li>• 使用 ClassIn uid 作为主键</li>
+                      <li>• 使用 upsert 操作：存在则更新，不存在则插入</li>
+                      <li>• 不额外保存 classin_extra，避免数据重复</li>
                     </ul>
                   </div>
 
@@ -407,18 +399,14 @@ export default function SyncPage() {
                     <div className="space-y-4 pt-4 border-t">
                       <h4 className="font-medium">同步结果</h4>
 
-                      <div className="grid grid-cols-4 gap-4">
+                      <div className="grid grid-cols-3 gap-4">
                         <div className="text-center">
                           <div className="text-2xl font-bold">{studentResult.total}</div>
                           <div className="text-xs text-muted-foreground">总数</div>
                         </div>
                         <div className="text-center">
                           <div className="text-2xl font-bold text-green-600">{studentResult.success}</div>
-                          <div className="text-xs text-muted-foreground">新增</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-blue-600">{studentResult.updated}</div>
-                          <div className="text-xs text-muted-foreground">更新</div>
+                          <div className="text-xs text-muted-foreground">成功</div>
                         </div>
                         <div className="text-center">
                           <div className="text-2xl font-bold text-red-600">{studentResult.failed}</div>
