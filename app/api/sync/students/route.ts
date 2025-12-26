@@ -5,7 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 interface ClassInStudentResponse {
   studId: number
   uid: number
-  name: string
+  studentName: string  // 注意：API 返回的是 studentName，不是 name
   joinType: number
   mobile?: string
   email?: string
@@ -71,10 +71,10 @@ export async function POST(request: NextRequest) {
 
     for (const student of students) {
       try {
-        // 准备数据 - 使用 ClassIn 原始字段名
+        // 准备数据 - 将 ClassIn API 字段映射到数据库字段
         const studentData = {
-          stud_id: student.studId, // ClassIn 学生ID
-          name: student.name || '',
+          stud_id: student.studId,
+          name: student.studentName || '',  // API 返回 studentName，映射到数据库 name 字段
           join_type: student.joinType,
           mobile: student.mobile || '',
           email: student.email || '',
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
       } catch (error: any) {
         results.failed++
         results.errors.push({
-          name: student.name || '未知',
+          name: student.studentName || '未知',
           error: error.message,
         })
       }

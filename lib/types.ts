@@ -141,7 +141,7 @@ export interface StudentClassin {
 
   // 数据库字段（snake_case）
   stud_id?: number                  // 学生ID (对应 API: studId)
-  name: string                      // 学生姓名
+  name: string                      // 学生姓名 (对应 API: studentName)
   join_type?: number                // 加入类型 (对应 API: joinType)
   mobile?: string                   // 手机号
   email?: string                    // 邮箱

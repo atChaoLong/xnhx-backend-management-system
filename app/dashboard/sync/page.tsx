@@ -353,7 +353,7 @@ export default function SyncPage() {
                     <ul className="text-sm text-muted-foreground space-y-1">
                       <li>• <strong>uid</strong> → uid (主键，唯一标识符)</li>
                       <li>• <strong>studId</strong> → stud_id (ClassIn 学生ID)</li>
-                      <li>• <strong>name</strong> → name (学生姓名)</li>
+                      <li>• <strong>studentName</strong> → name (学生姓名)</li>
                       <li>• <strong>joinType</strong> → join_type (加入类型)</li>
                       <li>• <strong>mobile</strong> → mobile (手机号)</li>
                       <li>• <strong>email</strong> → email (邮箱)</li>
