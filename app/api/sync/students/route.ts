@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
         // 准备数据
         const studentData = {
           classin_uid: student.uid, // ClassIn 唯一标识符
-          student_number: student.stuno?.toString() || '',
+          student_number: student.studId,
           student_name: student.studentName || '',
           grade_code: student.grade || '',
           region: student.region || '',
