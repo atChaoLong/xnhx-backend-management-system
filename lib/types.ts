@@ -183,6 +183,48 @@ export interface TeacherProfile {
 // ============================================
 export interface Teacher {
   id: string
+  createdAt: string
+  updatedAt: string
+
+  // ClassIn 核心字段
+  classinUid: number               // ClassIn 唯一标识符
+  name: string                     // 老师姓名
+  mobile: string                   // 手机号
+  email: string                    // 邮箱
+  gender: string                   // 性别
+  location: string                 // 所在地
+
+  // 教学信息
+  subject: string                  // 教授科目
+  grade: string                    // 教授年级
+  teachType: string                // 教学类型
+  education: string                // 学历
+  university: string               // 毕业院校
+
+  // ClassIn 特有字段
+  schoolUid?: number              // 学校编号
+  joinType?: number               // 加入类型
+  serveState?: number             // 服务状态
+  teaId?: number                  // 老师ID
+  isDel?: number                  // 是否删除
+
+  // 状态字段
+  status: string                   // 本地状态
+  syncTime?: string                // 最后同步时间
+  notes?: string                   // 备注
+
+  // ClassIn 额外信息
+  classinExtra?: {                // ClassIn 额外信息
+    labelInfo?: any[]
+    [key: string]: any
+  }
+}
+
+// ============================================
+// 老师类型（旧版，用于内部老师管理）
+// ============================================
+export interface OldTeacher {
+  id: string
   name: string
   wechatId: string
   gradeLevel: string

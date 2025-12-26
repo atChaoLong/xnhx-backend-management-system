@@ -235,28 +235,32 @@ export default function SyncPage() {
                 <CardHeader>
                   <CardTitle>同步老师数据</CardTitle>
                   <CardDescription>
-                    从 ClassIn 获取老师列表并同步到 teacher_profiles 表
+                    从 ClassIn 获取老师列表并同步到 teachers 表（与 ClassIn 对齐）
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <h4 className="font-medium">数据映射说明</h4>
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• uid → classin_uid (唯一标识符)</li>
-                      <li>• ClassIn 手机号 → classin_phone 和 mobile</li>
-                      <li>• 老师姓名 → teacher_name</li>
-                      <li>• 微信号 → wechat</li>
-                      <li>• 地域 → location</li>
-                      <li>• 学科 → subjects (数组)</li>
+                      <li>• <strong>uid</strong> → classin_uid (唯一标识符)</li>
+                      <li>• <strong>schoolUid</strong> → school_uid (学校编号)</li>
+                      <li>• <strong>teaId</strong> → tea_id (老师ID)</li>
+                      <li>• name → name (老师姓名)</li>
+                      <li>• mobile → mobile (手机号)</li>
+                      <li>• email → email (邮箱)</li>
+                      <li>• subject → subject (教授科目)</li>
+                      <li>• serveState → serve_state (服务状态)</li>
+                      <li>• 其他字段 → classin_extra (JSON)</li>
                     </ul>
                   </div>
 
                   <div className="space-y-2">
                     <h4 className="font-medium">同步策略</h4>
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• 根据 ClassIn uid 判断是否已存在</li>
-                      <li>• 已存在：更新记录</li>
-                      <li>• 不存在：插入新记录</li>
+                      <li>• 根据 ClassIn uid 判断是否已存在于 teachers 表</li>
+                      <li>• 已存在：更新 teachers 表记录</li>
+                      <li>• 不存在：插入新记录到 teachers 表</li>
+                      <li>• 保存完整的 ClassIn 字段信息到 classin_extra</li>
                     </ul>
                   </div>
 

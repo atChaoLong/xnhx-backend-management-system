@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     const teachers = classinData.data.list || []
 
-    // 2. 同步每个老师到数据库
+    // 2. 同步每个老师到 teachers 表
     const results = {
       total: teachers.length,
       success: 0,
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       try {
         // 检查老师是否已存在（通过 classin_uid）
         const { data: existing } = await supabaseAdmin
-          .from('teacher_profiles')
+          .from('teachers')
           .select('id')
           .eq('classin_uid', teacher.uid)
           .single()
@@ -65,25 +65,36 @@ export async function POST(request: NextRequest) {
         // 准备数据
         const teacherData = {
           classin_uid: teacher.uid, // ClassIn 唯一标识符
-          teacher_name: teacher.name || teacher.nickname || '',
-          gender: teacher.gender || '未知',
-          wechat: teacher.wechat || '',
-          classin_phone: teacher.mobile || teacher.phone || '',
-          mobile: teacher.mobile || teacher.phone || '', // 复制到 mobile 字段
-          location: teacher.location || teacher.region || '未知',
-          subjects: teacher.subject ? [teacher.subject] : [],
-          grade_levels: [],
-          used_classin: true,
-          has_certificate: false,
-          education: teacher.education || '未知',
+          name: teacher.name || teacher.nickname || '',
+          mobile: teacher.mobile || teacher.phone || '',
+          email: teacher.email || '',
+          gender: teacher.gender || '',
+          location: teacher.location || teacher.region || '',
+          subject: teacher.subject || '',
+          grade: teacher.grade || '',
+          teach_type: teacher.teachType || '',
+          education: teacher.education || '',
           university: teacher.university || '',
+          // ClassIn 额外字段
+          school_uid: teacher.schoolUid,
+          join_type: teacher.joinType,
+          serve_state: teacher.serveState,
+          tea_id: teacher.teaId,
+          is_del: teacher.isdel || 0,
+          // 同步时间
+          sync_time: new Date().toISOString(),
+          // 额外信息
+          classin_extra: {
+            labelInfo: teacher.labelInfo || [],
+            // 其他 ClassIn 字段
+          },
           updated_at: new Date().toISOString(),
         }
 
         if (existing) {
           // 更新现有老师
           const { error: updateError } = await supabaseAdmin
-            .from('teacher_profiles')
+            .from('teachers')
             .update(teacherData)
             .eq('id', existing.id)
 
@@ -92,7 +103,7 @@ export async function POST(request: NextRequest) {
         } else {
           // 插入新老师
           const { error: insertError } = await supabaseAdmin
-            .from('teacher_profiles')
+            .from('teachers')
             .insert({
               ...teacherData,
               created_at: new Date().toISOString(),
