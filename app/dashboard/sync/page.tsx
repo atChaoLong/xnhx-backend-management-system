@@ -350,30 +350,37 @@ export default function SyncPage() {
                 <CardHeader>
                   <CardTitle>同步学生数据</CardTitle>
                   <CardDescription>
-                    从 ClassIn 获取学生列表并同步到 students 表
+                    从 ClassIn 获取学生列表并同步到 students_classin 表（保存 ClassIn 原始字段）
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <h4 className="font-medium">数据映射说明</h4>
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• <strong>uid</strong> → classin_uid (ClassIn 唯一标识符，用于去重)</li>
-                      <li>• <strong>schoolUid</strong> → school_uid (学校编号 1304802)</li>
-                      <li>• <strong>studId</strong> → stud_id (学生编号)</li>
-                      <li>• studentName → student_name</li>
-                      <li>• stuno → student_number</li>
-                      <li>• mobile → mobile 和 parent_phone</li>
-                      <li>• serveState → status (2=在籍/active)</li>
-                      <li>• labelInfo, progressInfo → classin_extra (JSON)</li>
+                      <li>• <strong>studId</strong> → stud_id (ClassIn 学生ID)</li>
+                      <li>• <strong>uid</strong> → uid (唯一标识符，用于去重)</li>
+                      <li>• <strong>name</strong> → name (学生姓名)</li>
+                      <li>• <strong>joinType</strong> → join_type (加入类型)</li>
+                      <li>• <strong>mobile</strong> → mobile (手机号)</li>
+                      <li>• <strong>email</strong> → email (邮箱)</li>
+                      <li>• <strong>accountStatus</strong> → account_status (账号状态)</li>
+                      <li>• <strong>catInfo</strong> → cat_info (分类信息，JSON)</li>
+                      <li>• <strong>lableInfo</strong> → lable_info (标签信息，JSON)</li>
+                      <li>• <strong>stuno</strong> → stuno (学号)</li>
+                      <li>• <strong>isdel</strong> → isdel (是否删除)</li>
+                      <li>• <strong>addtime</strong> → addtime (添加时间戳)</li>
+                      <li>• <strong>serveState</strong> → serve_state (服务状态)</li>
+                      <li>• 完整 API 响应 → classin_extra (JSON)</li>
                     </ul>
                   </div>
 
                   <div className="space-y-2">
                     <h4 className="font-medium">同步策略</h4>
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• 根据 ClassIn uid 判断是否已存在</li>
-                      <li>• 已存在：更新记录</li>
-                      <li>• 不存在：插入新记录</li>
+                      <li>• 根据 ClassIn uid 判断是否已存在于 students_classin 表</li>
+                      <li>• 已存在：更新 students_classin 表记录</li>
+                      <li>• 不存在：插入新记录到 students_classin 表</li>
+                      <li>• 保存完整的 ClassIn API 响应到 classin_extra</li>
                     </ul>
                   </div>
 

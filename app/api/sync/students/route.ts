@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     const students = classinData.data.list || []
 
-    // 2. 同步每个学生到数据库
+    // 2. 同步每个学生到 students_classin 表
     const results = {
       total: students.length,
       success: 0,
@@ -55,41 +55,39 @@ export async function POST(request: NextRequest) {
 
     for (const student of students) {
       try {
-        // 检查学生是否已存在（通过 classin_uid）
+        // 检查学生是否已存在（通过 uid）
         const { data: existing } = await supabaseAdmin
-          .from('students')
+          .from('students_classin')
           .select('id')
-          .eq('classin_uid', student.uid)
+          .eq('uid', student.uid)
           .single()
 
-        // 准备数据
+        // 准备数据 - 使用 ClassIn 原始字段名
         const studentData = {
-          classin_uid: student.uid, // ClassIn 唯一标识符
-          student_number: student.studId,
-          student_name: student.studentName || '',
-          grade_code: student.grade || '',
-          region: student.region || '',
-          school: student.school || '',
-          mobile: student.mobile || '',
-          parent_phone: student.parentPhone || student.mobile || '',
-          status: student.serveState === 2 ? 'active' : 'inactive', // 2=在籍
-          // 额外的 ClassIn 字段
-          school_uid: student.schoolUid,
-          serve_state: student.serveState,
+          stud_id: student.studId, // ClassIn 学生ID
+          uid: student.uid, // 唯一标识符
+          name: student.name || '',
           join_type: student.joinType,
-          stud_id: student.studId,
-          classin_extra: {
-            labelInfo: student.labelInfo || [],
-            progressInfo: student.progressInfo || {},
-            publicResourceStatus: student.publicResourceStatus,
-          },
+          mobile: student.mobile || '',
+          email: student.email || '',
+          account_status: student.accountStatus,
+          cat_info: student.catInfo || [],
+          lable_info: student.lableInfo || [],
+          stuno: student.stuno || '',
+          isdel: student.isdel ?? 0,
+          addtime: student.addtime,
+          serve_state: student.serveState,
+          // 同步时间
+          sync_time: new Date().toISOString(),
+          // 额外信息 - 保存 API 返回的其他字段
+          classin_extra: student,
           updated_at: new Date().toISOString(),
         }
 
         if (existing) {
           // 更新现有学生
           const { error: updateError } = await supabaseAdmin
-            .from('students')
+            .from('students_classin')
             .update(studentData)
             .eq('id', existing.id)
 
@@ -98,7 +96,7 @@ export async function POST(request: NextRequest) {
         } else {
           // 插入新学生
           const { error: insertError } = await supabaseAdmin
-            .from('students')
+            .from('students_classin')
             .insert({
               ...studentData,
               created_at: new Date().toISOString(),
@@ -110,7 +108,7 @@ export async function POST(request: NextRequest) {
       } catch (error: any) {
         results.failed++
         results.errors.push({
-          name: student.name || student.nickname || '未知',
+          name: student.name || '未知',
           error: error.message,
         })
       }

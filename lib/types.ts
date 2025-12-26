@@ -132,6 +132,39 @@ export interface Student {
 }
 
 // ============================================
+// ClassIn 学生原始数据类型
+// ============================================
+export interface StudentClassin {
+  id: string
+  createdAt: string
+  updatedAt: string
+
+  // ClassIn API 原始字段
+  studId?: number                   // 学生ID
+  uid: number                       // 唯一标识符
+  name: string                      // 学生姓名
+  joinType?: number                 // 加入类型
+  mobile?: string                   // 手机号
+  email?: string                    // 邮箱
+  accountStatus?: number            // 账号状态
+  catInfo?: any[]                   // 分类信息
+  lableInfo?: any[]                 // 标签信息
+  stuno?: string                    // 学号
+  isdel?: number                    // 是否删除 (0=正常, 1=已删除)
+  addtime?: number                  // 添加时间 (Unix时间戳)
+  serveState?: number               // 服务状态
+
+  // 同步相关字段
+  syncTime?: string                 // 最后同步时间
+  notes?: string                    // 备注
+
+  // ClassIn 额外信息
+  classinExtra?: {                  // ClassIn API 返回的其他额外字段
+    [key: string]: any
+  }
+}
+
+// ============================================
 // 老师档案类型
 // ============================================
 export interface TeacherProfile {
@@ -459,6 +492,9 @@ export type UpdateTeacherProfile = Partial<NewTeacherProfile> & { id: string }
 
 export type NewStudent = Omit<Student, "id" "createdAt" "updatedAt">
 export type UpdateStudent = Partial<NewStudent> & { id: string }
+
+export type NewStudentClassin = Omit<StudentClassin, "id" "createdAt" "updatedAt">
+export type UpdateStudentClassin = Partial<NewStudentClassin> & { id: string }
 
 export type NewTeacher = Omit<Teacher, "id" "createdAt" "updatedAt">
 export type UpdateTeacher = Partial<NewTeacher> & { id: string }
