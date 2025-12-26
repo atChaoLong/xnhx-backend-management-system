@@ -1,6 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
+// ClassIn API 响应类型（使用 camelCase）
+interface ClassInStudentResponse {
+  studId: number
+  uid: number
+  name: string
+  joinType: number
+  mobile?: string
+  email?: string
+  accountStatus: number
+  catInfo?: any[]
+  lableInfo?: any[]
+  stuno?: string
+  isdel?: number
+  addtime?: number
+  serveState?: number
+}
+
 /**
  * 从 ClassIn 同步学生数据到本地数据库
  * POST /api/sync/students
@@ -42,7 +59,7 @@ export async function POST(request: NextRequest) {
       throw new Error(classinData.error_info?.error || '获取学生列表失败')
     }
 
-    const students = classinData.data.list || []
+    const students = (classinData.data.list || []) as ClassInStudentResponse[]
 
     // 2. 同步每个学生到 students_classin 表
     const results = {

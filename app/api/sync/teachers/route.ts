@@ -1,6 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
+// ClassIn API 响应类型（使用 camelCase）
+interface ClassInTeacherResponse {
+  stId: number
+  uid: number
+  name: string
+  logo?: string
+  empNo?: string
+  position?: string
+  isDel?: number
+  joinType?: number
+  departmentsInfo?: any[]
+  mobile?: string
+  email?: string
+  accountStatus?: number
+}
+
 /**
  * 从 ClassIn 同步老师数据到本地数据库
  * POST /api/sync/teachers
@@ -42,7 +58,7 @@ export async function POST(request: NextRequest) {
       throw new Error(classinData.error_info?.error || '获取老师列表失败')
     }
 
-    const teachers = classinData.data.list || []
+    const teachers = (classinData.data.list || []) as ClassInTeacherResponse[]
 
     // 2. 同步每个老师到 teacher_classin 表
     const results = {
