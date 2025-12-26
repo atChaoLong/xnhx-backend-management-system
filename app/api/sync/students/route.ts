@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { supabaseAdmin } from '@/lib/supabase'
 
 /**
  * 从 ClassIn 同步学生数据到本地数据库
@@ -9,14 +9,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { limit = 100, cookie } = body
-
-    // 验证环境变量
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error('Supabase 配置缺失，请检查环境变量')
-    }
 
     // 1. 从 ClassIn API 获取学生列表
     const headers: Record<string, string> = {
@@ -52,15 +44,7 @@ export async function POST(request: NextRequest) {
 
     const students = classinData.data.list || []
 
-    // 2. 连接到 Supabase（使用 service role 以绕过 RLS）
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    })
-
-    // 3. 同步每个学生到数据库
+    // 2. 同步每个学生到数据库
     const results = {
       total: students.length,
       success: 0,
@@ -72,7 +56,7 @@ export async function POST(request: NextRequest) {
     for (const student of students) {
       try {
         // 检查学生是否已存在（通过 student_number）
-        const { data: existing } = await supabase
+        const { data: existing } = await supabaseAdmin
           .from('students')
           .select('id')
           .eq('student_number', student.stuno?.toString())
@@ -93,7 +77,7 @@ export async function POST(request: NextRequest) {
 
         if (existing) {
           // 更新现有学生
-          const { error: updateError } = await supabase
+          const { error: updateError } = await supabaseAdmin
             .from('students')
             .update(studentData)
             .eq('id', existing.id)
@@ -102,7 +86,7 @@ export async function POST(request: NextRequest) {
           results.updated++
         } else {
           // 插入新学生
-          const { error: insertError } = await supabase
+          const { error: insertError } = await supabaseAdmin
             .from('students')
             .insert({
               ...studentData,
