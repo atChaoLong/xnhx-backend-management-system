@@ -21,7 +21,9 @@ import {
   List,
   Eye,
   LogOut,
-  School
+  School,
+  TestTube,
+  Database
 } from "lucide-react"
 
 const navigation = [
@@ -38,6 +40,9 @@ const navigation = [
   { name: "异动记录", href: "/dashboard/transactions", icon: RefreshCw },
   // { name: "老师面试", href: "/dashboard/recruitment", icon: School },
   { name: "字典管理", href: "/dashboard/dictionaries", icon: List },
+  { name: "ClassIn SDK", href: "/dashboard/classin-sdk", icon: Database },
+  // { name: "ClassIn 集成", href: "/dashboard/classin", icon: Database },
+  // { name: "ClassIn 测试", href: "/dashboard/classin/test", icon: TestTube },
   // { name: "自定义视图", href: "/dashboard/teachers-views", icon: Eye },
   // { name: "设置", href: "/dashboard/settings", icon: Settings },
 ]
