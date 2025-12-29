@@ -11,6 +11,7 @@ import { Loader2 } from "lucide-react"
 import { TrialLessonsService, TrialLesson } from "@/lib/services/trialLessons"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
+import { uploadFile } from "@/lib/supabase-client"
 import Link from "next/link"
 import {
   Select,
@@ -28,9 +29,14 @@ export default function EditTrialLessonPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingDict, setIsLoadingDict] = useState(true)
   const [isLoadingTeachers, setIsLoadingTeachers] = useState(true)
+  const [isUploading, setIsUploading] = useState(false)
   const [lesson, setLesson] = useState<TrialLesson | null>(null)
 
   const lessonId = params.id as string
+
+  // 文件上传
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string>("")
 
   // 字典数据
   const [dictOptions, setDictOptions] = useState<{
@@ -211,6 +217,28 @@ export default function EditTrialLessonPage() {
     setIsSubmitting(true)
 
     try {
+      // 如果上传了新文件，先上传
+      let paymentProofUrl = formData.payment_proof
+      if (uploadedFile) {
+        try {
+          setIsUploading(true)
+          paymentProofUrl = await uploadFile(uploadedFile, 'payment-proofs')
+          toast({
+            title: "上传成功",
+            description: "付款凭证已上传",
+          })
+        } catch (error: any) {
+          toast({
+            variant: "destructive",
+            title: "上传失败",
+            description: error.message || "无法上传付款凭证",
+          })
+          return
+        } finally {
+          setIsUploading(false)
+        }
+      }
+
       const payload = {
         id: lessonId,
         child_name: formData.child_name.trim(),
@@ -224,7 +252,7 @@ export default function EditTrialLessonPage() {
         phone: formData.phone.trim(),
         channel: formData.channel.trim(),
         trial_amount: formData.trial_amount ? parseFloat(formData.trial_amount) : undefined,
-        payment_proof: formData.payment_proof.trim(),
+        payment_proof: paymentProofUrl.trim(),
         urgency_level: formData.urgency_level || undefined,
         notes: formData.notes.trim() || undefined,
         assigned_consultant: formData.assigned_consultant.trim() || undefined,
@@ -460,26 +488,41 @@ export default function EditTrialLessonPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="payment_proof">
-                      付款凭证URL <span className="text-destructive">*</span>
+                      付款凭证 <span className="text-destructive">*</span>
                     </Label>
                     <Input
                       id="payment_proof"
-                      placeholder="请输入付款凭证URL"
-                      value={formData.payment_proof}
-                      onChange={(e) => handleInputChange("payment_proof", e.target.value)}
-                      required
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          setUploadedFile(file)
+                          // 创建本地预览URL
+                          const url = URL.createObjectURL(file)
+                          setPreviewUrl(url)
+                          handleInputChange("payment_proof", url)
+                        }
+                      }}
                     />
-                    {formData.payment_proof && formData.payment_proof.match(/\.(jpg|jpeg|png|gif|webp)/i) && (
+                    {(previewUrl || formData.payment_proof) && (
                       <div className="mt-2">
-                        <p className="text-xs text-muted-foreground mb-1">当前付款凭证预览：</p>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          {uploadedFile ? '新图片预览：' : '当前付款凭证：'}
+                        </p>
                         <img
-                          src={formData.payment_proof}
+                          src={previewUrl || formData.payment_proof}
                           alt="付款凭证预览"
                           className="max-w-xs h-auto border rounded"
                           onError={(e) => {
                             e.currentTarget.style.display = 'none'
                           }}
                         />
+                        {uploadedFile && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            新文件: {uploadedFile.name}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -621,12 +664,17 @@ export default function EditTrialLessonPage() {
               {/* 操作按钮 */}
               <div className="flex justify-end gap-4 pt-4 border-t">
                 <Link href="/dashboard/trial-lessons">
-                  <Button type="button" variant="outline" disabled={isSubmitting}>
+                  <Button type="button" variant="outline" disabled={isSubmitting || isUploading}>
                     取消
                   </Button>
                 </Link>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
+                <Button type="submit" disabled={isSubmitting || isUploading}>
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      上传中...
+                    </>
+                  ) : isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       更新中...
