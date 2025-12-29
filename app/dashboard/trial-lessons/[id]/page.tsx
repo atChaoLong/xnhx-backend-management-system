@@ -235,10 +235,15 @@ export default function TrialLessonDetailPage() {
               </Button>
             </Link>
             <div className="flex gap-2">
-              {!lesson.classin_course_id && (
+              {lesson.classin_course_id ? (
+                <Button disabled className="bg-green-600">
+                  <Video className="mr-2 h-4 w-4" />
+                  ClassIn课程已创建
+                </Button>
+              ) : (
                 <Button
                   onClick={handleCreateClassIn}
-                  disabled={isCreating || !lesson.confirmed_teacher}
+                  disabled={isCreating}
                   className="bg-green-600 hover:bg-green-700"
                 >
                   {isCreating ? (
