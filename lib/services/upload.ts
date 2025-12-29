@@ -2,7 +2,7 @@
  * 文件上传工具函数
  */
 
-import { api } from './fetch'
+import { api } from '@/lib/fetch'
 
 /**
  * 上传文件到 Supabase Storage
