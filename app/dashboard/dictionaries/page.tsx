@@ -46,7 +46,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   visit_type: "访问类型",
   payment_type: "付款类型",
   recruiter: "招聘人",
-  sales_staff: "销售人员",
 }
 
 export default function DictionariesPage() {

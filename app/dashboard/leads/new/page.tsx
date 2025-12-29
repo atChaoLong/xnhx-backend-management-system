@@ -19,6 +19,7 @@ import {
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { LeadsService, NewLead } from "@/lib/services/leads"
 import { DictionaryService } from "@/lib/services/dictionary"
+import { WechatAccountsService } from "@/lib/services/wechatAccounts"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 
@@ -27,6 +28,7 @@ export default function NewLeadPage() {
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingDict, setIsLoadingDict] = useState(true)
+  const [isLoadingWechat, setIsLoadingWechat] = useState(true)
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
 
   // 字典数据
@@ -36,15 +38,20 @@ export default function NewLeadPage() {
     addMethods: Array<{ code: string; label: string }>
     regions: Array<{ code: string; label: string }>
     sources: Array<{ code: string; label: string }>
-    salesStaff: Array<{ code: string; label: string }>
   }>({
     grades: [],
     subjects: [],
     addMethods: [],
     regions: [],
     sources: [],
-    salesStaff: [],
   })
+
+  // 微信号数据
+  const [wechatAccounts, setWechatAccounts] = useState<Array<{
+    id: string
+    wechat_id: string
+    wechat_name: string
+  }>>([])
 
   const [formData, setFormData] = useState({
     report_number: "",
@@ -73,7 +80,6 @@ export default function NewLeadPage() {
           addMethods: dicts.add_method || [],
           regions: dicts.province || [],
           sources: dicts.xhs_source || [],
-          salesStaff: dicts.sales_staff || [],
         })
       } catch (error) {
         console.error("加载字典失败:", error)
@@ -83,6 +89,23 @@ export default function NewLeadPage() {
     }
 
     loadDictionaries()
+  }, [])
+
+  // 加载微信号数据
+  useEffect(() => {
+    const loadWechatAccounts = async () => {
+      try {
+        setIsLoadingWechat(true)
+        const accounts = await WechatAccountsService.getWechatAccounts()
+        setWechatAccounts(accounts)
+      } catch (error) {
+        console.error("加载微信号失败:", error)
+      } finally {
+        setIsLoadingWechat(false)
+      }
+    }
+
+    loadWechatAccounts()
   }, [])
 
   const handleInputChange = (field: string, value: string) => {
@@ -156,7 +179,7 @@ export default function NewLeadPage() {
       <div className="flex-1 overflow-auto p-6">
         <Card className="max-w-3xl mx-auto">
           <CardContent className="p-6">
-            {isLoadingDict ? (
+            {isLoadingDict || isLoadingWechat ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
@@ -320,12 +343,12 @@ export default function NewLeadPage() {
                       <Label htmlFor="grab_wechat">抢单微信号</Label>
                       <Select value={formData.grab_wechat} onValueChange={(value) => handleInputChange("grab_wechat", value)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="选择销售人员" />
+                          <SelectValue placeholder="选择微信号" />
                         </SelectTrigger>
                         <SelectContent>
-                          {dictOptions.salesStaff.map((staff) => (
-                            <SelectItem key={staff.code} value={staff.code}>
-                              {staff.label}
+                          {wechatAccounts.map((account) => (
+                            <SelectItem key={account.id} value={account.wechat_id}>
+                              {account.wechat_name} - {account.wechat_id}
                             </SelectItem>
                           ))}
                         </SelectContent>

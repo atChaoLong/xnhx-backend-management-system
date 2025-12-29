@@ -20,6 +20,7 @@ import { Loader2 } from "lucide-react"
 import Link from "next/link"
 import { LeadsService, Lead } from "@/lib/services/leads"
 import { DictionaryService } from "@/lib/services/dictionary"
+import { WechatAccountsService } from "@/lib/services/wechatAccounts"
 import { useToast } from "@/hooks/use-toast"
 
 export default function EditLeadPage() {
@@ -29,6 +30,7 @@ export default function EditLeadPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingDict, setIsLoadingDict] = useState(true)
+  const [isLoadingWechat, setIsLoadingWechat] = useState(true)
   const [lead, setLead] = useState<Lead | null>(null)
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
 
@@ -41,15 +43,20 @@ export default function EditLeadPage() {
     addMethods: Array<{ code: string; label: string }>
     regions: Array<{ code: string; label: string }>
     sources: Array<{ code: string; label: string }>
-    salesStaff: Array<{ code: string; label: string }>
   }>({
     grades: [],
     subjects: [],
     addMethods: [],
     regions: [],
     sources: [],
-    salesStaff: [],
   })
+
+  // 微信号数据
+  const [wechatAccounts, setWechatAccounts] = useState<Array<{
+    id: string
+    wechat_id: string
+    wechat_name: string
+  }>>([])
 
   const [formData, setFormData] = useState({
     report_number: "",
@@ -78,7 +85,6 @@ export default function EditLeadPage() {
           addMethods: dicts.add_method || [],
           regions: dicts.province || [],
           sources: dicts.xhs_source || [],
-          salesStaff: dicts.sales_staff || [],
         })
       } catch (error) {
         console.error("加载字典失败:", error)
@@ -88,6 +94,23 @@ export default function EditLeadPage() {
     }
 
     loadDictionaries()
+  }, [])
+
+  // 加载微信号数据
+  useEffect(() => {
+    const loadWechatAccounts = async () => {
+      try {
+        setIsLoadingWechat(true)
+        const accounts = await WechatAccountsService.getWechatAccounts()
+        setWechatAccounts(accounts)
+      } catch (error) {
+        console.error("加载微信号失败:", error)
+      } finally {
+        setIsLoadingWechat(false)
+      }
+    }
+
+    loadWechatAccounts()
   }, [])
 
   // 加载线索数据
@@ -176,7 +199,7 @@ export default function EditLeadPage() {
     }
   }
 
-  if (isLoading || isLoadingDict) {
+  if (isLoading || isLoadingDict || isLoadingWechat) {
     return (
       <div className="flex flex-col h-full">
         <Header title="编辑线索" description="修改线索信息" />
@@ -378,12 +401,12 @@ export default function EditLeadPage() {
                     <Label htmlFor="grab_wechat">抢单微信号</Label>
                     <Select value={formData.grab_wechat} onValueChange={(value) => handleInputChange("grab_wechat", value)}>
                       <SelectTrigger>
-                        <SelectValue placeholder="选择销售人员" />
+                        <SelectValue placeholder="选择微信号" />
                       </SelectTrigger>
                       <SelectContent>
-                        {dictOptions.salesStaff.map((staff) => (
-                          <SelectItem key={staff.code} value={staff.code}>
-                            {staff.label}
+                        {wechatAccounts.map((account) => (
+                          <SelectItem key={account.id} value={account.wechat_id}>
+                            {account.wechat_name} - {account.wechat_id}
                           </SelectItem>
                         ))}
                       </SelectContent>
