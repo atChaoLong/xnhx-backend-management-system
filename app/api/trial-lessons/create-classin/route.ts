@@ -72,12 +72,20 @@ export async function POST(request: NextRequest) {
 
     // 计算开始和结束时间
     const trialTime = new Date(lesson.trial_time)
+    const durationInHours = lesson.trial_duration / 60
+    const durationMs = durationInHours * 60 * 60 * 1000
+    const endTime = new Date(trialTime.getTime() + durationMs)
 
     logger.info('开始创建完整的ClassIn课程', {
       courseName,
       teacherName: lesson.confirmed_teacher,
       teacherUid: teacherData.uid,
-      trialTime
+      trialTime: trialTime.toISOString(),
+      trial_duration_minutes: lesson.trial_duration,
+      durationInHours,
+      durationMs,
+      endTime: endTime.toISOString(),
+      durationMinutes: (endTime.getTime() - trialTime.getTime()) / 60000
     })
 
     // 7. 执行创建流程
@@ -95,10 +103,11 @@ export async function POST(request: NextRequest) {
       logger.info('创建课程成功', { courseId })
 
       // 7.2 创建单元
-      unitId = await sdk.createUnit({
+      const unitResult = await sdk.createUnit({
         courseId,
         name: unitName
       })
+      unitId = unitResult.unitId || unitResult
 
       logger.info('创建单元成功', { unitId })
 
@@ -109,7 +118,7 @@ export async function POST(request: NextRequest) {
         name: classroomName,
         teacherUid: teacherData.uid,
         startTime: trialTime,
-        endTime: new Date(trialTime.getTime() + lesson.trial_duration * 60 * 60 * 1000),
+        endTime: endTime,
         liveState: 0,
         openState: 0,
         recordState: 1, // 开启录课
