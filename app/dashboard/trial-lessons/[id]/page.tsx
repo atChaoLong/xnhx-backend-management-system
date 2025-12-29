@@ -5,12 +5,13 @@ import { useRouter, useParams } from "next/navigation"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Loader2, ArrowLeft, Edit } from "lucide-react"
+import { Loader2, ArrowLeft, Edit, Video } from "lucide-react"
 import { TrialLessonsService, TrialLesson } from "@/lib/services/trialLessons"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { format } from "date-fns"
+import { api } from "@/lib/fetch"
 
 export default function TrialLessonDetailPage() {
   const router = useRouter()
@@ -18,6 +19,7 @@ export default function TrialLessonDetailPage() {
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingDict, setIsLoadingDict] = useState(true)
+  const [isCreating, setIsCreating] = useState(false)
   const [lesson, setLesson] = useState<TrialLesson | null>(null)
 
   const lessonId = params.id as string
@@ -130,6 +132,63 @@ export default function TrialLessonDetailPage() {
     return urgencyMap[urgency] || urgency
   }
 
+  // 创建ClassIn课程
+  const handleCreateClassIn = async () => {
+    if (!lesson) return
+
+    // 检查是否已确认教师
+    if (!lesson.confirmed_teacher) {
+      toast({
+        variant: "destructive",
+        title: "无法创建课程",
+        description: "请先确认教师后再创建ClassIn课程",
+      })
+      return
+    }
+
+    // 检查是否已经创建
+    if (lesson.classin_course_id) {
+      toast({
+        variant: "destructive",
+        title: "课程已存在",
+        description: "该试听课程已创建ClassIn课程",
+      })
+      return
+    }
+
+    try {
+      setIsCreating(true)
+
+      const response = await api.post('/api/trial-lessons/create-classin', {
+        trialLessonId: lesson.id,
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: '创建课程失败' }))
+        throw new Error(error.error || '创建课程失败')
+      }
+
+      const result = await response.json()
+
+      toast({
+        title: "创建成功",
+        description: `已成功创建课程（ID: ${result.data.courseId}）和课节（ID: ${result.data.classId}）`,
+      })
+
+      // 重新加载试听课程数据
+      const updatedLesson = await TrialLessonsService.getTrialLessonById(lessonId)
+      setLesson(updatedLesson)
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "创建失败",
+        description: error.message || "无法创建ClassIn课程",
+      })
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
   if (isLoading || isLoadingDict) {
     return (
       <div className="flex flex-col h-full">
@@ -175,12 +234,33 @@ export default function TrialLessonDetailPage() {
                 返回列表
               </Button>
             </Link>
-            <Link href={`/dashboard/trial-lessons/${lesson.id}/edit`}>
-              <Button>
-                <Edit className="mr-2 h-4 w-4" />
-                编辑
-              </Button>
-            </Link>
+            <div className="flex gap-2">
+              {!lesson.classin_course_id && (
+                <Button
+                  onClick={handleCreateClassIn}
+                  disabled={isCreating || !lesson.confirmed_teacher}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {isCreating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      创建中...
+                    </>
+                  ) : (
+                    <>
+                      <Video className="mr-2 h-4 w-4" />
+                      创建ClassIn课程
+                    </>
+                  )}
+                </Button>
+              )}
+              <Link href={`/dashboard/trial-lessons/${lesson.id}/edit`}>
+                <Button>
+                  <Edit className="mr-2 h-4 w-4" />
+                  编辑
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {/* 基本信息 */}
@@ -306,9 +386,28 @@ export default function TrialLessonDetailPage() {
           <Card>
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold mb-4">教务信息</h3>
-              <div>
-                <p className="text-sm text-muted-foreground">确认教师</p>
-                <p className="text-base font-medium">{lesson.confirmed_teacher || "-"}</p>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">确认教师</p>
+                  <p className="text-base font-medium">{lesson.confirmed_teacher || "-"}</p>
+                </div>
+                {lesson.classin_course_id && (
+                  <>
+                    <div className="pt-4 border-t">
+                      <p className="text-sm font-medium text-green-600 mb-2">ClassIn 课程已创建</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-muted-foreground">课程ID</p>
+                          <p className="text-base font-medium">{lesson.classin_course_id}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">课节ID</p>
+                          <p className="text-base font-medium">{lesson.classin_class_id || "-"}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>

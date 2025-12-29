@@ -15,6 +15,8 @@ import {
   ClassSearchParams,
   AddStudentParams,
   AddTeacherParams,
+  CreateCourseParams,
+  CreateClassParams,
 } from './classin/types'
 import { getClassInApiClient } from './classin/api'
 
@@ -122,6 +124,24 @@ export class ClassInService {
    */
   async addStudent(params: AddStudentParams): Promise<any> {
     return await this.apiClient.addStudent(params)
+  }
+
+  // ============================================
+  // 创建课程和课节
+  // ============================================
+
+  /**
+   * 创建课程
+   */
+  async createCourse(params: CreateCourseParams): Promise<any> {
+    return await this.apiClient.createCourse(params)
+  }
+
+  /**
+   * 创建课节
+   */
+  async createClass(params: CreateClassParams): Promise<any> {
+    return await this.apiClient.createClass(params)
   }
 
   // ============================================

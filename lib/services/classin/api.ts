@@ -13,7 +13,9 @@ import {
   ClassPageResponse,
   ClassInSession,
   AddStudentParams,
-  AddTeacherParams
+  AddTeacherParams,
+  CreateCourseParams,
+  CreateClassParams
 } from './types'
 
 /**
@@ -238,6 +240,40 @@ export class ClassInApiClient {
 
     if (response.error_info.errno !== 1) {
       throw new Error(`添加老师失败: ${response.error_info.error}`)
+    }
+
+    return response.data
+  }
+
+  /**
+   * 创建课程
+   */
+  async createCourse(params: CreateCourseParams): Promise<any> {
+    const response = await this.request<any>(
+      'POST',
+      '/coreapi/course/v1/createCourse',
+      params
+    )
+
+    if (response.error_info.errno !== 1) {
+      throw new Error(`创建课程失败: ${response.error_info.error}`)
+    }
+
+    return response.data
+  }
+
+  /**
+   * 创建课节
+   */
+  async createClass(params: CreateClassParams): Promise<any> {
+    const response = await this.request<any>(
+      'POST',
+      '/coreapi/class/v1/addClass',
+      params
+    )
+
+    if (response.error_info.errno !== 1) {
+      throw new Error(`创建课节失败: ${response.error_info.error}`)
     }
 
     return response.data

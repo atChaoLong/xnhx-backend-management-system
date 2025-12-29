@@ -37,6 +37,10 @@ export interface TrialLesson {
   // 教务信息
   matched_teacher?: string
   confirmed_teacher?: string
+
+  // ClassIn 集成
+  classin_course_id?: number
+  classin_class_id?: number
 }
 
 export interface NewTrialLesson {

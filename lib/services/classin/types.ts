@@ -181,3 +181,26 @@ export interface ClassSearchParams extends PageParams {
   end_time?: string
   status?: number
 }
+
+// ============================================
+// 创建课程和课节相关类型
+// ============================================
+
+export interface CreateCourseParams {
+  name: string // 课程名称
+  subject?: string // 科目
+  grade?: string // 年级
+  teacher_id?: number // 教师ID
+  teacher_name?: string // 教师姓名
+  course_type?: number // 课程类型（1: 一对一，2: 小班课，3: 大班课）
+}
+
+export interface CreateClassParams {
+  course_id: number // 课程ID
+  class_name: string // 课节名称
+  teacher_id: number // 教师ID
+  start_time: string // 开始时间（Unix时间戳，毫秒）
+  end_time: string // 结束时间（Unix时间戳，毫秒）
+  student_ids?: number[] // 学生ID列表
+  class_type?: number // 课节类型（1: 一对一，2: 小班课，3: 大班课）
+}
