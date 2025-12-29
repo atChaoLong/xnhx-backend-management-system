@@ -24,6 +24,8 @@ export default function NewStudentPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isRegisteringClassIn, setIsRegisteringClassIn] = useState(false)
+  const [createdStudentId, setCreatedStudentId] = useState<string>("")
   const [isLoadingDict, setIsLoadingDict] = useState(true)
 
   // 字典数据
@@ -43,6 +45,9 @@ export default function NewStudentPage() {
     school: "",
     parent_phone: "",
     status: "active",
+    // ClassIn 相关字段
+    classin_password: "",
+    register_to_classin: false,
   })
 
   // 加载字典数据
@@ -83,6 +88,26 @@ export default function NewStudentPage() {
       return
     }
 
+    // 如果要注册到 ClassIn，验证必填字段
+    if (formData.register_to_classin) {
+      if (!formData.parent_phone?.trim()) {
+        toast({
+          variant: "destructive",
+          title: "验证失败",
+          description: "注册到 ClassIn 需要填写家长电话",
+        })
+        return
+      }
+      if (!formData.classin_password?.trim()) {
+        toast({
+          variant: "destructive",
+          title: "验证失败",
+          description: "注册到 ClassIn 需要设置密码",
+        })
+        return
+      }
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -96,14 +121,20 @@ export default function NewStudentPage() {
         status: formData.status || "active",
       }
 
-      await StudentsService.createStudent(payload)
+      const student = await StudentsService.createStudent(payload)
+      setCreatedStudentId(student.id)
 
       toast({
         title: "创建成功",
         description: "学生已创建",
       })
 
-      router.push("/dashboard/students")
+      // 如果需要注册到 ClassIn
+      if (formData.register_to_classin) {
+        await handleRegisterToClassIn(student.id)
+      } else {
+        router.push("/dashboard/students")
+      }
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -112,6 +143,48 @@ export default function NewStudentPage() {
       })
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  // 注册到 ClassIn
+  const handleRegisterToClassIn = async (studentId: string) => {
+    setIsRegisteringClassIn(true)
+
+    try {
+      const response = await fetch('/api/students/register-classin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentId,
+          telephone: formData.parent_phone,
+          nickname: formData.student_name,
+          password: formData.classin_password,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: '注册到 ClassIn 失败' }))
+        throw new Error(error.error || '注册到 ClassIn 失败')
+      }
+
+      const result = await response.json()
+
+      toast({
+        title: "ClassIn 注册成功",
+        description: `学生已注册到 ClassIn 系统，UID: ${result.data.uid}`,
+      })
+
+      router.push("/dashboard/students")
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "ClassIn 注册失败",
+        description: error.message || "无法注册到 ClassIn",
+      })
+      // 即使注册失败，也跳转到列表页（因为学生已创建）
+      router.push("/dashboard/students")
+    } finally {
+      setIsRegisteringClassIn(false)
     }
   }
 
@@ -226,15 +299,63 @@ export default function NewStudentPage() {
                   </div>
                 </div>
 
+                {/* ClassIn 集成 */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold">ClassIn 集成</h3>
+
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="register_to_classin"
+                      checked={formData.register_to_classin}
+                      onChange={(e) => handleInputChange("register_to_classin", e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <Label htmlFor="register_to_classin" className="cursor-pointer">
+                      同时注册到 ClassIn 系统
+                    </Label>
+                  </div>
+
+                  {formData.register_to_classin && (
+                    <div className="space-y-4 pl-6 border-l-2 border-muted">
+                      <p className="text-sm text-muted-foreground">
+                        注册到 ClassIn 需要以下信息：
+                      </p>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="classin_password">
+                          ClassIn 密码 <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="classin_password"
+                          type="password"
+                          placeholder="请输入 ClassIn 登录密码"
+                          value={formData.classin_password}
+                          onChange={(e) => handleInputChange("classin_password", e.target.value)}
+                          required={formData.register_to_classin}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          密码将用于学生在 ClassIn 系统的登录
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* 操作按钮 */}
                 <div className="flex justify-end gap-4 pt-4 border-t">
                   <Link href="/dashboard/students">
-                    <Button type="button" variant="outline" disabled={isSubmitting}>
+                    <Button type="button" variant="outline" disabled={isSubmitting || isRegisteringClassIn}>
                       取消
                     </Button>
                   </Link>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? (
+                  <Button type="submit" disabled={isSubmitting || isRegisteringClassIn}>
+                    {isRegisteringClassIn ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        注册到 ClassIn 中...
+                      </>
+                    ) : isSubmitting ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         提交中...

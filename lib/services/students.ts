@@ -21,6 +21,7 @@ export interface Student {
   parent_phone?: string          // 家长电话
   head_teacher_id?: string       // 班主任ID
   status?: string                // 状态
+  classin_uid?: number           // ClassIn 学生 UID
 }
 
 /**
