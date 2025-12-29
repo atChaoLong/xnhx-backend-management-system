@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, Users, UserCheck, CheckCircle, XCircle, RefreshCw, Save, Trash2 } from "lucide-react"
+import { Loader2, Users, UserCheck, CheckCircle, XCircle, RefreshCw, Save, Trash2, BookOpen } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface SyncResult {
@@ -26,6 +26,7 @@ export default function SyncPage() {
   const [cookie, setCookie] = useState("")
   const [teacherResult, setTeacherResult] = useState<SyncResult | null>(null)
   const [studentResult, setStudentResult] = useState<SyncResult | null>(null)
+  const [classResult, setClassResult] = useState<SyncResult | null>(null)
 
   // 从 localStorage 加载保存的 Cookie
   useEffect(() => {
@@ -142,11 +143,55 @@ export default function SyncPage() {
     }
   }
 
+  // 同步班级
+  const handleSyncClasses = async () => {
+    if (!cookie.trim()) {
+      toast({
+        variant: "destructive",
+        title: "请先配置 Cookie",
+        description: "请先在下方配置并保存 ClassIn Cookie",
+      })
+      return
+    }
+
+    setIsSyncing(true)
+    setClassResult(null)
+
+    try {
+      const response = await fetch("/api/sync/classes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pageSize: limit, cookie }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "同步班级失败")
+      }
+
+      setClassResult(data.data)
+
+      toast({
+        title: "同步完成",
+        description: `成功: ${data.data.success}, 失败: ${data.data.failed}`,
+      })
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "同步失败",
+        description: error.message || "无法同步班级数据",
+      })
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
   return (
     <div className="flex flex-col h-full">
       <Header
         title="数据同步"
-        description="从 ClassIn 同步老师和学生数据到本地数据库"
+        description="从 ClassIn 同步老师、学生和班级数据到本地数据库"
       />
 
       <div className="flex-1 overflow-auto p-6">
@@ -218,7 +263,7 @@ export default function SyncPage() {
 
           {/* 同步功能标签页 */}
           <Tabs defaultValue="teachers" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="teachers">
                 <UserCheck className="mr-2 h-4 w-4" />
                 同步老师
@@ -226,6 +271,10 @@ export default function SyncPage() {
               <TabsTrigger value="students">
                 <Users className="mr-2 h-4 w-4" />
                 同步学生
+              </TabsTrigger>
+              <TabsTrigger value="classes">
+                <BookOpen className="mr-2 h-4 w-4" />
+                同步班级
               </TabsTrigger>
             </TabsList>
 
@@ -437,6 +486,114 @@ export default function SyncPage() {
                       )}
 
                       {studentResult.failed === 0 && (
+                        <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 text-green-900">
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                          <span className="text-sm font-medium">同步成功完成！</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* 同步班级 */}
+            <TabsContent value="classes">
+              <Card>
+                <CardHeader>
+                  <CardTitle>同步班级数据</CardTitle>
+                  <CardDescription>
+                    从 ClassIn 获取班级列表并同步到 class_classin 表（保存 ClassIn 原始字段）
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <h4 className="font-medium">数据映射说明</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• <strong>courseId</strong> → course_id (主键，ClassIn 班级ID)</li>
+                      <li>• <strong>courseName</strong> → course_name (班级名称)</li>
+                      <li>• <strong>schoolUid</strong> → school_uid (学校编号)</li>
+                      <li>• <strong>courseState</strong> → course_state (课程状态)</li>
+                      <li>• <strong>courseType</strong> → course_type (课程类型)</li>
+                      <li>• <strong>teacherNum</strong> → teacher_num (老师数量)</li>
+                      <li>• <strong>studentNum</strong> → student_num (学生数量)</li>
+                      <li>• <strong>completeClassNum</strong> → complete_class_num (完成的课节数)</li>
+                      <li>• <strong>totalClassNum</strong> → total_class_num (总课节数)</li>
+                      <li>• 其他字段和 JSON 对象直接保存</li>
+                    </ul>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="font-medium">同步策略</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• 使用 ClassIn courseId 作为主键</li>
+                      <li>• 使用 upsert 操作：存在则更新，不存在则插入</li>
+                      <li>• 完整保存 headImg, courseImg, setting 等 JSON 对象</li>
+                      <li>• 保存 teachers 数组包含班级所有老师信息</li>
+                    </ul>
+                  </div>
+
+                  <Button
+                    onClick={handleSyncClasses}
+                    disabled={isSyncing}
+                    className="w-full"
+                  >
+                    {isSyncing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        同步中...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        开始同步班级数据
+                      </>
+                    )}
+                  </Button>
+
+                  {/* 同步结果 */}
+                  {classResult && (
+                    <div className="space-y-4 pt-4 border-t">
+                      <h4 className="font-medium">同步结果</h4>
+
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold">{classResult.total}</div>
+                          <div className="text-xs text-muted-foreground">总数</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-green-600">{classResult.success}</div>
+                          <div className="text-xs text-muted-foreground">成功</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-red-600">{classResult.failed}</div>
+                          <div className="text-xs text-muted-foreground">失败</div>
+                        </div>
+                      </div>
+
+                      {classResult.errors.length > 0 && (
+                        <div className="space-y-2">
+                          <h5 className="text-sm font-medium text-destructive">
+                            错误详情 ({classResult.errors.length})
+                          </h5>
+                          <div className="max-h-40 overflow-y-auto space-y-1">
+                            {classResult.errors.map((error, index) => (
+                              <div
+                                key={index}
+                                className="text-xs flex items-start gap-2 p-2 rounded bg-destructive/10"
+                              >
+                                <XCircle className="h-3 w-3 text-destructive mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <span className="font-medium">{error.name}:</span>
+                                  <span className="text-muted-foreground">{error.error}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {classResult.failed === 0 && (
                         <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 text-green-900">
                           <CheckCircle className="h-5 w-5 text-green-600" />
                           <span className="text-sm font-medium">同步成功完成！</span>
