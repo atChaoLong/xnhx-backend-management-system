@@ -272,7 +272,14 @@ export default function TrialLessonsPage() {
                   ) : (
                     lessons.map((lesson) => (
                       <TableRow key={lesson.id}>
-                        <TableCell className="font-medium">{lesson.child_name || "-"}</TableCell>
+                        <TableCell className="font-medium">
+                          <Link
+                            href={`/dashboard/trial-lessons/${lesson.id}`}
+                            className="hover:underline text-blue-600 hover:text-blue-800"
+                          >
+                            {lesson.child_name || "-"}
+                          </Link>
+                        </TableCell>
                         <TableCell>{getLabelByCode(lesson.trial_subject || "", 'subjects')}</TableCell>
                         <TableCell>{getLabelByCode(lesson.grade || "", 'grades')}</TableCell>
                         <TableCell>{getLabelByCode(lesson.region || "", 'regions')}</TableCell>
