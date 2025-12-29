@@ -19,11 +19,24 @@ export async function POST(request: NextRequest) {
     }
 
     const service = getClassInSDKService()
+
+    // 1. 注册学生
     const studentUid = await service.registerStudent({
       telephone: body.telephone,
       nickname: body.nickname,
       password: body.password,
     })
+
+    // 2. 添加学生到机构（确保在后台显示）
+    try {
+      await service.addSchoolStudent({
+        studentAccount: body.telephone,
+        studentName: body.nickname,
+      })
+    } catch (addError: any) {
+      // addSchoolStudent 失败不影响注册结果
+      console.warn('添加学生到机构失败（可能已存在）:', addError.message)
+    }
 
     return NextResponse.json({
       success: true,
