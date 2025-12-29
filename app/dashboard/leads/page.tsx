@@ -194,7 +194,7 @@ export default function LeadsPage() {
                   <TableRow>
                     <TableHead>录单日期</TableHead>
                     <TableHead>报单序号</TableHead>
-                    <TableHead>来源账号</TableHead>
+                    <TableHead>小红书账号来源</TableHead>
                     <TableHead>年级</TableHead>
                     <TableHead>咨询学科</TableHead>
                     <TableHead>地域</TableHead>

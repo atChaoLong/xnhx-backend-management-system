@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
-import { classInService } from "@/lib/services/classin"
+import { getClassInSDK } from "@/lib/services/classin/sdk"
 import { createLogger } from "@/lib/logger"
 
 const logger = createLogger('API:TrialLessonscreateClassIn')
@@ -51,9 +51,13 @@ export async function POST(request: NextRequest) {
 
     const teacherId = teacherData.uid
 
-    // 5. 创建课程
+    // 5. 使用 SDK 创建课程
+    const sdk = getClassInSDK()
     const courseName = `${lesson.child_name}-${lesson.trial_subject}-试听课`
-    const courseResult = await classInService.createCourse({
+
+    logger.info('开始创建课程', { courseName, teacherId })
+
+    const courseResult = await sdk.createCourse({
       name: courseName,
       subject: lesson.trial_subject,
       grade: lesson.grade,
@@ -62,23 +66,23 @@ export async function POST(request: NextRequest) {
       course_type: 1, // 1: 一对一
     })
 
-    logger.info('创建课程成功', { courseId: courseResult.course_id, courseName })
+    logger.info('创建课程成功', { courseId: courseResult.course_id })
 
     const courseId = courseResult.course_id
 
-    // 6. 计算开始和结束时间
+    // 6. 计算开始和结束时间（SDK 使用秒级时间戳）
     const trialTime = new Date(lesson.trial_time)
-    const startTime = trialTime.getTime()
-    const endTime = startTime + (lesson.trial_duration * 60 * 60 * 1000) // 转换为毫秒
+    const startTime = Math.floor(trialTime.getTime() / 1000) // 转换为秒
+    const endTime = startTime + Math.floor(lesson.trial_duration * 60 * 60) // 秒
 
     // 7. 创建课节
     const className = `${courseName}-${trialTime.toLocaleDateString('zh-CN')}`
-    const classResult = await classInService.createClass({
+    const classResult = await sdk.createClass({
       course_id: courseId,
       class_name: className,
       teacher_id: teacherId,
-      start_time: startTime.toString(),
-      end_time: endTime.toString(),
+      start_time: startTime,
+      end_time: endTime,
       class_type: 1, // 1: 一对一
     })
 
