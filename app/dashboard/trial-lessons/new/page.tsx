@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
 import { TrialLessonsService, NewTrialLesson } from "@/lib/services/trialLessons"
-import { TeachersService } from "@/lib/services/teachers"
 import { LeadsService } from "@/lib/services/leads"
 import { getDictionaryItems } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
@@ -73,19 +72,19 @@ export default function NewTrialLessonPage() {
   // 加载字典数据
   useEffect(() => {
     const loadData = async () => {
-      const [regionData, gradeData, subjectData, trialDurationData, teachersData, leadsData] = await Promise.all([
+      const [regionData, gradeData, subjectData, trialDurationData, classinTeachersData, leadsData] = await Promise.all([
         getDictionaryItems('province'),
         getDictionaryItems('grade'),
         getDictionaryItems('subject'),
         getDictionaryItems('class_duration'),
-        TeachersService.getTeachers(),
+        fetch('/api/teachers/classin').then(res => res.json()).then(data => data.success ? data.data : []),
         LeadsService.getLeads(),
       ])
       setRegions(regionData)
       setGrades(gradeData)
       setSubjects(subjectData)
       setTrialDurations(trialDurationData)
-      setTeachers(teachersData)
+      setTeachers(classinTeachersData)
       setLeads(leadsData)
     }
     loadData()
@@ -487,13 +486,16 @@ export default function NewTrialLessonPage() {
                     onChange={(e) => handleInputChange("confirmed_teacher", e.target.value)}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                   >
-                    <option value="">请选择老师</option>
+                    <option value="">请选择确认老师（需已绑定ClassIn）</option>
                     {teachers.map((teacher) => (
                       <option key={teacher.id} value={teacher.teacher_name}>
-                        {teacher.teacher_name}
+                        {teacher.teacher_name} {teacher.teacher_subject ? `(${teacher.teacher_subject})` : ''}
                       </option>
                     ))}
                   </select>
+                  <p className="text-xs text-muted-foreground">
+                    仅显示已绑定 ClassIn 的教师
+                  </p>
                 </div>
               </div>
 

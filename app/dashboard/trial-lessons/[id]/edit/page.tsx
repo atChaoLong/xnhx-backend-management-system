@@ -27,6 +27,7 @@ export default function EditTrialLessonPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingDict, setIsLoadingDict] = useState(true)
+  const [isLoadingTeachers, setIsLoadingTeachers] = useState(true)
   const [lesson, setLesson] = useState<TrialLesson | null>(null)
 
   const lessonId = params.id as string
@@ -41,6 +42,15 @@ export default function EditTrialLessonPage() {
     subjects: [],
     regions: [],
   })
+
+  // 教师数据
+  const [teachers, setTeachers] = useState<Array<{
+    id: string
+    teacher_name: string
+    teacher_subject?: string
+    teacher_phone?: string
+    classin_uid: number
+  }>>([])
 
   const [formData, setFormData] = useState({
     // 基本信息
@@ -144,6 +154,29 @@ export default function EditTrialLessonPage() {
     loadDictionaries()
   }, [])
 
+  // 加载教师数据
+  useEffect(() => {
+    const loadTeachers = async () => {
+      try {
+        setIsLoadingTeachers(true)
+        const response = await fetch('/api/teachers/classin')
+        const result = await response.json()
+
+        if (result.success) {
+          setTeachers(result.data)
+        } else {
+          console.error("加载教师失败:", result.error)
+        }
+      } catch (error) {
+        console.error("加载教师失败:", error)
+      } finally {
+        setIsLoadingTeachers(false)
+      }
+    }
+
+    loadTeachers()
+  }, [])
+
   const handleInputChange = (field: string, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
@@ -220,7 +253,7 @@ export default function EditTrialLessonPage() {
     }
   }
 
-  if (isLoading || isLoadingDict) {
+  if (isLoading || isLoadingDict || isLoadingTeachers) {
     return (
       <div className="flex flex-col h-full">
         <Header title="编辑试听课程" description="修改试听课程信息" />
@@ -544,12 +577,31 @@ export default function EditTrialLessonPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="confirmed_teacher">确认老师（教务）</Label>
-                  <Input
-                    id="confirmed_teacher"
-                    placeholder="请输入确认老师"
+                  <Select
                     value={formData.confirmed_teacher}
-                    onChange={(e) => handleInputChange("confirmed_teacher", e.target.value)}
-                  />
+                    onValueChange={(value) => handleInputChange("confirmed_teacher", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="请选择确认老师（需已绑定ClassIn）" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teachers.map((teacher) => (
+                        <SelectItem key={teacher.id} value={teacher.teacher_name}>
+                          <div className="flex flex-col">
+                            <span>{teacher.teacher_name}</span>
+                            {teacher.teacher_subject && (
+                              <span className="text-xs text-muted-foreground">
+                                {teacher.teacher_subject}
+                              </span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    仅显示已绑定 ClassIn 的教师
+                  </p>
                 </div>
               </div>
 
