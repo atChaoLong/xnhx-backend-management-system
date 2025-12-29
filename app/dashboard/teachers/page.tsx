@@ -107,8 +107,17 @@ export default function TeachersPage() {
     }
 
     // 打开确认对话框
-    const password = prompt(`请输入老师 ${teacher.teacher_name} 的 ClassIn 密码：`)
-    if (!password) {
+    const password = prompt(`正在将老师 ${teacher.teacher_name} 入库到 ClassIn 系统\n\n手机号: ${teacher.classin_phone}\n\n请输入 ClassIn 登录密码：`)
+    if (password === null) {
+      // 用户点击取消
+      return
+    }
+    if (password.trim() === "") {
+      toast({
+        variant: "destructive",
+        title: "密码不能为空",
+        description: "请输入 ClassIn 登录密码",
+      })
       return
     }
 
@@ -122,7 +131,7 @@ export default function TeachersPage() {
           teacherId: teacher.id,
           telephone: teacher.classin_phone,
           nickname: teacher.teacher_name,
-          password: password,
+          password: password.trim(),
         }),
       })
 
@@ -202,13 +211,14 @@ export default function TeachersPage() {
                     <TableHead>学历</TableHead>
                     <TableHead>毕业院校</TableHead>
                     <TableHead>教学年限</TableHead>
+                    <TableHead>ClassIn状态</TableHead>
                     <TableHead className="text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {teachers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                         暂无数据，点击"新增老师"开始添加
                       </TableCell>
                     </TableRow>
@@ -231,21 +241,38 @@ export default function TeachersPage() {
                         <TableCell>{teacher.education || "-"}</TableCell>
                         <TableCell>{teacher.university || "-"}</TableCell>
                         <TableCell>{teacher.teaching_years ? `${teacher.teaching_years}年` : "-"}</TableCell>
+                        <TableCell>
+                          {teacher.used_classin ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              已入库
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              未入库
+                            </span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             {/* 入库按钮 - 仅未入库的老师显示 */}
                             {!teacher.used_classin && (
                               <Button
-                                variant="ghost"
-                                size="icon"
+                                variant="default"
+                                size="sm"
                                 onClick={() => handleRegisterToClassIn(teacher)}
                                 disabled={isRegistering === teacher.id}
-                                title="入库到 ClassIn"
+                                className="bg-blue-600 hover:bg-blue-700"
                               >
                                 {isRegistering === teacher.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    入库中...
+                                  </>
                                 ) : (
-                                  <Upload className="h-4 w-4 text-blue-600" />
+                                  <>
+                                    <Upload className="mr-2 h-4 w-4" />
+                                    入库
+                                  </>
                                 )}
                               </Button>
                             )}
