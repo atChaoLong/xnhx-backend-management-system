@@ -36,19 +36,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '请先确认教师后再创建课程' }, { status: 400 })
     }
 
-    // 4. 从教师表获取 ClassIn UID
+    // 4. 从 teacher_classin 表获取 ClassIn UID（通过教师姓名匹配）
     const { data: teacherData, error: teacherError } = await supabaseServer
       .from('teacher_classin')
-      .select('classin_uid')
-      .eq('teacher_id', lesson.confirmed_teacher)
+      .select('uid, st_id')
+      .eq('name', lesson.confirmed_teacher)
+      .eq('is_del', 0)
       .single()
 
     if (teacherError || !teacherData) {
       logger.error('获取教师ClassIn UID失败', { teacherName: lesson.confirmed_teacher, error: teacherError })
-      return NextResponse.json({ error: '教师未关联ClassIn账号，请先绑定' }, { status: 400 })
+      return NextResponse.json({ error: '教师未在ClassIn系统中找到，请检查教师姓名是否正确' }, { status: 400 })
     }
 
-    const teacherId = teacherData.classin_uid
+    const teacherId = teacherData.uid
 
     // 5. 创建课程
     const courseName = `${lesson.child_name}-${lesson.trial_subject}-试听课`

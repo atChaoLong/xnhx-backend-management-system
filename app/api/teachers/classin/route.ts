@@ -6,32 +6,26 @@ const logger = createLogger('API:TeachersClassIn')
 
 export async function GET(request: NextRequest) {
   try {
-    // 获取已绑定 ClassIn 的教师列表
+    // 从 teacher_classin 表获取 ClassIn 教师列表
     const { data, error } = await supabaseServer
       .from('teacher_classin')
-      .select(`
-        teacher_id,
-        classin_uid,
-        teachers!inner(
-          teacher_name,
-          teacher_subject,
-          teacher_phone
-        )
-      `)
-      .order('teachers.teacher_name', { ascending: true })
+      .select('*')
+      .eq('is_del', 0) // 只获取未删除的教师
+      .order('name', { ascending: true })
 
     if (error) {
-      logger.error('获取教师列表失败', { error: error.message })
+      logger.error('获取教师列表失败', { error: error.message, details: error })
       return NextResponse.json({ error: '获取教师列表失败' }, { status: 500 })
     }
 
     // 格式化返回数据
     const teachers = data?.map(item => ({
-      id: item.teacher_id,
-      teacher_name: item.teachers.teacher_name,
-      teacher_subject: item.teachers.teacher_subject,
-      teacher_phone: item.teachers.teacher_phone,
-      classin_uid: item.classin_uid,
+      id: item.id,
+      teacher_name: item.name,
+      teacher_subject: item.position || '', // 使用职位作为科目
+      teacher_phone: item.mobile,
+      classin_uid: item.uid,
+      st_id: item.st_id,
     })) || []
 
     logger.info('获取教师列表成功', { count: teachers.length })
