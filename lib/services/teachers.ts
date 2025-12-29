@@ -25,6 +25,7 @@ export interface Teacher {
   grade_levels: string[]
   used_classin?: boolean
   has_certificate?: boolean
+  classin_uid?: number  // ClassIn 老师 UID
 
   // 学历背景
   education: string

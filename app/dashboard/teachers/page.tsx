@@ -96,8 +96,8 @@ export default function TeachersPage() {
       return
     }
 
-    // 检查是否已经入库
-    if (teacher.used_classin) {
+    // 检查是否已经入库（同时检查两个字段）
+    if (teacher.used_classin || teacher.classin_uid) {
       toast({
         variant: "destructive",
         title: "已经入库",
@@ -242,7 +242,7 @@ export default function TeachersPage() {
                         <TableCell>{teacher.university || "-"}</TableCell>
                         <TableCell>{teacher.teaching_years ? `${teacher.teaching_years}年` : "-"}</TableCell>
                         <TableCell>
-                          {teacher.used_classin ? (
+                          {teacher.used_classin || teacher.classin_uid ? (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                               已入库
                             </span>
@@ -255,7 +255,7 @@ export default function TeachersPage() {
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             {/* 入库按钮 - 仅未入库的老师显示 */}
-                            {!teacher.used_classin && (
+                            {!teacher.used_classin && !teacher.classin_uid && (
                               <Button
                                 variant="default"
                                 size="sm"
