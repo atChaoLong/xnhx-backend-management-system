@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { getClassInSDK } from "@/lib/services/classin/sdk"
+import { DictionaryService } from "@/lib/services/dictionary"
 import { createLogger } from "@/lib/logger"
 
 const logger = createLogger('API:TrialLessonscreateClassIn')
@@ -51,16 +52,29 @@ export async function POST(request: NextRequest) {
 
     const teacherId = teacherData.uid
 
-    // 5. 使用 SDK 创建课程
-    const sdk = getClassInSDK()
-    const courseName = `${lesson.child_name}-${lesson.trial_subject}-试听课`
+    // 5. 加载字典数据以转换编码为中文
+    const dicts = await DictionaryService.getAllDictionaries()
 
-    logger.info('开始创建课程', { courseName, teacherId })
+    // 转换科目编码为中文标签
+    const getLabelByCode = (code: string, category: string) => {
+      const items = dicts[category] || []
+      const item = items.find((i: any) => i.code === code)
+      return item?.label || code
+    }
+
+    const subjectLabel = getLabelByCode(lesson.trial_subject || '', 'subject')
+    const gradeLabel = getLabelByCode(lesson.grade || '', 'grade')
+
+    // 6. 使用 SDK 创建课程
+    const sdk = getClassInSDK()
+    const courseName = `${lesson.child_name}-${subjectLabel}-试听课`
+
+    logger.info('开始创建课程', { courseName, teacherId, subjectLabel, gradeLabel })
 
     const courseResult = await sdk.createCourse({
       name: courseName,
-      subject: lesson.trial_subject,
-      grade: lesson.grade,
+      subject: subjectLabel,
+      grade: gradeLabel,
       teacher_id: teacherId,
       teacher_name: lesson.confirmed_teacher,
       course_type: 1, // 1: 一对一
@@ -70,12 +84,12 @@ export async function POST(request: NextRequest) {
 
     const courseId = courseResult.course_id
 
-    // 6. 计算开始和结束时间（SDK 使用秒级时间戳）
+    // 7. 计算开始和结束时间（SDK 使用秒级时间戳）
     const trialTime = new Date(lesson.trial_time)
     const startTime = Math.floor(trialTime.getTime() / 1000) // 转换为秒
     const endTime = startTime + Math.floor(lesson.trial_duration * 60 * 60) // 秒
 
-    // 7. 创建课节
+    // 8. 创建课节
     const className = `${courseName}-${trialTime.toLocaleDateString('zh-CN')}`
     const classResult = await sdk.createClass({
       course_id: courseId,
@@ -88,7 +102,14 @@ export async function POST(request: NextRequest) {
 
     logger.info('创建课节成功', { classId: classResult.class_id, className })
 
-    // 8. 更新试听课程记录
+    // 9. 注意：学生添加需要额外实现
+    // 目前 ClassIn 需要先在系统中创建学生，然后才能添加到课节
+    // 如果需要添加学生，需要：
+    // - 在 ClassIn 中创建学生账号
+    // - 获取 ClassIn 学生 UID
+    // - 调用 sdk.addStudentToClass(classId, [studentUid])
+
+    // 10. 更新试听课程记录
     const { error: updateError } = await supabaseServer
       .from('trial_lessons')
       .update({
