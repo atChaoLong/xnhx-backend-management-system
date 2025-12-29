@@ -96,7 +96,7 @@ INSERT INTO public.sys_dictionaries (category, code, label, sort_order, is_activ
 ('add_method', 'passive', '被动添加', 2, true),
 ('add_method', 'referral', '转介绍', 3, true),
 
--- 来源账号
+-- 小红书账号来源
 ('xhs_source', 'official', '小红书官方账号', 1, true),
 ('xhs_source', 'individual_1', '个人账号1', 2, true),
 ('xhs_source', 'individual_2', '个人账号2', 3, true),

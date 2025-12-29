@@ -9,7 +9,7 @@
 | 旧字段名（本地） | 新字段名（在线） | 说明 |
 |----------------|----------------|------|
 | `order_serial` | `report_number` | 报单序号 |
-| `source_account` | `xhs_source` | 小红书来源账号 |
+| `source_account` | `xhs_source` | 小红书账号来源 |
 | `operator_name` | `operator_id` | 运营人员ID |
 | `grade` | `grade_code` | 年级代码 |
 | `subjects` | `subject_codes` | 学科代码数组 |
@@ -39,7 +39,7 @@ interface Lead {
   // 必填字段
   report_number: string           // 报单序号
   entry_date: string              // 录单日期 (YYYY-MM-DD)
-  xhs_source: string              // 小红书来源账号
+  xhs_source: string              // 小红书账号来源
   grade_code: string              // 年级代码
   add_method_code: string         // 添加方式代码
   operator_id: string             // 运营人员ID

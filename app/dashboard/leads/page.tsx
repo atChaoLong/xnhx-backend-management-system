@@ -192,7 +192,7 @@ export default function LeadsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>录入日期</TableHead>
+                    <TableHead>录单日期</TableHead>
                     <TableHead>报单序号</TableHead>
                     <TableHead>来源账号</TableHead>
                     <TableHead>年级</TableHead>

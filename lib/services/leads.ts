@@ -14,12 +14,12 @@ export interface Lead {
   // 必填字段
   report_number: string           // 报单序号
   entry_date: string              // 录单日期
-  xhs_source: string              // 小红书来源账号
-  grade_code: string              // 年级代码
+  xhs_source: string              // 小红书账号来源
   add_method_code: string         // 添加方式代码
   operator_id: string             // 运营人员ID
 
   // 可选字段
+  grade_code?: string             // 年级代码（可选）
   subject_codes?: string[]        // 学科代码数组
   region_ip?: string              // 地域IP
   parent_wechat?: string          // 家长微信号
@@ -32,18 +32,17 @@ export interface Lead {
   grab_user_id?: string           // 抢单用户ID
   add_feedback?: string           // 添加反馈
   feedback_time?: string          // 反馈时间
-  add_status?: string             // 添加状态
+  add_status?: string             // 添加状态（已添加/未添加）
   conversion_status?: string      // 转化状态
-  remark?: string                 // 备注
 }
 
 export interface NewLead {
   report_number: string
   entry_date: string
   xhs_source: string
-  grade_code: string
   add_method_code: string
   operator_id: string
+  grade_code?: string              // 年级代码（可选）
   subject_codes?: string[]
   region_ip?: string
   parent_wechat?: string
@@ -54,9 +53,8 @@ export interface NewLead {
   grab_user_id?: string
   add_feedback?: string
   feedback_time?: string
-  add_status?: string
+  add_status?: string              // 添加状态（已添加/未添加）
   conversion_status?: string
-  remark?: string
 }
 
 export const LeadsService = {

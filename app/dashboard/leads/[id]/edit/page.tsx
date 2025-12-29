@@ -56,11 +56,11 @@ export default function EditLeadPage() {
     add_method_code: "",
     operator_id: "",
     grade_code: "",
+    add_status: "",
     region_ip: "",
     parent_wechat: "",
     grab_wechat: "",
-    add_status: "pending" as const,
-    remark: "",
+    chat_screenshots: "",
   })
 
   // 加载字典数据
@@ -103,11 +103,11 @@ export default function EditLeadPage() {
           add_method_code: data.add_method_code || "",
           operator_id: data.operator_id || "",
           grade_code: data.grade_code || "",
+          add_status: data.add_status || "",
           region_ip: data.region_ip || "",
           parent_wechat: data.parent_wechat || "",
           grab_wechat: data.grab_wechat || "",
-          add_status: (data.add_status as any) || "pending",
-          remark: data.remark || "",
+          chat_screenshots: data.chat_screenshots || "",
         })
         setSelectedSubjects(data.subject_codes || [])
       } catch (error: any) {
@@ -147,13 +147,13 @@ export default function EditLeadPage() {
         xhs_source: formData.xhs_source,
         add_method_code: formData.add_method_code,
         operator_id: formData.operator_id,
-        grade_code: formData.grade_code,
+        grade_code: formData.grade_code || undefined,
+        add_status: formData.add_status || undefined,
         region_ip: formData.region_ip,
         parent_wechat: formData.parent_wechat,
         grab_wechat: formData.grab_wechat,
+        chat_screenshots: formData.chat_screenshots,
         subject_codes: selectedSubjects,
-        add_status: formData.add_status,
-        remark: formData.remark,
       }
 
       await LeadsService.updateLead(payload)
@@ -228,7 +228,7 @@ export default function EditLeadPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="entry_date">录入日期 *</Label>
+                    <Label htmlFor="entry_date">录单日期 *</Label>
                     <Input
                       id="entry_date"
                       type="date"
@@ -239,10 +239,10 @@ export default function EditLeadPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="xhs_source">来源账号</Label>
+                    <Label htmlFor="xhs_source">小红书账号来源</Label>
                     <Select value={formData.xhs_source} onValueChange={(value) => handleInputChange("xhs_source", value)}>
                       <SelectTrigger>
-                        <SelectValue placeholder="选择来源账号" />
+                        <SelectValue placeholder="选择小红书账号来源" />
                       </SelectTrigger>
                       <SelectContent>
                         {dictOptions.sources.map((source) => (
@@ -281,18 +281,17 @@ export default function EditLeadPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="add_status">反馈状态</Label>
+                    <Label htmlFor="add_status">反馈是否添加</Label>
                     <Select
                       value={formData.add_status}
-                      onValueChange={(value: any) => handleInputChange("add_status", value)}
+                      onValueChange={(value) => handleInputChange("add_status", value)}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="选择反馈状态" />
+                        <SelectValue placeholder="选择添加状态" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="pending">待处理</SelectItem>
-                        <SelectItem value="added">已添加</SelectItem>
-                        <SelectItem value="not_added">未添加</SelectItem>
+                        <SelectItem value="已添加">已添加</SelectItem>
+                        <SelectItem value="未添加">未添加</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -384,15 +383,14 @@ export default function EditLeadPage() {
                 </div>
               </div>
 
-              {/* 备注 */}
+              {/* 聊天截图 */}
               <div className="space-y-2">
-                <Label htmlFor="remark">备注</Label>
-                <textarea
-                  id="remark"
-                  className="w-full min-h-[120px] px-3 py-2 text-sm rounded-md border border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
-                  value={formData.remark}
-                  onChange={(e) => handleInputChange("remark", e.target.value)}
-                  placeholder="请输入备注信息"
+                <Label htmlFor="chat_screenshots">聊天截图</Label>
+                <Input
+                  id="chat_screenshots"
+                  value={formData.chat_screenshots}
+                  onChange={(e) => handleInputChange("chat_screenshots", e.target.value)}
+                  placeholder="请输入聊天截图URL"
                 />
               </div>
 

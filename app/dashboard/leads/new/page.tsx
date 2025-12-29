@@ -51,10 +51,11 @@ export default function NewLeadPage() {
     add_method_code: "",
     operator_id: "",
     grade_code: "",
+    add_status: "",
     region_ip: "",
     parent_wechat: "",
     grab_wechat: "",
-    remark: "",
+    chat_screenshots: "",
   })
 
   // 加载字典数据
@@ -96,7 +97,7 @@ export default function NewLeadPage() {
 
     // 验证必填字段
     if (!formData.report_number || !formData.entry_date || !formData.xhs_source ||
-        !formData.add_method_code || !formData.operator_id || !formData.grade_code) {
+        !formData.add_method_code || !formData.operator_id) {
       toast({
         variant: "destructive",
         title: "验证失败",
@@ -114,12 +115,13 @@ export default function NewLeadPage() {
         xhs_source: formData.xhs_source,
         add_method_code: formData.add_method_code,
         operator_id: formData.operator_id,
-        grade_code: formData.grade_code,
+        grade_code: formData.grade_code || undefined,
+        add_status: formData.add_status || undefined,
         subject_codes: selectedSubjects.length > 0 ? selectedSubjects : undefined,
         region_ip: formData.region_ip || undefined,
         parent_wechat: formData.parent_wechat || undefined,
         grab_wechat: formData.grab_wechat || undefined,
-        remark: formData.remark || undefined,
+        chat_screenshots: formData.chat_screenshots || undefined,
       }
 
       await LeadsService.createLead(payload)
@@ -176,7 +178,7 @@ export default function NewLeadPage() {
 
                     <div className="space-y-2">
                       <Label htmlFor="entry_date">
-                        录入日期 <span className="text-destructive">*</span>
+                        录单日期 <span className="text-destructive">*</span>
                       </Label>
                       <Input
                         id="entry_date"
@@ -189,11 +191,11 @@ export default function NewLeadPage() {
 
                     <div className="space-y-2">
                       <Label htmlFor="xhs_source">
-                        来源账号 <span className="text-destructive">*</span>
+                        小红书账号来源 <span className="text-destructive">*</span>
                       </Label>
                       <Select value={formData.xhs_source} onValueChange={(value) => handleInputChange("xhs_source", value)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="选择来源账号" />
+                          <SelectValue placeholder="选择小红书账号来源" />
                         </SelectTrigger>
                         <SelectContent>
                           {dictOptions.sources.map((source) => (
@@ -243,9 +245,7 @@ export default function NewLeadPage() {
                   <h3 className="text-sm font-semibold">学生信息</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="grade_code">
-                        年级 <span className="text-destructive">*</span>
-                      </Label>
+                      <Label htmlFor="grade_code">年级</Label>
                       <Select value={formData.grade_code} onValueChange={(value) => handleInputChange("grade_code", value)}>
                         <SelectTrigger>
                           <SelectValue placeholder="选择年级" />
@@ -325,16 +325,33 @@ export default function NewLeadPage() {
                   </div>
                 </div>
 
-                {/* 备注 */}
-                <div className="space-y-2">
-                  <Label htmlFor="remark">备注</Label>
-                  <textarea
-                    id="remark"
-                    className="w-full min-h-[120px] px-3 py-2 text-sm rounded-md border border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
-                    value={formData.remark}
-                    onChange={(e) => handleInputChange("remark", e.target.value)}
-                    placeholder="请输入备注信息"
-                  />
+                {/* 反馈信息 */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold">反馈信息</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="add_status">反馈是否添加</Label>
+                      <Select value={formData.add_status} onValueChange={(value) => handleInputChange("add_status", value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="选择添加状态" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="已添加">已添加</SelectItem>
+                          <SelectItem value="未添加">未添加</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="chat_screenshots">聊天截图</Label>
+                      <Input
+                        id="chat_screenshots"
+                        value={formData.chat_screenshots}
+                        onChange={(e) => handleInputChange("chat_screenshots", e.target.value)}
+                        placeholder="请输入聊天截图URL"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* 操作按钮 */}

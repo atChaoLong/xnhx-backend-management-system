@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS public.leads (
   -- 必填字段
   report_number TEXT NOT NULL,          -- 报单序号
   entry_date DATE NOT NULL,             -- 录单日期
-  xhs_source TEXT NOT NULL,             -- 小红书来源账号
+  xhs_source TEXT NOT NULL,             -- 小红书账号来源
   grade_code TEXT NOT NULL,             -- 年级代码
   add_method_code TEXT NOT NULL,        -- 添加方式代码
   operator_id TEXT NOT NULL,            -- 运营人员ID
