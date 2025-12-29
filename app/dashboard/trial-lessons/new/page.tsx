@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,6 +17,7 @@ import Link from "next/link"
 
 export default function NewTrialLessonPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -93,6 +94,44 @@ export default function NewTrialLessonPage() {
     }
     loadData()
   }, [])
+
+  // 从 URL 参数加载线索信息并自动填充
+  useEffect(() => {
+    const leadIdFromUrl = searchParams.get('lead_id')
+    if (!leadIdFromUrl) return
+
+    const loadLeadInfo = async () => {
+      try {
+        const lead = await LeadsService.getLeadById(leadIdFromUrl)
+
+        // 自动填充表单
+        setFormData((prev) => ({
+          ...prev,
+          lead_id: lead.id,
+          child_name: lead.parent_wechat || "", // 使用家长微信作为孩子称呼
+          phone: lead.parent_wechat || "",
+          region: lead.region_ip || "",
+          grade: lead.grade_code || "",
+          trial_subject: lead.subject_codes?.[0] || "", // 取第一个科目
+          channel: "", // channel 需要手动输入
+        }))
+
+        toast({
+          title: "线索信息已加载",
+          description: `已自动填充线索信息`,
+        })
+      } catch (error: any) {
+        console.error('加载线索信息失败:', error)
+        toast({
+          variant: "destructive",
+          title: "加载线索失败",
+          description: error.message || "无法加载线索信息",
+        })
+      }
+    }
+
+    loadLeadInfo()
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

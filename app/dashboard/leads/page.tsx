@@ -14,14 +14,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Plus, Edit, Trash2, Loader2, AlertTriangle } from "lucide-react"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle, Video } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { LeadsService, Lead } from "@/lib/services/leads"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
 
 export default function LeadsPage() {
+  const router = useRouter()
   const [leads, setLeads] = useState<Lead[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
@@ -124,6 +126,12 @@ export default function LeadsPage() {
   const handleDeleteCancel = () => {
     setDeleteDialogOpen(false)
     setLeadToDelete(null)
+  }
+
+  // 创建试听课程
+  const handleCreateTrialLesson = (lead: Lead) => {
+    // 跳转到试听新增页面，并传递线索ID
+    router.push(`/dashboard/trial-lessons/new?lead_id=${lead.id}`)
   }
 
   const formatSubjects = (subjects: string[]) => {
@@ -231,8 +239,18 @@ export default function LeadsPage() {
                         <TableCell>{lead.operator_id || "-"}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            {/* 创建试听按钮 */}
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleCreateTrialLesson(lead)}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <Video className="mr-2 h-4 w-4" />
+                              创建试听
+                            </Button>
                             <Link href={`/dashboard/leads/${lead.id}/edit`}>
-                              <Button variant="ghost" size="icon">
+                              <Button variant="ghost" size="icon" title="编辑">
                                 <Edit className="h-4 w-4" />
                               </Button>
                             </Link>
@@ -241,6 +259,7 @@ export default function LeadsPage() {
                               size="icon"
                               onClick={() => handleDeleteClick(lead.id)}
                               disabled={isDeleting === lead.id}
+                              title="删除"
                             >
                               {isDeleting === lead.id ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
