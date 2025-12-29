@@ -274,6 +274,62 @@ export interface TeacherClassin {
 }
 
 // ============================================
+// ClassIn 班级原始数据类型
+// ============================================
+export interface ClassClassin {
+  course_id: number                // ClassIn 班级ID（主键）
+  created_at: string               // 创建时间
+  updated_at: string               // 更新时间
+
+  // 数据库字段（snake_case）
+  course_name: string              // 班级名称（对应 API: courseName）
+  school_uid?: number              // 学校编号（对应 API: schoolUid）
+  web_cast?: string                // webcast链接（对应 API: webCast）
+  live_host?: string               // 直播主机（对应 API: liveHost）
+  course_type?: number             // 课程类型（对应 API: courseType）
+  cover_img?: string               // 封面图片（对应 API: coverImg）
+  creater_name?: string            // 创建者名称（对应 API: createrName）
+  add_time?: number                // 添加时间 Unix时间戳（对应 API: addTime）
+  creator_uid?: number             // 创建者UID（对应 API: creatorUid）
+  end_uid?: number                 // 结束UID（对应 API: endUid）
+  end_name?: string                // 结束名称（对应 API: endName）
+  end_time?: number                // 结束时间（对应 API: endTime）
+  subject_id?: number              // 科目ID（对应 API: subjectId）
+  course_state?: number            // 课程状态（对应 API: courseState）
+  first_class_begin_time?: number  // 第一次上课时间（对应 API: firstClassBeginTime）
+  teacher_num?: number             // 老师数量（对应 API: teacherNum）
+  student_num?: number             // 学生数量（对应 API: studentNum）
+  audit_num?: number               // 听课人数（对应 API: auditNum）
+  expiry_time?: number             // 过期时间（对应 API: expiryTime）
+  cloud_folder?: number            // 云文件夹（对应 API: cloudFolder）
+  skin_id?: number                 // 皮肤ID（对应 API: skinId）
+
+  // 统计字段
+  complete_class_num?: number      // 完成的课节数（对应 API: completeClassNum）
+  total_class_num?: number         // 总课节数（对应 API: totalClassNum）
+  record_num?: number              // 录播数量（对应 API: recordNum）
+  live_num?: number                // 直播数量（对应 API: liveNum）
+  open_num?: number                // 公开课数量（对应 API: openNum）
+  homework_num?: number            // 作业数量（对应 API: homeworkNum）
+  exam_num?: number                // 考试数量（对应 API: examNum）
+
+  // JSONB 字段
+  head_img?: any                   // 头图信息（对应 API: headImg）
+  course_img?: any                 // 课程图片（对应 API: courseImg）
+  setting?: any                    // 设置信息（对应 API: setting）
+  main_user_info?: any             // 主用户信息（对应 API: mainUserInfo）
+  teachers?: any[]                 // 老师列表（对应 API: teachers）
+  labels?: any[]                   // 标签（对应 API: labels）
+  cat_info?: any                   // 分类信息（对应 API: catInfo）
+  cloud_folder_info?: any          // 云文件夹信息（对应 API: cloudFolderInfo）
+  skin_info?: any                  // 皮肤信息（对应 API: skinInfo）
+
+  // 同步相关字段
+  sync_time?: string               // 最后同步时间
+  notes?: string                   // 备注
+}
+
+// ============================================
 // 老师类型（旧版，用于内部老师管理）
 // ============================================
 export interface OldTeacher {
@@ -483,6 +539,9 @@ export type UpdateStudent = Partial<NewStudent> & { id: string }
 
 export type NewStudentClassin = Omit<StudentClassin, "uid" "createdAt" "updatedAt">
 export type UpdateStudentClassin = Partial<NewStudentClassin> & { uid: number }
+
+export type NewClassClassin = Omit<ClassClassin, "course_id" "createdAt" "updatedAt">
+export type UpdateClassClassin = Partial<NewClassClassin> & { course_id: number }
 
 export type NewTeacher = Omit<Teacher, "id" "createdAt" "updatedAt">
 export type UpdateTeacher = Partial<NewTeacher> & { id: string }
