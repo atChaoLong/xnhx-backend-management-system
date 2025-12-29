@@ -17,15 +17,28 @@ import { Plus, Edit, Trash2, Loader2, AlertTriangle } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { TrialLessonsService, TrialLesson } from "@/lib/services/trialLessons"
+import { DictionaryService } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
 
 export default function TrialLessonsPage() {
   const [lessons, setLessons] = useState<TrialLesson[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingDict, setIsLoadingDict] = useState(true)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [lessonToDelete, setLessonToDelete] = useState<string | null>(null)
   const { toast } = useToast()
+
+  // 字典数据
+  const [dictOptions, setDictOptions] = useState<{
+    grades: Array<{ code: string; label: string }>
+    subjects: Array<{ code: string; label: string }>
+    regions: Array<{ code: string; label: string }>
+  }>({
+    grades: [],
+    subjects: [],
+    regions: [],
+  })
 
   // 加载试听课程列表
   const fetchLessons = useCallback(async () => {
@@ -44,9 +57,38 @@ export default function TrialLessonsPage() {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 加载字典数据
+  useEffect(() => {
+    const loadDictionaries = async () => {
+      try {
+        setIsLoadingDict(true)
+        const dicts = await DictionaryService.getAllDictionaries()
+
+        setDictOptions({
+          grades: dicts.grade || [],
+          subjects: dicts.subject || [],
+          regions: dicts.province || [],
+        })
+      } catch (error) {
+        console.error("加载字典失败:", error)
+      } finally {
+        setIsLoadingDict(false)
+      }
+    }
+
+    loadDictionaries()
+  }, [])
+
   useEffect(() => {
     fetchLessons()
   }, [fetchLessons])
+
+  // 根据编码获取标签
+  const getLabelByCode = (code: string, category: 'grades' | 'subjects' | 'regions') => {
+    const items = dictOptions[category]
+    const item = items.find(i => i.code === code)
+    return item?.label || code
+  }
 
   // 删除试听课程
   const handleDeleteClick = (id: string) => {
@@ -157,7 +199,7 @@ export default function TrialLessonsPage() {
     }
   }
 
-  if (isLoading) {
+  if (isLoading || isLoadingDict) {
     return (
       <div className="flex flex-col h-full">
         <Header title="试听课程管理" description="管理试听课程安排" />
@@ -205,10 +247,17 @@ export default function TrialLessonsPage() {
                     <TableHead>年级</TableHead>
                     <TableHead>地域</TableHead>
                     <TableHead>试听时间</TableHead>
-                    <TableHead>时长(小时)</TableHead>
+                    <TableHead>时长</TableHead>
                     <TableHead>手机号</TableHead>
+                    <TableHead>试听金额</TableHead>
                     <TableHead>渠道</TableHead>
+                    <TableHead>课程状态</TableHead>
+                    <TableHead>分配顾问</TableHead>
+                    <TableHead>匹配教师</TableHead>
+                    <TableHead>确认教师</TableHead>
+                    <TableHead>学生类型</TableHead>
                     <TableHead>紧急程度</TableHead>
+                    <TableHead>备注</TableHead>
                     <TableHead>状态</TableHead>
                     <TableHead className="text-right">操作</TableHead>
                   </TableRow>
@@ -216,7 +265,7 @@ export default function TrialLessonsPage() {
                 <TableBody>
                   {lessons.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={18} className="text-center py-8 text-muted-foreground">
                         暂无数据，点击"新增试听课程"开始添加
                       </TableCell>
                     </TableRow>
@@ -224,15 +273,27 @@ export default function TrialLessonsPage() {
                     lessons.map((lesson) => (
                       <TableRow key={lesson.id}>
                         <TableCell className="font-medium">{lesson.child_name || "-"}</TableCell>
-                        <TableCell>{lesson.trial_subject || "-"}</TableCell>
-                        <TableCell>{lesson.grade || "-"}</TableCell>
-                        <TableCell>{lesson.region || "-"}</TableCell>
+                        <TableCell>{getLabelByCode(lesson.trial_subject || "", 'subjects')}</TableCell>
+                        <TableCell>{getLabelByCode(lesson.grade || "", 'grades')}</TableCell>
+                        <TableCell>{getLabelByCode(lesson.region || "", 'regions')}</TableCell>
                         <TableCell>
                           {lesson.trial_time ? format(new Date(lesson.trial_time), 'yyyy-MM-dd HH:mm') : "-"}
                         </TableCell>
                         <TableCell>{lesson.trial_duration || "-"}</TableCell>
                         <TableCell>{lesson.phone || "-"}</TableCell>
+                        <TableCell>
+                          {lesson.trial_amount ? `¥${lesson.trial_amount}` : "-"}
+                        </TableCell>
                         <TableCell>{lesson.channel || "-"}</TableCell>
+                        <TableCell>
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {lesson.course_status || "-"}
+                          </span>
+                        </TableCell>
+                        <TableCell>{lesson.assigned_consultant || "-"}</TableCell>
+                        <TableCell>{lesson.matched_teacher || "-"}</TableCell>
+                        <TableCell>{lesson.confirmed_teacher || "-"}</TableCell>
+                        <TableCell>{lesson.student_type || "-"}</TableCell>
                         <TableCell>
                           {lesson.urgency_level && (
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getUrgencyBadge(lesson.urgency_level)}`}>
@@ -240,6 +301,11 @@ export default function TrialLessonsPage() {
                             </span>
                           )}
                           {!lesson.urgency_level && "-"}
+                        </TableCell>
+                        <TableCell className="max-w-xs">
+                          <div className="truncate" title={lesson.notes || ""}>
+                            {lesson.notes || "-"}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <button
