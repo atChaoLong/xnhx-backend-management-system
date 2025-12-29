@@ -33,6 +33,8 @@ export default function EditLeadPage() {
   const [isLoadingWechat, setIsLoadingWechat] = useState(true)
   const [lead, setLead] = useState<Lead | null>(null)
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
+  const [chatScreenshotFile, setChatScreenshotFile] = useState<File | null>(null)
+  const [chatScreenshotPreview, setChatScreenshotPreview] = useState<string>("")
 
   const leadId = params.id as string
 
@@ -69,7 +71,6 @@ export default function EditLeadPage() {
     region_ip: "",
     parent_wechat: "",
     grab_wechat: "",
-    chat_screenshots: "",
   })
 
   // 加载字典数据
@@ -133,9 +134,9 @@ export default function EditLeadPage() {
           region_ip: data.region_ip || "",
           parent_wechat: data.parent_wechat || "",
           grab_wechat: data.grab_wechat || "",
-          chat_screenshots: data.chat_screenshots || "",
         })
         setSelectedSubjects(data.subject_codes || [])
+        setChatScreenshotPreview(data.chat_screenshots || "")
       } catch (error: any) {
         toast({
           variant: "destructive",
@@ -161,6 +162,20 @@ export default function EditLeadPage() {
     )
   }
 
+  const handleChatScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setChatScreenshotFile(file)
+
+      // 读取文件并转换为 base64 预览
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setChatScreenshotPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
@@ -178,7 +193,7 @@ export default function EditLeadPage() {
         region_ip: formData.region_ip,
         parent_wechat: formData.parent_wechat,
         grab_wechat: formData.grab_wechat,
-        chat_screenshots: formData.chat_screenshots,
+        chat_screenshots: chatScreenshotPreview || undefined,
         subject_codes: selectedSubjects,
       }
 
@@ -420,10 +435,19 @@ export default function EditLeadPage() {
                 <Label htmlFor="chat_screenshots">聊天截图</Label>
                 <Input
                   id="chat_screenshots"
-                  value={formData.chat_screenshots}
-                  onChange={(e) => handleInputChange("chat_screenshots", e.target.value)}
-                  placeholder="请输入聊天截图URL"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleChatScreenshotChange}
                 />
+                {chatScreenshotPreview && (
+                  <div className="mt-2">
+                    <img
+                      src={chatScreenshotPreview}
+                      alt="聊天截图预览"
+                      className="max-w-xs h-auto border rounded"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* 操作按钮 */}
