@@ -12,12 +12,14 @@ import { TrialLessonsService, NewTrialLesson } from "@/lib/services/trialLessons
 import { LeadsService } from "@/lib/services/leads"
 import { getDictionaryItems } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
+import { uploadFile } from "@/lib/supabase-client"
 import Link from "next/link"
 
 export default function NewTrialLessonPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
 
   // 字典数据
   const [regions, setRegions] = useState<any[]>([])
@@ -28,10 +30,12 @@ export default function NewTrialLessonPage() {
   // 老师列表
   const [teachers, setTeachers] = useState<any[]>([])
 
+  // 图片预览
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string>("")
+
   // 线索列表
   const [leads, setLeads] = useState<any[]>([])
-
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
 
   const [formData, setFormData] = useState({
     // 基本信息
@@ -120,6 +124,28 @@ export default function NewTrialLessonPage() {
     setIsSubmitting(true)
 
     try {
+      // 先上传付款凭证文件
+      let paymentProofUrl = formData.payment_proof
+      if (uploadedFile) {
+        try {
+          setIsUploading(true)
+          paymentProofUrl = await uploadFile(uploadedFile, 'payment-proofs')
+          toast({
+            title: "上传成功",
+            description: "付款凭证已上传",
+          })
+        } catch (error: any) {
+          toast({
+            variant: "destructive",
+            title: "上传失败",
+            description: error.message || "无法上传付款凭证",
+          })
+          return
+        } finally {
+          setIsUploading(false)
+        }
+      }
+
       const payload: NewTrialLesson = {
         child_name: formData.child_name.trim(),
         status: formData.status,
@@ -132,13 +158,13 @@ export default function NewTrialLessonPage() {
         phone: formData.phone.trim(),
         channel: formData.channel.trim(),
         trial_amount: formData.trial_amount ? parseFloat(formData.trial_amount) : undefined,
-        payment_proof: formData.payment_proof, // 文件上传后需要获取实际URL
+        payment_proof: paymentProofUrl,
         notes: formData.notes.trim() || undefined,
         assigned_consultant: formData.assigned_consultant.trim() || undefined,
         course_status: formData.course_status || undefined,
         student_type: formData.student_type || undefined,
         matched_teacher: formData.matched_teacher.trim() || undefined,
-        confirmed_teacher: formData.confirmed_teacher || undefined, // 从老师列表选择，不需要trim
+        confirmed_teacher: formData.confirmed_teacher || undefined,
       }
 
       await TrialLessonsService.createTrialLesson(payload)
@@ -367,16 +393,26 @@ export default function NewTrialLessonPage() {
                         const file = e.target.files?.[0]
                         if (file) {
                           setUploadedFile(file)
-                          // 暂时使用文件名作为占位符，实际需要上传后获取URL
-                          handleInputChange("payment_proof", file.name)
+                          // 创建本地预览URL
+                          const url = URL.createObjectURL(file)
+                          setPreviewUrl(url)
+                          handleInputChange("payment_proof", url)
                         }
                       }}
                       required
                     />
-                    {uploadedFile && (
-                      <p className="text-xs text-muted-foreground">
-                        已选择: {uploadedFile.name}
-                      </p>
+                    {previewUrl && (
+                      <div className="mt-2">
+                        <p className="text-xs text-muted-foreground mb-1">预览：</p>
+                        <img
+                          src={previewUrl}
+                          alt="付款凭证预览"
+                          className="max-w-xs h-auto border rounded"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          已选择: {uploadedFile?.name}
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -502,12 +538,17 @@ export default function NewTrialLessonPage() {
               {/* 操作按钮 */}
               <div className="flex justify-end gap-4 pt-4 border-t">
                 <Link href="/dashboard/trial-lessons">
-                  <Button type="button" variant="outline" disabled={isSubmitting}>
+                  <Button type="button" variant="outline" disabled={isSubmitting || isUploading}>
                     取消
                   </Button>
                 </Link>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
+                <Button type="submit" disabled={isSubmitting || isUploading}>
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      上传中...
+                    </>
+                  ) : isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       提交中...
