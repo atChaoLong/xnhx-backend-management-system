@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Plus, Edit, Trash2, Loader2, AlertTriangle } from "lucide-react"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle, Eye } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { TrialLessonsService, TrialLesson } from "@/lib/services/trialLessons"
@@ -273,12 +273,7 @@ export default function TrialLessonsPage() {
                     lessons.map((lesson) => (
                       <TableRow key={lesson.id}>
                         <TableCell className="font-medium">
-                          <Link
-                            href={`/dashboard/trial-lessons/${lesson.id}`}
-                            className="hover:underline text-blue-600 hover:text-blue-800"
-                          >
-                            {lesson.child_name || "-"}
-                          </Link>
+                          {lesson.child_name || "-"}
                         </TableCell>
                         <TableCell>{getLabelByCode(lesson.trial_subject || "", 'subjects')}</TableCell>
                         <TableCell>{getLabelByCode(lesson.grade || "", 'grades')}</TableCell>
@@ -324,8 +319,13 @@ export default function TrialLessonsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            <Link href={`/dashboard/trial-lessons/${lesson.id}`}>
+                              <Button variant="ghost" size="icon" title="查看详情">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </Link>
                             <Link href={`/dashboard/trial-lessons/${lesson.id}/edit`}>
-                              <Button variant="ghost" size="icon">
+                              <Button variant="ghost" size="icon" title="编辑">
                                 <Edit className="h-4 w-4" />
                               </Button>
                             </Link>
@@ -334,6 +334,7 @@ export default function TrialLessonsPage() {
                               size="icon"
                               onClick={() => handleDeleteClick(lesson.id)}
                               disabled={isDeleting === lesson.id}
+                              title="删除"
                             >
                               {isDeleting === lesson.id ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />

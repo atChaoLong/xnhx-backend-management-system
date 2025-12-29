@@ -4,14 +4,12 @@ import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Loader2, ArrowLeft, Edit, Video } from "lucide-react"
 import { TrialLessonsService, TrialLesson } from "@/lib/services/trialLessons"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { format } from "date-fns"
-import { api } from "@/lib/fetch"
 
 export default function TrialLessonDetailPage() {
   const router = useRouter()
@@ -159,8 +157,10 @@ export default function TrialLessonDetailPage() {
     try {
       setIsCreating(true)
 
-      const response = await api.post('/api/trial-lessons/create-classin', {
-        trialLessonId: lesson.id,
+      const response = await fetch('/api/trial-lessons/create-classin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trialLessonId: lesson.id })
       })
 
       if (!response.ok) {
@@ -225,9 +225,9 @@ export default function TrialLessonDetailPage() {
       />
 
       <div className="flex-1 overflow-auto p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-5xl mx-auto">
           {/* 头部操作栏 */}
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center mb-6">
             <Link href="/dashboard/trial-lessons">
               <Button variant="outline">
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -269,211 +269,195 @@ export default function TrialLessonDetailPage() {
           </div>
 
           {/* 基本信息 */}
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">基本信息</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">孩子称呼</p>
-                  <p className="text-base font-medium">{lesson.child_name || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">关联线索ID</p>
-                  <p className="text-base font-medium">{lesson.lead_id || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">手机号</p>
-                  <p className="text-base font-medium">{lesson.phone || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">渠道</p>
-                  <p className="text-base font-medium">{lesson.channel || "-"}</p>
-                </div>
+          <section className="mb-8">
+            <h3 className="text-lg font-semibold mb-4 pb-2 border-b">基本信息</h3>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">孩子称呼</span>
+                <span className="text-base font-medium">{lesson.child_name || "-"}</span>
               </div>
-            </CardContent>
-          </Card>
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">关联线索ID</span>
+                <span className="text-base font-medium">{lesson.lead_id || "-"}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">手机号</span>
+                <span className="text-base font-medium">{lesson.phone || "-"}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">渠道</span>
+                <span className="text-base font-medium">{lesson.channel || "-"}</span>
+              </div>
+            </div>
+          </section>
 
           {/* 课程信息 */}
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">课程信息</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">地域</p>
-                  <p className="text-base font-medium">{getLabelByCode(lesson.region || "", 'regions')}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">年级</p>
-                  <p className="text-base font-medium">{getLabelByCode(lesson.grade || "", 'grades')}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">试听科目</p>
-                  <p className="text-base font-medium">{getLabelByCode(lesson.trial_subject || "", 'subjects')}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">试听时长</p>
-                  <p className="text-base font-medium">{lesson.trial_duration ? `${lesson.trial_duration} 小时` : "-"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">试听时间</p>
-                  <p className="text-base font-medium">
-                    {lesson.trial_time ? format(new Date(lesson.trial_time), 'yyyy-MM-dd HH:mm') : "-"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">试听金额</p>
-                  <p className="text-base font-medium">
-                    {lesson.trial_amount ? `¥${lesson.trial_amount}` : "-"}
-                  </p>
-                </div>
+          <section className="mb-8">
+            <h3 className="text-lg font-semibold mb-4 pb-2 border-b">课程信息</h3>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">地域</span>
+                <span className="text-base font-medium">{getLabelByCode(lesson.region || "", 'regions')}</span>
               </div>
-            </CardContent>
-          </Card>
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">年级</span>
+                <span className="text-base font-medium">{getLabelByCode(lesson.grade || "", 'grades')}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">试听科目</span>
+                <span className="text-base font-medium">{getLabelByCode(lesson.trial_subject || "", 'subjects')}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">试听时长</span>
+                <span className="text-base font-medium">{lesson.trial_duration ? `${lesson.trial_duration} 分钟` : "-"}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">试听时间</span>
+                <span className="text-base font-medium">
+                  {lesson.trial_time ? format(new Date(lesson.trial_time), 'yyyy-MM-dd HH:mm') : "-"}
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">试听金额</span>
+                <span className="text-base font-medium">
+                  {lesson.trial_amount ? `¥${lesson.trial_amount}` : "-"}
+                </span>
+              </div>
+            </div>
+          </section>
 
           {/* 状态信息 */}
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">状态信息</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">试听状态</p>
-                  <p className="text-base font-medium mt-1">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(lesson.status)}`}>
-                      {getStatusText(lesson.status)}
-                    </span>
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">紧急程度</p>
-                  <p className="text-base font-medium mt-1">
-                    {lesson.urgency_level && (
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getUrgencyBadge(lesson.urgency_level)}`}>
-                        {getUrgencyText(lesson.urgency_level)}
-                      </span>
-                    )}
-                    {!lesson.urgency_level && "-"}
-                  </p>
+          <section className="mb-8">
+            <h3 className="text-lg font-semibold mb-4 pb-2 border-b">状态信息</h3>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">试听状态</span>
+                <div className="mt-1">
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(lesson.status)}`}>
+                    {getStatusText(lesson.status)}
+                  </span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">紧急程度</span>
+                <div className="mt-1">
+                  {lesson.urgency_level ? (
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getUrgencyBadge(lesson.urgency_level)}`}>
+                      {getUrgencyText(lesson.urgency_level)}
+                    </span>
+                  ) : (
+                    <span className="text-base font-medium">-</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
 
           {/* 业务信息 */}
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">业务信息</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">分配顾问</p>
-                  <p className="text-base font-medium">{lesson.assigned_consultant || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">课程状态</p>
-                  <p className="text-base font-medium">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {lesson.course_status || "-"}
-                    </span>
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">学生类型</p>
-                  <p className="text-base font-medium">{lesson.student_type || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">匹配教师</p>
-                  <p className="text-base font-medium">{lesson.matched_teacher || "-"}</p>
+          <section className="mb-8">
+            <h3 className="text-lg font-semibold mb-4 pb-2 border-b">业务信息</h3>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">分配顾问</span>
+                <span className="text-base font-medium">{lesson.assigned_consultant || "-"}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">课程状态</span>
+                <div className="mt-1">
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {lesson.course_status || "-"}
+                  </span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">学生类型</span>
+                <span className="text-base font-medium">{lesson.student_type || "-"}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">匹配教师</span>
+                <span className="text-base font-medium">{lesson.matched_teacher || "-"}</span>
+              </div>
+            </div>
+          </section>
 
           {/* 教务信息 */}
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">教务信息</h3>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">确认教师</p>
-                  <p className="text-base font-medium">{lesson.confirmed_teacher || "-"}</p>
-                </div>
-                {lesson.classin_course_id && (
-                  <>
-                    <div className="pt-4 border-t">
-                      <p className="text-sm font-medium text-green-600 mb-2">ClassIn 课程已创建</p>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm text-muted-foreground">课程ID</p>
-                          <p className="text-base font-medium">{lesson.classin_course_id}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">单元ID</p>
-                          <p className="text-base font-medium">{lesson.classin_unit_id || "-"}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">课节ID</p>
-                          <p className="text-base font-medium">{lesson.classin_class_id || "-"}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">活动ID</p>
-                          <p className="text-base font-medium">{lesson.classin_activity_id || "-"}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
+          <section className="mb-8">
+            <h3 className="text-lg font-semibold mb-4 pb-2 border-b">教务信息</h3>
+            <div className="space-y-4">
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">确认教师</span>
+                <span className="text-base font-medium">{lesson.confirmed_teacher || "-"}</span>
               </div>
-            </CardContent>
-          </Card>
+
+              {lesson.classin_course_id && (
+                <div className="pt-4 border-t">
+                  <p className="text-sm font-medium text-green-600 mb-3">ClassIn 课程已创建</p>
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                    <div className="flex flex-col">
+                      <span className="text-sm text-muted-foreground">课程ID</span>
+                      <span className="text-base font-medium">{lesson.classin_course_id}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm text-muted-foreground">单元ID</span>
+                      <span className="text-base font-medium">{lesson.classin_unit_id || "-"}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm text-muted-foreground">课节ID</span>
+                      <span className="text-base font-medium">{lesson.classin_class_id || "-"}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm text-muted-foreground">活动ID</span>
+                      <span className="text-base font-medium">{lesson.classin_activity_id || "-"}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
 
           {/* 备注信息 */}
           {lesson.notes && (
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-4">备注</h3>
-                <p className="text-base whitespace-pre-wrap">{lesson.notes}</p>
-              </CardContent>
-            </Card>
+            <section className="mb-8">
+              <h3 className="text-lg font-semibold mb-4 pb-2 border-b">备注</h3>
+              <p className="text-base whitespace-pre-wrap">{lesson.notes}</p>
+            </section>
           )}
 
           {/* 付款凭证 */}
           {lesson.payment_proof && (
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-4">付款凭证</h3>
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground break-all">{lesson.payment_proof}</p>
-                  {lesson.payment_proof.match(/\.(jpg|jpeg|png|gif|webp)$/i) && (
-                    <img
-                      src={lesson.payment_proof}
-                      alt="付款凭证"
-                      className="max-w-sm h-auto border rounded"
-                    />
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <section className="mb-8">
+              <h3 className="text-lg font-semibold mb-4 pb-2 border-b">付款凭证</h3>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground break-all">{lesson.payment_proof}</p>
+                {lesson.payment_proof.match(/\.(jpg|jpeg|png|gif|webp)$/i) && (
+                  <img
+                    src={lesson.payment_proof}
+                    alt="付款凭证"
+                    className="max-w-sm h-auto border rounded"
+                  />
+                )}
+              </div>
+            </section>
           )}
 
-          {/* 时间戳 */}
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">系统信息</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">创建时间</p>
-                  <p className="text-base font-medium">
-                    {lesson.created_at ? format(new Date(lesson.created_at), 'yyyy-MM-dd HH:mm:ss') : "-"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">更新时间</p>
-                  <p className="text-base font-medium">
-                    {lesson.updated_at ? format(new Date(lesson.updated_at), 'yyyy-MM-dd HH:mm:ss') : "-"}
-                  </p>
-                </div>
+          {/* 系统信息 */}
+          <section className="mb-8">
+            <h3 className="text-lg font-semibold mb-4 pb-2 border-b">系统信息</h3>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">创建时间</span>
+                <span className="text-base font-medium">
+                  {lesson.created_at ? format(new Date(lesson.created_at), 'yyyy-MM-dd HH:mm:ss') : "-"}
+                </span>
               </div>
-            </CardContent>
-          </Card>
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">更新时间</span>
+                <span className="text-base font-medium">
+                  {lesson.updated_at ? format(new Date(lesson.updated_at), 'yyyy-MM-dd HH:mm:ss') : "-"}
+                </span>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
     </div>
