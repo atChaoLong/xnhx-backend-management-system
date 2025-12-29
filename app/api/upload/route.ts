@@ -77,7 +77,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Upload to Supabase Storage
-    const { data, error } = await supabaseServer.storage
+    // Use admin client to bypass RLS policies
+    const { data, error } = await supabaseAdmin.storage
       .from(bucketName)
       .upload(fileName, fileBuffer, {
         contentType: file.type,
@@ -90,7 +91,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Get public URL
-    const { data: urlData } = supabaseServer.storage
+    // Use admin client to get public URL
+    const { data: urlData } = supabaseAdmin.storage
       .from(bucketName)
       .getPublicUrl(data.path)
 
