@@ -21,6 +21,7 @@ import Link from "next/link"
 import { LeadsService, Lead } from "@/lib/services/leads"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { WechatAccountsService } from "@/lib/services/wechatAccounts"
+import { uploadChatScreenshot } from "@/lib/services/upload"
 import { useToast } from "@/hooks/use-toast"
 
 export default function EditLeadPage() {
@@ -35,6 +36,7 @@ export default function EditLeadPage() {
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
   const [chatScreenshotFile, setChatScreenshotFile] = useState<File | null>(null)
   const [chatScreenshotPreview, setChatScreenshotPreview] = useState<string>("")
+  const [isUploadingFile, setIsUploadingFile] = useState(false)
 
   const leadId = params.id as string
 
@@ -162,17 +164,31 @@ export default function EditLeadPage() {
     )
   }
 
-  const handleChatScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChatScreenshotChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
       setChatScreenshotFile(file)
 
-      // 读取文件并转换为 base64 预览
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setChatScreenshotPreview(reader.result as string)
+      // 上传文件到 Supabase Storage
+      try {
+        setIsUploadingFile(true)
+        const url = await uploadChatScreenshot(file)
+        setChatScreenshotPreview(url)
+        toast({
+          title: "上传成功",
+          description: "聊天截图已上传",
+        })
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "上传失败",
+          description: error.message || "无法上传聊天截图",
+        })
+        // 清除文件选择，但保留原有图片
+        setChatScreenshotFile(null)
+      } finally {
+        setIsUploadingFile(false)
       }
-      reader.readAsDataURL(file)
     }
   }
 
@@ -438,7 +454,14 @@ export default function EditLeadPage() {
                   type="file"
                   accept="image/*"
                   onChange={handleChatScreenshotChange}
+                  disabled={isUploadingFile}
                 />
+                {isUploadingFile && (
+                  <p className="text-xs text-muted-foreground flex items-center">
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    上传中...
+                  </p>
+                )}
                 {chatScreenshotPreview && (
                   <div className="mt-2">
                     <img
