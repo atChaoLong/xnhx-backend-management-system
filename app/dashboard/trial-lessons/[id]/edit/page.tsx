@@ -9,8 +9,16 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
 import { TrialLessonsService, TrialLesson } from "@/lib/services/trialLessons"
+import { DictionaryService } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export default function EditTrialLessonPage() {
   const router = useRouter()
@@ -18,9 +26,21 @@ export default function EditTrialLessonPage() {
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingDict, setIsLoadingDict] = useState(true)
   const [lesson, setLesson] = useState<TrialLesson | null>(null)
 
   const lessonId = params.id as string
+
+  // 字典数据
+  const [dictOptions, setDictOptions] = useState<{
+    grades: Array<{ code: string; label: string }>
+    subjects: Array<{ code: string; label: string }>
+    regions: Array<{ code: string; label: string }>
+  }>({
+    grades: [],
+    subjects: [],
+    regions: [],
+  })
 
   const [formData, setFormData] = useState({
     // 基本信息
@@ -102,6 +122,28 @@ export default function EditTrialLessonPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessonId])
 
+  // 加载字典数据
+  useEffect(() => {
+    const loadDictionaries = async () => {
+      try {
+        setIsLoadingDict(true)
+        const dicts = await DictionaryService.getAllDictionaries()
+
+        setDictOptions({
+          grades: dicts.grade || [],
+          subjects: dicts.subject || [],
+          regions: dicts.province || [],
+        })
+      } catch (error) {
+        console.error("加载字典失败:", error)
+      } finally {
+        setIsLoadingDict(false)
+      }
+    }
+
+    loadDictionaries()
+  }, [])
+
   const handleInputChange = (field: string, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
@@ -178,7 +220,7 @@ export default function EditTrialLessonPage() {
     }
   }
 
-  if (isLoading) {
+  if (isLoading || isLoadingDict) {
     return (
       <div className="flex flex-col h-full">
         <Header title="编辑试听课程" description="修改试听课程信息" />
@@ -284,26 +326,36 @@ export default function EditTrialLessonPage() {
                     <Label htmlFor="region">
                       地域 <span className="text-destructive">*</span>
                     </Label>
-                    <Input
-                      id="region"
-                      placeholder="请输入地域"
-                      value={formData.region}
-                      onChange={(e) => handleInputChange("region", e.target.value)}
-                      required
-                    />
+                    <Select value={formData.region} onValueChange={(value) => handleInputChange("region", value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="选择地域" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {dictOptions.regions.map((region) => (
+                          <SelectItem key={region.code} value={region.code}>
+                            {region.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="grade">
                       年级 <span className="text-destructive">*</span>
                     </Label>
-                    <Input
-                      id="grade"
-                      placeholder="请输入年级"
-                      value={formData.grade}
-                      onChange={(e) => handleInputChange("grade", e.target.value)}
-                      required
-                    />
+                    <Select value={formData.grade} onValueChange={(value) => handleInputChange("grade", value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="选择年级" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {dictOptions.grades.map((grade) => (
+                          <SelectItem key={grade.code} value={grade.code}>
+                            {grade.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -312,13 +364,18 @@ export default function EditTrialLessonPage() {
                     <Label htmlFor="trial_subject">
                       试听科目 <span className="text-destructive">*</span>
                     </Label>
-                    <Input
-                      id="trial_subject"
-                      placeholder="请输入试听科目"
-                      value={formData.trial_subject}
-                      onChange={(e) => handleInputChange("trial_subject", e.target.value)}
-                      required
-                    />
+                    <Select value={formData.trial_subject} onValueChange={(value) => handleInputChange("trial_subject", value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="选择试听科目" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {dictOptions.subjects.map((subject) => (
+                          <SelectItem key={subject.code} value={subject.code}>
+                            {subject.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">
