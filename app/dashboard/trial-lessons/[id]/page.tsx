@@ -406,8 +406,16 @@ export default function TrialLessonDetailPage() {
                           <p className="text-base font-medium">{lesson.classin_course_id}</p>
                         </div>
                         <div>
+                          <p className="text-sm text-muted-foreground">单元ID</p>
+                          <p className="text-base font-medium">{lesson.classin_unit_id || "-"}</p>
+                        </div>
+                        <div>
                           <p className="text-sm text-muted-foreground">课节ID</p>
                           <p className="text-base font-medium">{lesson.classin_class_id || "-"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">活动ID</p>
+                          <p className="text-base font-medium">{lesson.classin_activity_id || "-"}</p>
                         </div>
                       </div>
                     </div>

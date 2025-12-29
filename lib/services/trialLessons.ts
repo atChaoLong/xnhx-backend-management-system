@@ -41,6 +41,8 @@ export interface TrialLesson {
   // ClassIn 集成
   classin_course_id?: number
   classin_class_id?: number
+  classin_unit_id?: number
+  classin_activity_id?: number
 }
 
 export interface NewTrialLesson {
