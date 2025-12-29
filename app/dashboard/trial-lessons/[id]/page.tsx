@@ -427,14 +427,31 @@ export default function TrialLessonDetailPage() {
           {lesson.payment_proof && (
             <section className="mb-8">
               <h3 className="text-lg font-semibold mb-4 pb-2 border-b">付款凭证</h3>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground break-all">{lesson.payment_proof}</p>
-                {lesson.payment_proof.match(/\.(jpg|jpeg|png|gif|webp)$/i) && (
-                  <img
-                    src={lesson.payment_proof}
-                    alt="付款凭证"
-                    className="max-w-sm h-auto border rounded"
-                  />
+              <div className="space-y-3">
+                {lesson.payment_proof.match(/\.(jpg|jpeg|png|gif|webp)/i) ? (
+                  // 如果是图片URL，显示图片
+                  <div>
+                    <img
+                      src={lesson.payment_proof}
+                      alt="付款凭证"
+                      className="max-w-sm h-auto border rounded cursor-pointer"
+                      onClick={() => window.open(lesson.payment_proof, '_blank')}
+                      onError={(e) => {
+                        // 图片加载失败时显示URL
+                        e.currentTarget.style.display = 'none'
+                        const fallback = document.createElement('p')
+                        fallback.className = 'text-sm text-muted-foreground break-all'
+                        fallback.textContent = lesson.payment_proof
+                        e.currentTarget.parentElement?.appendChild(fallback)
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground mt-2">
+                      点击图片可在新窗口打开
+                    </p>
+                  </div>
+                ) : (
+                  // 如果不是图片URL，显示文本
+                  <p className="text-sm text-muted-foreground break-all">{lesson.payment_proof}</p>
                 )}
               </div>
             </section>

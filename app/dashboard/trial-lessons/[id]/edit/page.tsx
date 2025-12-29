@@ -469,6 +469,19 @@ export default function EditTrialLessonPage() {
                       onChange={(e) => handleInputChange("payment_proof", e.target.value)}
                       required
                     />
+                    {formData.payment_proof && formData.payment_proof.match(/\.(jpg|jpeg|png|gif|webp)/i) && (
+                      <div className="mt-2">
+                        <p className="text-xs text-muted-foreground mb-1">当前付款凭证预览：</p>
+                        <img
+                          src={formData.payment_proof}
+                          alt="付款凭证预览"
+                          className="max-w-xs h-auto border rounded"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
