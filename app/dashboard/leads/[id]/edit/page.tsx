@@ -41,12 +41,14 @@ export default function EditLeadPage() {
     addMethods: Array<{ code: string; label: string }>
     regions: Array<{ code: string; label: string }>
     sources: Array<{ code: string; label: string }>
+    salesStaff: Array<{ code: string; label: string }>
   }>({
     grades: [],
     subjects: [],
     addMethods: [],
     regions: [],
     sources: [],
+    salesStaff: [],
   })
 
   const [formData, setFormData] = useState({
@@ -76,6 +78,7 @@ export default function EditLeadPage() {
           addMethods: dicts.add_method || [],
           regions: dicts.province || [],
           sources: dicts.xhs_source || [],
+          salesStaff: dicts.sales_staff || [],
         })
       } catch (error) {
         console.error("加载字典失败:", error)
@@ -373,12 +376,18 @@ export default function EditLeadPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="grab_wechat">抢单微信号</Label>
-                    <Input
-                      id="grab_wechat"
-                      value={formData.grab_wechat}
-                      onChange={(e) => handleInputChange("grab_wechat", e.target.value)}
-                      placeholder="请输入抢单微信号"
-                    />
+                    <Select value={formData.grab_wechat} onValueChange={(value) => handleInputChange("grab_wechat", value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="选择销售人员" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {dictOptions.salesStaff.map((staff) => (
+                          <SelectItem key={staff.code} value={staff.code}>
+                            {staff.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>
