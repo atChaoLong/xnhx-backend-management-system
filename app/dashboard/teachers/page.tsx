@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Plus, Edit, Trash2, Loader2, AlertTriangle } from "lucide-react"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle, Upload } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { TeachersService, Teacher } from "@/lib/services/teachers"
@@ -23,6 +23,7 @@ export default function TeachersPage() {
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const [isRegistering, setIsRegistering] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [teacherToDelete, setTeacherToDelete] = useState<string | null>(null)
   const { toast } = useToast()
@@ -81,6 +82,73 @@ export default function TeachersPage() {
   const handleDeleteCancel = () => {
     setDeleteDialogOpen(false)
     setTeacherToDelete(null)
+  }
+
+  // 入库到 ClassIn
+  const handleRegisterToClassIn = async (teacher: Teacher) => {
+    // 检查是否有手机号
+    if (!teacher.classin_phone) {
+      toast({
+        variant: "destructive",
+        title: "无法入库",
+        description: "该老师没有填写 ClassIn 手机号，请先编辑老师信息",
+      })
+      return
+    }
+
+    // 检查是否已经入库
+    if (teacher.used_classin) {
+      toast({
+        variant: "destructive",
+        title: "已经入库",
+        description: "该老师已经入库到 ClassIn 系统",
+      })
+      return
+    }
+
+    // 打开确认对话框
+    const password = prompt(`请输入老师 ${teacher.teacher_name} 的 ClassIn 密码：`)
+    if (!password) {
+      return
+    }
+
+    try {
+      setIsRegistering(teacher.id)
+
+      const response = await fetch('/api/teachers/register-classin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teacherId: teacher.id,
+          telephone: teacher.classin_phone,
+          nickname: teacher.teacher_name,
+          password: password,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: '入库失败' }))
+        throw new Error(error.error || '入库失败')
+      }
+
+      const result = await response.json()
+
+      toast({
+        title: "入库成功",
+        description: `老师已入库到 ClassIn 系统，UID: ${result.data.uid}`,
+      })
+
+      // 刷新列表
+      fetchTeachers()
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "入库失败",
+        description: error.message || "无法入库到 ClassIn",
+      })
+    } finally {
+      setIsRegistering(null)
+    }
   }
 
   if (isLoading) {
@@ -165,8 +233,24 @@ export default function TeachersPage() {
                         <TableCell>{teacher.teaching_years ? `${teacher.teaching_years}年` : "-"}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            {/* 入库按钮 - 仅未入库的老师显示 */}
+                            {!teacher.used_classin && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRegisterToClassIn(teacher)}
+                                disabled={isRegistering === teacher.id}
+                                title="入库到 ClassIn"
+                              >
+                                {isRegistering === teacher.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Upload className="h-4 w-4 text-blue-600" />
+                                )}
+                              </Button>
+                            )}
                             <Link href={`/dashboard/teachers/${teacher.id}/edit`}>
-                              <Button variant="ghost" size="icon">
+                              <Button variant="ghost" size="icon" title="编辑">
                                 <Edit className="h-4 w-4" />
                               </Button>
                             </Link>
@@ -175,6 +259,7 @@ export default function TeachersPage() {
                               size="icon"
                               onClick={() => handleDeleteClick(teacher.id)}
                               disabled={isDeleting === teacher.id}
+                              title="删除"
                             >
                               {isDeleting === teacher.id ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
