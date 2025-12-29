@@ -330,6 +330,70 @@ export interface ClassClassin {
 }
 
 // ============================================
+// ClassIn 课堂原始数据类型
+// ============================================
+export interface ClassroomClassin {
+  class_id: number                   // ClassIn 课堂ID（主键）
+  created_at: string                // 创建时间
+  updated_at: string                // 更新时间
+
+  // 数据库字段（snake_case）
+  name: string                       // 课堂名称
+  class_status?: number              // 课堂状态（对应 API: classStatus）
+  class_type?: number                // 课堂类型（对应 API: classType）
+  start_time?: number                // 开始时间 Unix时间戳（对应 API: startTime）
+  end_time?: number                  // 结束时间 Unix时间戳（对应 API: endTime）
+  seat_num?: number                  // 座位数量（对应 API: seatNum）
+  teach_mode?: number                // 教学模式（对应 API: teachMode）
+  screen_mode?: number               // 屏幕模式（对应 API: screenMode）
+  camera_hide?: number               // 是否隐藏摄像头（对应 API: cameraHide）
+  is_auto_onstage?: number            // 是否自动上台（对应 API: isAutoOnstage）
+  is_dc?: number                     // 是否DC（对应 API: isDc）
+  is_hd?: number                     // 是否HD（对应 API: isHd）
+  lesson_key?: string                // 课程key（对应 API: lessonKey）
+  live_host?: string                 // 直播主机（对应 API: liveHost）
+  class_introduce?: string           // 课堂介绍（对应 API: classIntroduce）
+
+  // 统计字段
+  transfer_stu_num?: number           // 转出学生数（对应 API: transferStuNum）
+  out_stu_num?: number                // 离开学生数（对应 API: outStuNum）
+  stu_num?: number                   // 学生数（对应 API: stuNum）
+  audit_num?: number                  // 听课人数（对应 API: auditNum）
+  goods_num?: number                  // 商品数量（对应 API: goodsNum）
+
+  // 关联字段
+  course_id?: number                 // 班级ID（关联 class_classin，对应 API: courseId）
+  school_uid?: number                // 学校UID（对应 API: schoolUid）
+  activity_id?: number               // 活动ID（对应 API: activityId）
+  co_type?: number                   // coType（对应 API: coType）
+  co_main_id?: number                // coMainId（对应 API: coMainId）
+  created_at_timestamp?: number      // 创建时间 Unix时间戳（对应 API: createdAt）
+  biz_type?: number                  // bizType（对应 API: bizType）
+  publish_flag?: number              // publishFlag（对应 API: publishFlag）
+  process_flag?: number              // processFlag（对应 API: processFlag）
+  biz_id?: number                    // bizId（对应 API: bizId）
+  mute_all?: number                  // muteAll（对应 API: muteAll）
+  forbid_assistant_operation?: number // forbidAssistantOperation（对应 API: forbidAssistantOperation）
+
+  // 额外字段
+  course_name?: string               // 班级名称（冗余，对应 API: courseName）
+
+  // JSONB 字段
+  video_array?: any                  // 视频数组信息（对应 API: videoArray）
+  teacher?: any                      // 老师信息（对应 API: teacher）
+  class_label?: any[]                // 班级标签（对应 API: classLabel）
+  assistant?: any[]                  // 助教列表（对应 API: assistant）
+  creator?: any                      // 创建者信息（对应 API: creator）
+  cloud_folder?: any                 // 云文件夹信息（对应 API: cloudFolder）
+  unit?: any                         // 单元信息（对应 API: unit）
+  category?: any                     // 分类信息（对应 API: category）
+
+  // 同步相关字段
+  sync_time?: string                 // 最后同步时间
+  notes?: string                     // 备注
+}
+
+// ============================================
 // 老师类型（旧版，用于内部老师管理）
 // ============================================
 export interface OldTeacher {
@@ -542,6 +606,9 @@ export type UpdateStudentClassin = Partial<NewStudentClassin> & { uid: number }
 
 export type NewClassClassin = Omit<ClassClassin, "course_id" "createdAt" "updatedAt">
 export type UpdateClassClassin = Partial<NewClassClassin> & { course_id: number }
+
+export type NewClassroomClassin = Omit<ClassroomClassin, "class_id" "createdAt" "updatedAt">
+export type UpdateClassroomClassin = Partial<NewClassroomClassin> & { class_id: number }
 
 export type NewTeacher = Omit<Teacher, "id" "createdAt" "updatedAt">
 export type UpdateTeacher = Partial<NewTeacher> & { id: string }
