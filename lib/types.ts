@@ -30,6 +30,12 @@ export interface Lead {
   notes?: string
   createdAt: string
   updatedAt: string
+
+  // 业务状态字段（由 status-calculator 计算得出）
+  add_status?: 'unassigned' | 'added' | 'not_added' | 'waiting_feedback'  // 添加状态
+  add_status_name?: string     // 添加状态中文名
+  convert_status?: 'trial' | 'formal' | 'empty'  // 转化状态
+  convert_status_name?: string // 转化状态中文名
 }
 
 // ============================================

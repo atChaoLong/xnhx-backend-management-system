@@ -14,16 +14,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Plus, Edit, Trash2, Loader2, AlertTriangle, Video } from "lucide-react"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle, Video, MessageCircle } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { LeadsService, Lead } from "@/lib/services/leads"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
+import { usePermission } from "@/lib/hooks/usePermission"
 
 export default function LeadsPage() {
   const router = useRouter()
+  const { leads: leadsPerm } = usePermission()
   const [leads, setLeads] = useState<Lead[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
@@ -148,13 +150,29 @@ export default function LeadsPage() {
   }
 
   const getStatusBadge = (status: string) => {
-    if (status === 'added' || status === '已添加') {
+    if (status === 'unassigned') {
+      return <Badge variant="outline">运营未派单</Badge>
+    }
+    if (status === 'added') {
       return <Badge className="bg-green-500">已添加</Badge>
     }
-    if (status === 'not_added' || status === '未添加') {
+    if (status === 'not_added') {
       return <Badge variant="destructive">未添加</Badge>
     }
-    return <Badge variant="secondary">未反馈</Badge>
+    if (status === 'waiting_feedback') {
+      return <Badge variant="secondary">销售未反馈</Badge>
+    }
+    return <Badge variant="secondary">未知</Badge>
+  }
+
+  const getConvertStatusBadge = (status: string) => {
+    if (status === 'trial') {
+      return <Badge className="bg-blue-500">试听</Badge>
+    }
+    if (status === 'formal') {
+      return <Badge className="bg-purple-500">正式</Badge>
+    }
+    return <Badge variant="outline">-</Badge>
   }
 
   if (isLoading) {
@@ -187,12 +205,15 @@ export default function LeadsPage() {
                 <Button variant="outline" onClick={fetchLeads} disabled={isLoading}>
                   刷新
                 </Button>
-                <Link href="/dashboard/leads/new">
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    新增线索
-                  </Button>
-                </Link>
+                {/* 运营：新增线索 */}
+                {leadsPerm.create() && (
+                  <Link href="/dashboard/leads/new">
+                    <Button>
+                      <Plus className="mr-2 h-4 w-4" />
+                      新增线索
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
 
@@ -209,7 +230,8 @@ export default function LeadsPage() {
                     <TableHead>添加方式</TableHead>
                     <TableHead>家长微信</TableHead>
                     <TableHead>抢单微信</TableHead>
-                    <TableHead>反馈状态</TableHead>
+                    <TableHead>添加状态</TableHead>
+                    <TableHead>转化状态</TableHead>
                     <TableHead>运营人员</TableHead>
                     <TableHead>创建人</TableHead>
                     <TableHead className="text-right">操作</TableHead>
@@ -218,7 +240,7 @@ export default function LeadsPage() {
                 <TableBody>
                   {leads.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
                         暂无数据，点击"新增线索"开始添加
                       </TableCell>
                     </TableRow>
@@ -237,6 +259,7 @@ export default function LeadsPage() {
                         <TableCell>{lead.parent_wechat || "-"}</TableCell>
                         <TableCell>{lead.grab_wechat || "-"}</TableCell>
                         <TableCell>{getStatusBadge(lead.add_status || "")}</TableCell>
+                        <TableCell>{getConvertStatusBadge(lead.convert_status || "")}</TableCell>
                         <TableCell>{lead.operator_id || "-"}</TableCell>
                         <TableCell>
                           <div className="flex flex-col">
@@ -252,34 +275,51 @@ export default function LeadsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            {/* 销售反馈按钮 */}
+                            {leadsPerm.feedback() && (
+                              <Link href={`/dashboard/leads/${lead.id}/feedback`}>
+                                <Button variant="outline" size="sm" title="反馈线索">
+                                  <MessageCircle className="mr-2 h-4 w-4" />
+                                  反馈
+                                </Button>
+                              </Link>
+                            )}
                             {/* 创建试听按钮 */}
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => handleCreateTrialLesson(lead)}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              <Video className="mr-2 h-4 w-4" />
-                              创建试听
-                            </Button>
-                            <Link href={`/dashboard/leads/${lead.id}/edit`}>
-                              <Button variant="ghost" size="icon" title="编辑">
-                                <Edit className="h-4 w-4" />
+                            {leadsPerm.convert() && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => handleCreateTrialLesson(lead)}
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                <Video className="mr-2 h-4 w-4" />
+                                创建试听
                               </Button>
-                            </Link>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteClick(lead.id)}
-                              disabled={isDeleting === lead.id}
-                              title="删除"
-                            >
-                              {isDeleting === lead.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              )}
-                            </Button>
+                            )}
+                            {/* 运营编辑按钮 */}
+                            {leadsPerm.edit() && (
+                              <Link href={`/dashboard/leads/${lead.id}/edit`}>
+                                <Button variant="ghost" size="icon" title="编辑">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                            )}
+                            {/* 运营删除按钮 */}
+                            {leadsPerm.delete() && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteClick(lead.id)}
+                                disabled={isDeleting === lead.id}
+                                title="删除"
+                              >
+                                {isDeleting === lead.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                )}
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

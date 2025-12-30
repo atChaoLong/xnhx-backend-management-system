@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
 import { handleDatabaseError } from '@/lib/utils'
+import { batchCalculateLeadStatus } from '@/lib/status-calculator'
 
 const logger = createLogger('API:Leads')
 
@@ -54,8 +55,29 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    logger.info('获取线索成功', { count: data?.length || 0 })
-    return NextResponse.json({ data })
+    // 计算线索状态
+    const leadsWithStatus = []
+    if (data && data.length > 0) {
+      const statusResults = await batchCalculateLeadStatus(data)
+
+      // 合并状态到数据
+      for (let i = 0; i < data.length; i++) {
+        const lead = data[i]
+        const status = statusResults[i]
+
+        leadsWithStatus.push({
+          ...lead,
+          // 添加状态字段
+          add_status: status.addStatus,
+          add_status_name: status.addStatusName,
+          convert_status: status.convertStatus,
+          convert_status_name: status.convertStatusName,
+        })
+      }
+    }
+
+    logger.info('获取线索成功', { count: leadsWithStatus.length || 0 })
+    return NextResponse.json({ data: leadsWithStatus })
   } catch (error: any) {
     logger.error('获取线索异常', { message: error.message, stack: error.stack })
     return NextResponse.json(
