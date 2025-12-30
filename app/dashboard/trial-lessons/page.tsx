@@ -13,14 +13,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Plus, Edit, Trash2, Loader2, AlertTriangle, Eye } from "lucide-react"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle, Eye, CheckCircle } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { TrialLessonsService, TrialLesson } from "@/lib/services/trialLessons"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
 
 export default function TrialLessonsPage() {
+  const router = useRouter()
   const [lessons, setLessons] = useState<TrialLesson[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingDict, setIsLoadingDict] = useState(true)
@@ -123,6 +125,12 @@ export default function TrialLessonsPage() {
   const handleDeleteCancel = () => {
     setDeleteDialogOpen(false)
     setLessonToDelete(null)
+  }
+
+  // 转正为正式订单
+  const handleConvertToFormal = (lesson: TrialLesson) => {
+    // 跳转到正式订单创建页面，并传递试听课信息
+    router.push(`/dashboard/formal-orders/new?trialLessonId=${lesson.id}`)
   }
 
   // 获取状态标签样式
@@ -319,6 +327,16 @@ export default function TrialLessonsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleConvertToFormal(lesson)}
+                              className="bg-green-600 hover:bg-green-700"
+                              title="转正为正式订单"
+                            >
+                              <CheckCircle className="mr-1 h-4 w-4" />
+                              转正
+                            </Button>
                             <Link href={`/dashboard/trial-lessons/${lesson.id}`}>
                               <Button variant="ghost" size="icon" title="查看详情">
                                 <Eye className="h-4 w-4" />
