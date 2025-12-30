@@ -51,6 +51,47 @@ export function useCurrentUser() {
           .eq('id', session.user.id)
           .single()
 
+        // 如果用户档案不存在，自动创建
+        if (profileError?.code === 'PGRST116' || !profile) {
+          console.log('用户档案不存在，自动创建...')
+
+          const { data: newProfile, error: insertError } = await supabase
+            .from('user_profiles')
+            .insert({
+              id: session.user.id,
+              email: session.user.email || '',
+              name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || '未知用户',
+              role: 'sales', // 默认角色
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .select()
+            .single()
+
+          if (insertError) {
+            console.error('创建用户档案失败:', insertError)
+          } else {
+            console.log('用户档案创建成功:', newProfile)
+          }
+
+          // 使用新创建的档案
+          if (mounted) {
+            setState({
+              user: {
+                id: session.user.id,
+                email: session.user.email || '',
+                name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || '未知用户',
+                avatar: session.user.user_metadata?.avatar_url,
+                role: (newProfile?.role || 'sales') as Role,
+                createdAt: newProfile?.created_at || session.user.created_at || new Date().toISOString(),
+              },
+              isLoading: false,
+              error: null,
+            })
+          }
+          return
+        }
+
         if (profileError) {
           console.error('加载用户档案失败:', profileError)
         }
