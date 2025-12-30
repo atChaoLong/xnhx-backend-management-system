@@ -6,7 +6,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabaseBrowser } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import type { User } from '@/lib/types'
 import { Role } from '@/lib/permissions'
 
@@ -29,7 +29,7 @@ export function useCurrentUser() {
     async function loadUser() {
       try {
         // 1. 获取 Supabase 认证用户
-        const { data: { session }, error: authError } = await supabaseBrowser.auth.getSession()
+        const { data: { session }, error: authError } = await supabase.auth.getSession()
 
         if (authError) {
           throw authError
@@ -45,7 +45,7 @@ export function useCurrentUser() {
         }
 
         // 2. 从 user_profiles 表获取完整用户信息
-        const { data: profile, error: profileError } = await supabaseBrowser
+        const { data: profile, error: profileError } = await supabase
           .from('user_profiles')
           .select('*')
           .eq('id', session.user.id)
@@ -85,7 +85,7 @@ export function useCurrentUser() {
     loadUser()
 
     // 监听认证状态变化
-    const { data: { subscription } } = supabaseBrowser.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session?.user) {
         setState({
           user: null,
