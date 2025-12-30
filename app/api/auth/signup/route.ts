@@ -11,19 +11,34 @@ export async function POST(request: NextRequest) {
     if (!email || !password) {
       logger.warn('注册请求缺少必填字段')
       return NextResponse.json(
-        { error: '邮箱和密码必填' },
+        { error: '账号/邮箱和密码必填' },
         { status: 400 }
       )
     }
 
-    logger.info('用户注册尝试', { email, name })
+    // 处理账号或邮箱注册
+    // 如果输入包含 @，当作邮箱直接使用
+    // 如果不包含 @，当作账号，自动拼接成 @xiaoniuhaoxue.com
+    let finalEmail = email
+    let finalName = name
+
+    if (!email.includes('@')) {
+      finalEmail = `${email}@xiaoniuhaoxue.com`
+      // 如果没有提供name，使用账号作为name
+      if (!finalName) {
+        finalName = email
+      }
+      logger.info('账号转邮箱', { account: email, email: finalEmail, name: finalName })
+    }
+
+    logger.info('用户注册尝试', { input: email, finalEmail, name: finalName })
 
     const { data, error } = await supabaseServer.auth.signUp({
-      email,
+      email: finalEmail,
       password,
       options: {
         data: {
-          name: name || email.split('@')[0],
+          name: finalName || finalEmail.split('@')[0],
           role: 'user',
         },
         emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/login`,

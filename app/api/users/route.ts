@@ -6,6 +6,9 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('API:Users')
 
 // 验证用户是否为超级管理员
 async function isAdmin(request: NextRequest): Promise<{ isAdmin: boolean; userId?: string }> {
@@ -104,18 +107,18 @@ export async function POST(request: NextRequest) {
     // 验证必填字段
     if (!email || !password || !role) {
       return NextResponse.json(
-        { error: '邮箱、密码和角色为必填项' },
+        { error: '账号/邮箱、密码和角色为必填项' },
         { status: 400 }
       )
     }
 
-    // 验证邮箱格式
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        { error: '邮箱格式不正确' },
-        { status: 400 }
-      )
+    // 处理账号或邮箱
+    // 如果输入包含 @，当作邮箱直接使用
+    // 如果不包含 @，当作账号，自动拼接成 @xiaoniuhaoxue.com
+    let finalEmail = email
+    if (!email.includes('@')) {
+      finalEmail = `${email}@xiaoniuhaoxue.com`
+      logger.info('账号转邮箱', { account: email, email: finalEmail })
     }
 
     // 验证密码长度
@@ -127,7 +130,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 验证角色是否有效
-    const validRoles = ['admin', 'sales', 'operations', 'academic', 'finance']
+    const validRoles = ['admin', 'operator', 'sales', 'head_teacher', 'teacher', 'academic_affairs', 'finance', 'hr']
     if (!validRoles.includes(role)) {
       return NextResponse.json(
         { error: `无效的角色，必须是以下之一: ${validRoles.join(', ')}` },
@@ -135,13 +138,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    logger.info('创建用户', { email: finalEmail, role, name })
+
     // 创建用户（使用 admin API client）
     const { data: { user }, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email,
+      email: finalEmail,
       password,
       email_confirm: true, // 自动确认邮箱
       user_metadata: {
-        name: name || email.split('@')[0],
+        name: name || finalEmail.split('@')[0],
         role: role,
       },
     })
@@ -154,17 +159,34 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 创建用户档案（先尝试 supabaseServer，如果失败则用 supabaseAdmin）
-    let profileData, profileError
+    // 创建用户档案
+    // 策略：直接使用 supabaseAdmin 插入（绕过 RLS），避免重复插入问题
+    logger.info('创建 user_profile', { userId: user.id, email: finalEmail })
 
-    // 尝试使用 supabaseServer
-    const serverResult = await supabaseServer
+    // 1. 检查是否已存在该 ID 的 profile
+    const { data: existingProfile } = await supabaseAdmin
+      .from('user_profiles')
+      .select('id')
+      .eq('id', user.id)
+      .single()
+
+    if (existingProfile) {
+      logger.warn('发现已存在的 profile，准备删除', { userId: user.id })
+      await supabaseAdmin
+        .from('user_profiles')
+        .delete()
+        .eq('id', user.id)
+      logger.info('旧 profile 已删除', { userId: user.id })
+    }
+
+    // 2. 使用 supabaseAdmin 创建 profile（绕过 RLS）
+    const { data: profileData, error: profileError } = await supabaseAdmin
       .from('user_profiles')
       .insert({
         id: user.id,
-        username: email.split('@')[0],
-        name: name || email.split('@')[0],
-        email: email,
+        username: finalEmail.split('@')[0],
+        name: name || finalEmail.split('@')[0],
+        email: finalEmail,
         phone: phone || null,
         role: role,
         team_name: team_name || null,
@@ -173,40 +195,18 @@ export async function POST(request: NextRequest) {
       .select('*')
       .single()
 
-    profileData = serverResult.data
-    profileError = serverResult.error
-
-    // 如果 supabaseServer 失败（可能是 RLS），使用 supabaseAdmin
     if (profileError) {
-      console.warn('使用 supabaseServer 插入 profile 失败，尝试 supabaseAdmin:', profileError.message)
-
-      const adminResult = await supabaseAdmin
-        .from('user_profiles')
-        .insert({
-          id: user.id,
-          username: email.split('@')[0],
-          name: name || email.split('@')[0],
-          email: email,
-          phone: phone || null,
-          role: role,
-          team_name: team_name || null,
-          is_active: true,
-        })
-        .select('*')
-        .single()
-
-      profileData = adminResult.data
-      profileError = adminResult.error
-
-      if (profileError) {
-        console.error('创建用户档案失败（使用 admin 客户端）:', profileError)
-        // 删除已创建的认证用户
-        await supabaseAdmin.auth.admin.deleteUser(user.id)
-        return NextResponse.json(
-          { error: `创建用户档案失败: ${profileError.message}` },
-          { status: 500 }
-        )
-      }
+      logger.error('创建用户档案失败', {
+        error: profileError.message,
+        code: profileError.code,
+        userId: user.id
+      })
+      // 删除已创建的认证用户
+      await supabaseAdmin.auth.admin.deleteUser(user.id)
+      return NextResponse.json(
+        { error: `创建用户档案失败: ${profileError.message}` },
+        { status: 500 }
+      )
     }
 
     // 记录操作日志
@@ -267,7 +267,7 @@ export async function PUT(request: NextRequest) {
 
     // 如果更新角色，验证角色是否有效
     if (role) {
-      const validRoles = ['admin', 'sales', 'operations', 'academic', 'finance']
+      const validRoles = ['admin', 'operator', 'sales', 'head_teacher', 'teacher', 'academic_affairs', 'finance', 'hr']
       if (!validRoles.includes(role)) {
         return NextResponse.json(
           { error: `无效的角色，必须是以下之一: ${validRoles.join(', ')}` },
@@ -360,16 +360,31 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // 删除用户档案（会自动删除认证用户，因为有 ON DELETE CASCADE）
-    const { error: deleteError } = await supabaseServer
+    // 先删除认证用户（使用 admin API）
+    logger.info('删除认证用户', { userId })
+    const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(userId)
+
+    if (authDeleteError) {
+      logger.error('删除认证用户失败', { error: authDeleteError.message, userId })
+      console.error('删除认证用户失败:', authDeleteError)
+      return NextResponse.json(
+        { error: '删除认证用户失败' },
+        { status: 500 }
+      )
+    }
+
+    // 删除用户档案
+    logger.info('删除用户档案', { userId })
+    const { error: profileDeleteError } = await supabaseServer
       .from('user_profiles')
       .delete()
-      .eq('id', userId)  // 使用 id 而不是 user_id
+      .eq('id', userId)
 
-    if (deleteError) {
-      console.error('删除用户失败:', deleteError)
+    if (profileDeleteError) {
+      logger.error('删除用户档案失败', { error: profileDeleteError.message, userId })
+      console.error('删除用户档案失败:', profileDeleteError)
       return NextResponse.json(
-        { error: '删除用户失败' },
+        { error: '删除用户档案失败' },
         { status: 500 }
       )
     }

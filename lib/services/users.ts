@@ -12,7 +12,7 @@ export interface UserProfile {
   id: string              // 主键，直接对应 auth.users.id
   username?: string       // 用户名
   name: string            // 姓名
-  role: string            // 用户角色（admin, sales, operations, academic, finance）
+  role: string            // 用户角色（admin, operator, sales, head_teacher, teacher, academic_affairs, finance, hr）
   phone?: string          // 手机号
   wechat?: string         // 微信号
   email?: string          // 邮箱
@@ -30,7 +30,7 @@ export interface CreateUserRequest {
   password: string       // 登录密码
   username?: string      // 用户名
   name?: string          // 姓名
-  role: string           // 用户角色（admin, sales, operations, academic, finance）
+  role: string           // 用户角色（admin, operator, sales, head_teacher, teacher, academic_affairs, finance, hr）
   phone?: string         // 手机号
   wechat?: string        // 微信号
   team_name?: string     // 团队名称
@@ -49,10 +49,13 @@ export interface CreateUserResponse {
  */
 export const ROLES = {
   admin: { code: 'admin', name: '超级管理员', description: '拥有系统所有权限' },
+  operator: { code: 'operator', name: '运营人员', description: '负责运营管理和协调' },
   sales: { code: 'sales', name: '销售顾问', description: '负责线索跟进和转化' },
-  operations: { code: 'operations', name: '运营人员', description: '负责日常运营管理' },
-  academic: { code: 'academic', name: '教务管理', description: '负责教务安排和教师管理' },
-  finance: { code: 'finance', name: '财务人员', description: '负责财务管理' },
+  head_teacher: { code: 'head_teacher', name: '班主任', description: '负责班级管理和学生关怀' },
+  teacher: { code: 'teacher', name: '教师', description: '负责教学和授课' },
+  academic_affairs: { code: 'academic_affairs', name: '教务', description: '负责教务安排和管理' },
+  finance: { code: 'finance', name: '财务', description: '负责财务管理' },
+  hr: { code: 'hr', name: '人事', description: '负责人力资源和员工管理' },
 } as const
 
 export type RoleCode = keyof typeof ROLES

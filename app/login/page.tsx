@@ -74,15 +74,18 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">邮箱地址</Label>
+              <Label htmlFor="email">账号或邮箱</Label>
               <Input
                 id="email"
-                type="email"
-                placeholder="your@email.com"
+                type="text"
+                placeholder="输入账号或邮箱地址"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
+              <p className="text-xs text-muted-foreground">
+                提示：可以直接输入账号（如：admin），自动转换为 admin@xiaoniuhaoxue.com
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">密码</Label>

@@ -18,12 +18,21 @@ export async function POST(request: NextRequest) {
     // 验证必填字段
     if (!email || !password) {
       return NextResponse.json(
-        { error: '邮箱和密码为必填项' },
+        { error: '账号/邮箱和密码为必填项' },
         { status: 400 }
       )
     }
 
-    logger.info('开始创建超级管理员', { email, full_name })
+    // 处理账号或邮箱
+    // 如果输入包含 @，当作邮箱直接使用
+    // 如果不包含 @，当作账号，自动拼接成 @xiaoniuhaoxue.com
+    let finalEmail = email
+    if (!email.includes('@')) {
+      finalEmail = `${email}@xiaoniuhaoxue.com`
+      logger.info('账号转邮箱', { account: email, email: finalEmail })
+    }
+
+    logger.info('开始创建超级管理员', { email: finalEmail, full_name })
 
     // 检查是否已经存在超级管理员
     const { data: existingAdmins, error: checkError } = await supabaseServer
@@ -53,11 +62,11 @@ export async function POST(request: NextRequest) {
 
     // 使用 Supabase Admin API 创建用户
     const { data: { user }, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email,
+      email: finalEmail,
       password,
       email_confirm: true,
       user_metadata: {
-        name: full_name || email.split('@')[0],
+        name: full_name || finalEmail.split('@')[0],
         role: 'admin',
       },
     })
@@ -93,14 +102,14 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. 使用 supabaseAdmin 创建 profile（绕过 RLS）
-    logger.info('创建 user_profile', { userId: user.id, email })
+    logger.info('创建 user_profile', { userId: user.id, email: finalEmail })
     const { error: profileError } = await supabaseAdmin
       .from('user_profiles')
       .insert({
         id: user.id,
-        username: email.split('@')[0],
-        name: full_name || email.split('@')[0],
-        email: email,
+        username: finalEmail.split('@')[0],
+        name: full_name || finalEmail.split('@')[0],
+        email: finalEmail,
         role: 'admin',
         team_name: '小牛好学',
         is_active: true,
@@ -132,7 +141,7 @@ export async function POST(request: NextRequest) {
         user: {
           id: user.id,
           email: user.email,
-          full_name: full_name || email.split('@')[0],
+          full_name: full_name || finalEmail.split('@')[0],
         },
       },
       instructions: [

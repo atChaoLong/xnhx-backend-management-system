@@ -11,15 +11,24 @@ export async function POST(request: NextRequest) {
     if (!email || !password) {
       logger.warn('登录请求缺少必填字段')
       return NextResponse.json(
-        { error: '邮箱和密码必填' },
+        { error: '账号/邮箱和密码必填' },
         { status: 400 }
       )
     }
 
-    logger.info('用户登录尝试', { email, passwordLength: password?.length })
+    // 处理账号或邮箱登录
+    // 如果输入包含 @，当作邮箱直接使用
+    // 如果不包含 @，当作账号，自动拼接成 @xiaoniuhaoxue.com
+    let finalEmail = email
+    if (!email.includes('@')) {
+      finalEmail = `${email}@xiaoniuhaoxue.com`
+      logger.info('账号转邮箱', { account: email, email: finalEmail })
+    }
+
+    logger.info('用户登录尝试', { input: email, finalEmail, passwordLength: password?.length })
 
     const { data, error } = await supabaseServer.auth.signInWithPassword({
-      email,
+      email: finalEmail,
       password,
     })
 

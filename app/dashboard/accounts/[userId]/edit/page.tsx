@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select"
 import { Loader2, ArrowLeft } from "lucide-react"
 import Link from "next/link"
-import { UsersService, UserProfile, UserRole } from "@/lib/services/users"
+import { UsersService, UserProfile, ROLES } from "@/lib/services/users"
 import { useToast } from "@/hooks/use-toast"
 
 export default function EditAccountPage() {
@@ -28,17 +28,14 @@ export default function EditAccountPage() {
 
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingUser, setIsLoadingUser] = useState(true)
-  const [isLoadingRoles, setIsLoadingRoles] = useState(true)
   const [user, setUser] = useState<UserProfile | null>(null)
-  const [roles, setRoles] = useState<UserRole[]>([])
 
   const [formData, setFormData] = useState({
-    full_name: "",
+    name: "",
     phone: "",
-    role_id: "",
-    organization: "",
-    position: "",
-    notes: "",
+    role: "",
+    wechat: "",
+    team_name: "",
     is_active: true,
   })
 
@@ -52,12 +49,11 @@ export default function EditAccountPage() {
 
         // 填充表单
         setFormData({
-          full_name: data.full_name || "",
+          name: data.name || "",
           phone: data.phone || "",
-          role_id: data.role_id || "",
-          organization: data.organization || "",
-          position: data.position || "",
-          notes: data.notes || "",
+          role: data.role || "",
+          wechat: data.wechat || "",
+          team_name: data.team_name || "",
           is_active: data.is_active,
         })
       } catch (error: any) {
@@ -75,27 +71,6 @@ export default function EditAccountPage() {
     loadUser()
   }, [userId])
 
-  // 加载角色列表
-  useEffect(() => {
-    const loadRoles = async () => {
-      try {
-        setIsLoadingRoles(true)
-        const data = await UsersService.getRoles()
-        setRoles(data)
-      } catch (error: any) {
-        toast({
-          variant: "destructive",
-          title: "加载角色失败",
-          description: error.message || "无法加载角色列表",
-        })
-      } finally {
-        setIsLoadingRoles(false)
-      }
-    }
-
-    loadRoles()
-  }, [])
-
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
@@ -106,7 +81,7 @@ export default function EditAccountPage() {
     if (!user) return
 
     // 验证必填字段
-    if (!formData.role_id) {
+    if (!formData.role) {
       toast({
         variant: "destructive",
         title: "验证失败",
@@ -118,7 +93,7 @@ export default function EditAccountPage() {
     try {
       setIsLoading(true)
       await UsersService.updateUser({
-        user_id: user.user_id,
+        id: user.id,
         ...formData,
       })
       toast({
@@ -180,7 +155,7 @@ export default function EditAccountPage() {
                       <Label htmlFor="user_id">用户ID</Label>
                       <Input
                         id="user_id"
-                        value={user.user_id}
+                        value={user.id}
                         disabled
                         className="bg-muted"
                       />
@@ -189,7 +164,7 @@ export default function EditAccountPage() {
                     <div className="grid gap-2">
                       <Label>邮箱</Label>
                       <div className="text-sm text-muted-foreground">
-                        {user.user_id.slice(0, 8)}...
+                        {user.id.slice(0, 8)}...
                       </div>
                       <p className="text-xs text-muted-foreground">
                         邮箱地址无法修改
@@ -249,62 +224,54 @@ export default function EditAccountPage() {
 
                   <div className="grid gap-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="role_id">
+                      <Label htmlFor="role">
                         用户角色 <span className="text-destructive">*</span>
                       </Label>
-                      {isLoadingRoles ? (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          加载角色列表中...
-                        </div>
-                      ) : (
-                        <Select
-                          value={formData.role_id}
-                          onValueChange={(value) => handleInputChange("role_id", value)}
-                          disabled={isLoading}
-                        >
-                          <SelectTrigger id="role_id">
-                            <SelectValue placeholder="请选择用户角色" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {roles.map((role) => (
-                              <SelectItem key={role.id} value={role.id}>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">{role.name}</span>
-                                  <span className="text-xs text-muted-foreground">({role.code})</span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                      {formData.role_id && (
+                      <Select
+                        value={formData.role}
+                        onValueChange={(value) => handleInputChange("role", value)}
+                        disabled={isLoading}
+                      >
+                        <SelectTrigger id="role">
+                          <SelectValue placeholder="请选择用户角色" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.values(ROLES).map((role) => (
+                            <SelectItem key={role.code} value={role.code}>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{role.name}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {formData.role && (
                         <p className="text-xs text-muted-foreground">
-                          {roles.find(r => r.id === formData.role_id)?.description}
+                          {ROLES[formData.role as keyof typeof ROLES]?.description}
                         </p>
                       )}
                     </div>
 
                     <div className="grid gap-2">
-                      <Label htmlFor="organization">所属机构</Label>
+                      <Label htmlFor="wechat">微信号</Label>
                       <Input
-                        id="organization"
+                        id="wechat"
                         type="text"
-                        placeholder="请输入所属机构/部门"
-                        value={formData.organization}
-                        onChange={(e) => handleInputChange("organization", e.target.value)}
+                        placeholder="请输入微信号"
+                        value={formData.wechat}
+                        onChange={(e) => handleInputChange("wechat", e.target.value)}
                         disabled={isLoading}
                       />
                     </div>
 
                     <div className="grid gap-2">
-                      <Label htmlFor="position">职位</Label>
+                      <Label htmlFor="team_name">团队</Label>
                       <Input
-                        id="position"
+                        id="team_name"
                         type="text"
-                        placeholder="请输入职位"
-                        value={formData.position}
-                        onChange={(e) => handleInputChange("position", e.target.value)}
+                        placeholder="请输入所属团队"
+                        value={formData.team_name}
+                        onChange={(e) => handleInputChange("team_name", e.target.value)}
                         disabled={isLoading}
                       />
                     </div>
@@ -335,7 +302,7 @@ export default function EditAccountPage() {
                       取消
                     </Button>
                   </Link>
-                  <Button type="submit" disabled={isLoading || isLoadingRoles}>
+                  <Button type="submit" disabled={isLoading || isLoadingUser}>
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />

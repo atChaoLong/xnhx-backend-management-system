@@ -16,8 +16,14 @@ import {
 import { Plus, Edit, Trash2, Loader2, AlertTriangle, Shield } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
-import { UsersService, UserProfile } from "@/lib/services/users"
+import { UsersService, UserProfile, ROLES } from "@/lib/services/users"
 import { useToast } from "@/hooks/use-toast"
+
+// 角色名称映射
+const getRoleName = (roleCode: string): string => {
+  const role = Object.values(ROLES).find(r => r.code === roleCode)
+  return role?.name || roleCode || "-"
+}
 
 export default function AccountsPage() {
   const [users, setUsers] = useState<UserProfile[]>([])
@@ -58,8 +64,8 @@ export default function AccountsPage() {
     if (!userToDelete) return
 
     try {
-      setIsDeleting(userToDelete.user_id)
-      await UsersService.deleteUser(userToDelete.user_id)
+      setIsDeleting(userToDelete.id)
+      await UsersService.deleteUser(userToDelete.id)
       toast({
         title: "删除成功",
         description: "用户已删除",
@@ -126,12 +132,12 @@ export default function AccountsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>用户ID</TableHead>
                     <TableHead>姓名</TableHead>
                     <TableHead>邮箱</TableHead>
                     <TableHead>手机号</TableHead>
                     <TableHead>角色</TableHead>
-                    <TableHead>所属机构</TableHead>
-                    <TableHead>职位</TableHead>
+                    <TableHead>团队</TableHead>
                     <TableHead>状态</TableHead>
                     <TableHead>创建时间</TableHead>
                     <TableHead className="text-right">操作</TableHead>
@@ -147,30 +153,32 @@ export default function AccountsPage() {
                   ) : (
                     users.map((user) => (
                       <TableRow key={user.id}>
+                        <TableCell className="font-mono text-xs">
+                          {user.id.slice(0, 8)}...
+                        </TableCell>
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             {user.avatar_url && (
                               <img
                                 src={user.avatar_url}
-                                alt={user.full_name || '用户'}
+                                alt={user.name || '用户'}
                                 className="w-8 h-8 rounded-full object-cover"
                               />
                             )}
-                            {user.full_name || "-"}
+                            {user.name || "-"}
                           </div>
                         </TableCell>
                         <TableCell className="font-mono text-sm">
-                          {user.user_id.slice(0, 8)}...
+                          {user.email || "-"}
                         </TableCell>
                         <TableCell>{user.phone || "-"}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <Shield className="h-3.5 w-3.5 text-primary" />
-                            {user.role?.name || "-"}
+                            {getRoleName(user.role)}
                           </div>
                         </TableCell>
-                        <TableCell>{user.organization || "-"}</TableCell>
-                        <TableCell>{user.position || "-"}</TableCell>
+                        <TableCell>{user.team_name || "-"}</TableCell>
                         <TableCell>
                           {user.is_active ? (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -187,7 +195,7 @@ export default function AccountsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Link href={`/dashboard/accounts/${user.user_id}/edit`}>
+                            <Link href={`/dashboard/accounts/${user.id}/edit`}>
                               <Button variant="ghost" size="icon" title="编辑">
                                 <Edit className="h-4 w-4" />
                               </Button>
@@ -196,10 +204,10 @@ export default function AccountsPage() {
                               variant="ghost"
                               size="icon"
                               onClick={() => handleDeleteClick(user)}
-                              disabled={isDeleting === user.user_id}
+                              disabled={isDeleting === user.id}
                               title="删除"
                             >
-                              {isDeleting === user.user_id ? (
+                              {isDeleting === user.id ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
                                 <Trash2 className="h-4 w-4 text-destructive" />
@@ -226,7 +234,7 @@ export default function AccountsPage() {
               <DialogTitle>确认删除</DialogTitle>
             </div>
             <DialogDescription>
-              确定要删除用户 <span className="font-semibold">{userToDelete?.full_name || '未知'}</span> 吗？
+              确定要删除用户 <span className="font-semibold">{userToDelete?.name || '未知'}</span> 吗？
               此操作将同时删除该用户的登录信息和相关数据，无法撤销。
             </DialogDescription>
           </DialogHeader>
