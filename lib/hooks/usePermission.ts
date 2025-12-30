@@ -20,6 +20,14 @@ export function usePermission() {
    * 检查是否有指定权限
    */
   const checkPermission = (resource: Resource, action: Action): boolean => {
+    if (!user) {
+      console.warn('[usePermission] 用户未登录')
+      return false
+    }
+    if (!role) {
+      console.warn('[usePermission] 用户角色未定义', user)
+      return false
+    }
     return hasPermission(role, resource, action)
   }
 

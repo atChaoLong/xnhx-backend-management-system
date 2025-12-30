@@ -6,7 +6,7 @@ export interface User {
   email: string
   name: string
   avatar?: string
-  role: "admin" | "sales" | "manager" | "teacher"
+  role: "admin" | "operator" | "sales" | "head_teacher" | "teacher" | "academic_affairs" | "finance" | "hr"
   createdAt: string
 }
 
