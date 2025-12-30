@@ -5,7 +5,6 @@
 
 'use client'
 
-import React from 'react'
 import { useAppContext } from '@/lib/app-context'
 import { hasPermission, hasAnyPermission, getPermissions } from '@/lib/permissions'
 import { RESOURCES, ACTIONS, Role, Resource, Action } from '@/lib/permissions'
@@ -160,47 +159,4 @@ export function usePermission() {
     dictionaries,
     users,
   }
-}
-
-/**
- * 权限控制组件 Props
- */
-interface PermissionProps {
-  resource: Resource
-  action: Action
-  fallback?: React.ReactNode
-  children: React.ReactNode
-}
-
-/**
- * 权限控制组件
- * 只有当用户有权限时才渲染 children
- */
-export function Permission({ resource, action, fallback = null, children }: PermissionProps) {
-  const { role } = usePermission()
-
-  if (hasPermission(role, resource, action)) {
-    return <>{children}</>
-  }
-
-  return <>{fallback}</>
-}
-
-/**
- * 权限控制组件（多个权限，满足任意一个即可）
- */
-interface PermissionAnyProps {
-  permissions: Array<{ resource: Resource; action: Action }>
-  fallback?: React.ReactNode
-  children: React.ReactNode
-}
-
-export function PermissionAny({ permissions, fallback = null, children }: PermissionAnyProps) {
-  const { role } = usePermission()
-
-  if (hasAnyPermission(role, permissions)) {
-    return <>{children}</>
-  }
-
-  return <>{fallback}</>
 }
