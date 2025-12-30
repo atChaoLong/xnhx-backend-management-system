@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
 import { handleDatabaseError } from "@/lib/utils"
+import { batchCalculateTrialLessonStatus } from "@/lib/status-calculator"
 
 const logger = createLogger('API:TrialLessons')
 
@@ -30,6 +31,20 @@ export async function GET(request: NextRequest) {
       }
 
       logger.debug('获取试听课程成功', { id })
+
+      // 计算单个试听状态
+      if (data) {
+        const [statusResult] = await batchCalculateTrialLessonStatus([data])
+        return NextResponse.json({
+          data: {
+            ...data,
+            lesson_status: statusResult.status,
+            lesson_status_name: statusResult.statusName,
+            is_converted_calculated: statusResult.isConverted,
+          }
+        })
+      }
+
       return NextResponse.json({ data })
     }
 
@@ -48,8 +63,27 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    logger.debug('获取试听课程列表成功', { count: data?.length || 0 })
-    return NextResponse.json({ data })
+    // 计算试听状态
+    const lessonsWithStatus = []
+    if (data && data.length > 0) {
+      const statusResults = await batchCalculateTrialLessonStatus(data)
+
+      // 合并状态到数据
+      for (let i = 0; i < data.length; i++) {
+        const lesson = data[i]
+        const status = statusResults[i]
+
+        lessonsWithStatus.push({
+          ...lesson,
+          lesson_status: status.status,
+          lesson_status_name: status.statusName,
+          is_converted_calculated: status.isConverted,
+        })
+      }
+    }
+
+    logger.debug('获取试听课程列表成功', { count: lessonsWithStatus.length || 0 })
+    return NextResponse.json({ data: lessonsWithStatus })
   } catch (error: any) {
     logger.error('获取试听课程异常', { message: error.message, stack: error.stack })
     return NextResponse.json(

@@ -447,10 +447,17 @@ export interface TrialLesson {
 
   matchedTeacher?: string
   confirmedTeacher?: string
+  confirmedTime?: string
   classLink?: string
+  manualConverted?: string
 
   createdAt: string
   updatedAt: string
+
+  // 业务状态字段（由 status-calculator 计算得出）
+  lesson_status?: 'cancelled' | 'waiting_match' | 'waiting_confirm' | 'waiting_time' | 'waiting_link' | 'scheduled' | 'waiting_feedback' | 'completed'
+  lesson_status_name?: string     // 试听状态中文名
+  is_converted_calculated?: boolean  // 是否已转化（自动计算）
 }
 
 // ============================================
