@@ -1,0 +1,399 @@
+/**
+ * 用户管理 API
+ * GET: 获取所有用户列表（包含角色信息）
+ * POST: 创建新用户（同时创建auth.users和user_profiles）
+ */
+
+import { NextRequest, NextResponse } from 'next/server'
+import { supabaseServer, supabaseAdmin } from '@/lib/supabase'
+
+// 验证用户是否为超级管理员
+async function isAdmin(request: NextRequest): Promise<{ isAdmin: boolean; userId?: string }> {
+  try {
+    const authHeader = request.headers.get('authorization')
+    const token = authHeader?.replace('Bearer ', '')
+
+    if (!token) {
+      return { isAdmin: false }
+    }
+
+    const { data: { user }, error } = await supabaseServer.auth.getUser(token)
+
+    if (error || !user) {
+      return { isAdmin: false }
+    }
+
+    // 查询用户角色（直接用 id = auth.uid）
+    const { data: profile } = await supabaseServer
+      .from('user_profiles')
+      .select('role')
+      .eq('id', user.id)  // 使用 id 而不是 user_id
+      .single()
+
+    return {
+      isAdmin: profile?.role === 'admin',
+      userId: user.id
+    }
+  } catch (error) {
+    console.error('验证管理员权限失败:', error)
+    return { isAdmin: false }
+  }
+}
+
+/**
+ * GET /api/users
+ * 获取所有用户列表（包含角色信息）
+ */
+export async function GET(request: NextRequest) {
+  try {
+    // 验证管理员权限
+    const { isAdmin: isAdminUser } = await isAdmin(request)
+    if (!isAdminUser) {
+      return NextResponse.json(
+        { error: '权限不足，只有超级管理员可以查看用户列表' },
+        { status: 403 }
+      )
+    }
+
+    // 获取所有用户及其角色信息
+    const { data: users, error } = await supabaseServer
+      .from('user_profiles')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('获取用户列表失败:', error)
+      return NextResponse.json(
+        { error: '获取用户列表失败' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: users || [],
+    })
+
+  } catch (error: any) {
+    console.error('获取用户列表错误:', error)
+    return NextResponse.json(
+      { error: error.message || '服务器错误' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * POST /api/users
+ * 创建新用户（同时创建auth.users和user_profiles）
+ */
+export async function POST(request: NextRequest) {
+  try {
+    // 验证管理员权限
+    const { isAdmin: isAdminUser, userId: adminUserId } = await isAdmin(request)
+    if (!isAdminUser) {
+      return NextResponse.json(
+        { error: '权限不足，只有超级管理员可以创建用户' },
+        { status: 403 }
+      )
+    }
+
+    const body = await request.json()
+    const { email, password, phone, name, role, team_name } = body
+
+    // 验证必填字段
+    if (!email || !password || !role) {
+      return NextResponse.json(
+        { error: '邮箱、密码和角色为必填项' },
+        { status: 400 }
+      )
+    }
+
+    // 验证邮箱格式
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: '邮箱格式不正确' },
+        { status: 400 }
+      )
+    }
+
+    // 验证密码长度
+    if (password.length < 6) {
+      return NextResponse.json(
+        { error: '密码长度不能少于6位' },
+        { status: 400 }
+      )
+    }
+
+    // 验证角色是否有效
+    const validRoles = ['admin', 'sales', 'operations', 'academic', 'finance']
+    if (!validRoles.includes(role)) {
+      return NextResponse.json(
+        { error: `无效的角色，必须是以下之一: ${validRoles.join(', ')}` },
+        { status: 400 }
+      )
+    }
+
+    // 创建用户（使用 admin API client）
+    const { data: { user }, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true, // 自动确认邮箱
+      user_metadata: {
+        name: name || email.split('@')[0],
+        role: role,
+      },
+    })
+
+    if (createError || !user) {
+      console.error('创建用户失败:', createError)
+      return NextResponse.json(
+        { error: createError?.message || '创建用户失败' },
+        { status: 500 }
+      )
+    }
+
+    // 创建用户档案（先尝试 supabaseServer，如果失败则用 supabaseAdmin）
+    let profileData, profileError
+
+    // 尝试使用 supabaseServer
+    const serverResult = await supabaseServer
+      .from('user_profiles')
+      .insert({
+        id: user.id,
+        username: email.split('@')[0],
+        name: name || email.split('@')[0],
+        email: email,
+        phone: phone || null,
+        role: role,
+        team_name: team_name || null,
+        is_active: true,
+      })
+      .select('*')
+      .single()
+
+    profileData = serverResult.data
+    profileError = serverResult.error
+
+    // 如果 supabaseServer 失败（可能是 RLS），使用 supabaseAdmin
+    if (profileError) {
+      console.warn('使用 supabaseServer 插入 profile 失败，尝试 supabaseAdmin:', profileError.message)
+
+      const adminResult = await supabaseAdmin
+        .from('user_profiles')
+        .insert({
+          id: user.id,
+          username: email.split('@')[0],
+          name: name || email.split('@')[0],
+          email: email,
+          phone: phone || null,
+          role: role,
+          team_name: team_name || null,
+          is_active: true,
+        })
+        .select('*')
+        .single()
+
+      profileData = adminResult.data
+      profileError = adminResult.error
+
+      if (profileError) {
+        console.error('创建用户档案失败（使用 admin 客户端）:', profileError)
+        // 删除已创建的认证用户
+        await supabaseAdmin.auth.admin.deleteUser(user.id)
+        return NextResponse.json(
+          { error: `创建用户档案失败: ${profileError.message}` },
+          { status: 500 }
+        )
+      }
+    }
+
+    // 记录操作日志
+    await supabaseServer.from('admin_operation_logs').insert({
+      operator_id: adminUserId,
+      target_user_id: user.id,
+      operation: 'create_user',
+      details: {
+        email,
+        role: role,
+      },
+      ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+      user_agent: request.headers.get('user-agent') || 'unknown',
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        user_id: user.id,
+        profile: profileData,
+      },
+      message: '用户创建成功',
+    }, { status: 201 })
+
+  } catch (error: any) {
+    console.error('创建用户错误:', error)
+    return NextResponse.json(
+      { error: error.message || '服务器错误' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * PUT /api/users
+ * 更新用户档案信息
+ */
+export async function PUT(request: NextRequest) {
+  try {
+    // 验证管理员权限
+    const { isAdmin: isAdminUser, userId: adminUserId } = await isAdmin(request)
+    if (!isAdminUser) {
+      return NextResponse.json(
+        { error: '权限不足，只有超级管理员可以更新用户' },
+        { status: 403 }
+      )
+    }
+
+    const body = await request.json()
+    const { id, name, role, phone, wechat, team_name, is_active } = body
+
+    if (!id) {
+      return NextResponse.json(
+        { error: '用户ID不能为空' },
+        { status: 400 }
+      )
+    }
+
+    // 如果更新角色，验证角色是否有效
+    if (role) {
+      const validRoles = ['admin', 'sales', 'operations', 'academic', 'finance']
+      if (!validRoles.includes(role)) {
+        return NextResponse.json(
+          { error: `无效的角色，必须是以下之一: ${validRoles.join(', ')}` },
+          { status: 400 }
+        )
+      }
+    }
+
+    // 更新用户档案
+    const { data: profile, error: updateError } = await supabaseServer
+      .from('user_profiles')
+      .update({
+        name,
+        role,
+        phone,
+        wechat,
+        team_name,
+        is_active,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)  // 使用 id 而不是 user_id
+      .select('*')
+      .single()
+
+    if (updateError) {
+      console.error('更新用户失败:', updateError)
+      return NextResponse.json(
+        { error: '更新用户失败' },
+        { status: 500 }
+      )
+    }
+
+    // 记录操作日志
+    await supabaseServer.from('admin_operation_logs').insert({
+      operator_id: adminUserId,
+      target_user_id: id,
+      operation: 'update_user',
+      details: {
+        updated_fields: Object.keys(body).filter(key => key !== 'id'),
+      },
+      ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+      user_agent: request.headers.get('user-agent') || 'unknown',
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: profile,
+      message: '用户更新成功',
+    })
+
+  } catch (error: any) {
+    console.error('更新用户错误:', error)
+    return NextResponse.json(
+      { error: error.message || '服务器错误' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * DELETE /api/users
+ * 删除用户（同时删除auth.users和user_profiles）
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    // 验证管理员权限
+    const { isAdmin: isAdminUser, userId: adminUserId } = await isAdmin(request)
+    if (!isAdminUser) {
+      return NextResponse.json(
+        { error: '权限不足，只有超级管理员可以删除用户' },
+        { status: 403 }
+      )
+    }
+
+    const { searchParams } = new URL(request.url)
+    const userId = searchParams.get('id')
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: '用户ID不能为空' },
+        { status: 400 }
+      )
+    }
+
+    // 不允许删除自己
+    if (adminUserId === userId) {
+      return NextResponse.json(
+        { error: '不能删除自己的账号' },
+        { status: 400 }
+      )
+    }
+
+    // 删除用户档案（会自动删除认证用户，因为有 ON DELETE CASCADE）
+    const { error: deleteError } = await supabaseServer
+      .from('user_profiles')
+      .delete()
+      .eq('id', userId)  // 使用 id 而不是 user_id
+
+    if (deleteError) {
+      console.error('删除用户失败:', deleteError)
+      return NextResponse.json(
+        { error: '删除用户失败' },
+        { status: 500 }
+      )
+    }
+
+    // 记录操作日志
+    await supabaseServer.from('admin_operation_logs').insert({
+      operator_id: adminUserId,
+      target_user_id: userId,
+      operation: 'delete_user',
+      details: {},
+      ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+      user_agent: request.headers.get('user-agent') || 'unknown',
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: '用户删除成功',
+    })
+
+  } catch (error: any) {
+    console.error('删除用户错误:', error)
+    return NextResponse.json(
+      { error: error.message || '服务器错误' },
+      { status: 500 }
+    )
+  }
+}
