@@ -6,14 +6,20 @@ import { ROLES, RESOURCES, ACTIONS } from '@/lib/permissions'
 
 export default function DebugPermissionsPage() {
   const { user } = useApp()
-  const { role, checkPermission, leads } = usePermission()
+  const { role, checkPermission, leads, isLoading } = usePermission()
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">权限调试页面</h1>
 
-      {/* 用户信息 */}
-      <section className="mb-8 p-4 bg-blue-50 rounded">
+      {isLoading ? (
+        <div className="p-4 bg-gray-100 rounded">
+          <p>⏳ 正在加载用户信息...</p>
+        </div>
+      ) : (
+        <>
+          {/* 用户信息 */}
+          <section className="mb-8 p-4 bg-blue-50 rounded">
         <h2 className="text-lg font-semibold mb-2">用户信息</h2>
         {user ? (
           <div className="space-y-1">
@@ -123,6 +129,8 @@ export default function DebugPermissionsPage() {
           <li>刷新页面重新加载用户信息</li>
         </ol>
       </section>
+        </>
+      )}
     </div>
   )
 }

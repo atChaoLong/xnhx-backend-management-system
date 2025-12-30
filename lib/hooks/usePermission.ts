@@ -5,7 +5,7 @@
 
 'use client'
 
-import { useApp } from '@/lib/app-context'
+import { useCurrentUser } from '@/lib/hooks/useCurrentUser'
 import { hasPermission, hasAnyPermission, getPermissions } from '@/lib/permissions'
 import { RESOURCES, ACTIONS, Role, Resource, Action } from '@/lib/permissions'
 
@@ -13,7 +13,7 @@ import { RESOURCES, ACTIONS, Role, Resource, Action } from '@/lib/permissions'
  * 权限控制 Hook
  */
 export function usePermission() {
-  const { user } = useApp()
+  const { user, isLoading } = useCurrentUser()
   const role = user?.role as Role | undefined
 
   /**
@@ -153,6 +153,7 @@ export function usePermission() {
   return {
     user,
     role,
+    isLoading,
     checkPermission,
     checkAnyPermission,
     getResourcePermissions,
