@@ -31,8 +31,8 @@ export default function NewLeadPage() {
   const [isLoadingDict, setIsLoadingDict] = useState(true)
   const [isLoadingWechat, setIsLoadingWechat] = useState(true)
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
-  const [chatScreenshotFile, setChatScreenshotFile] = useState<File | null>(null)
-  const [chatScreenshotPreview, setChatScreenshotPreview] = useState<string>("")
+  const [chatScreenshotFiles, setChatScreenshotFiles] = useState<File[]>([])
+  const [chatScreenshotPreviews, setChatScreenshotPreviews] = useState<string[]>([])
   const [isUploadingFile, setIsUploadingFile] = useState(false)
 
   // 字典数据
@@ -122,18 +122,20 @@ export default function NewLeadPage() {
   }
 
   const handleChatScreenshotChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      setChatScreenshotFile(file)
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files)
+      setChatScreenshotFiles(prev => [...prev, ...files])
 
-      // 上传文件到 Supabase Storage
+      // 上传所有文件到 Supabase Storage
       try {
         setIsUploadingFile(true)
-        const url = await uploadChatScreenshot(file)
-        setChatScreenshotPreview(url)
+        const uploadPromises = files.map(file => uploadChatScreenshot(file))
+        const urls = await Promise.all(uploadPromises)
+
+        setChatScreenshotPreviews(prev => [...prev, ...urls])
         toast({
           title: "上传成功",
-          description: "聊天截图已上传",
+          description: `已上传 ${files.length} 张聊天截图`,
         })
       } catch (error: any) {
         toast({
@@ -141,13 +143,17 @@ export default function NewLeadPage() {
           title: "上传失败",
           description: error.message || "无法上传聊天截图",
         })
-        // 清除文件选择
-        setChatScreenshotFile(null)
-        setChatScreenshotPreview("")
       } finally {
         setIsUploadingFile(false)
+        // 清除文件选择
+        e.target.value = ''
       }
     }
+  }
+
+  const handleRemoveScreenshot = (index: number) => {
+    setChatScreenshotPreviews(prev => prev.filter((_, i) => i !== index))
+    setChatScreenshotFiles(prev => prev.filter((_, i) => i !== index))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -179,7 +185,7 @@ export default function NewLeadPage() {
         region_ip: formData.region_ip || undefined,
         parent_wechat: formData.parent_wechat || undefined,
         grab_wechat: formData.grab_wechat || undefined,
-        chat_screenshots: chatScreenshotPreview || undefined,
+        chat_screenshots: chatScreenshotPreviews.length > 0 ? chatScreenshotPreviews.join(',') : undefined,
       }
 
       await LeadsService.createLead(payload)
@@ -407,11 +413,12 @@ export default function NewLeadPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="chat_screenshots">聊天截图</Label>
+                      <Label htmlFor="chat_screenshots">聊天截图（支持多张）</Label>
                       <Input
                         id="chat_screenshots"
                         type="file"
                         accept="image/*"
+                        multiple
                         onChange={handleChatScreenshotChange}
                         disabled={isUploadingFile}
                       />
@@ -421,13 +428,30 @@ export default function NewLeadPage() {
                           上传中...
                         </p>
                       )}
-                      {chatScreenshotPreview && (
-                        <div className="mt-2">
-                          <img
-                            src={chatScreenshotPreview}
-                            alt="聊天截图预览"
-                            className="max-w-xs h-auto border rounded"
-                          />
+                      {chatScreenshotPreviews.length > 0 && (
+                        <div className="mt-2 space-y-2">
+                          <p className="text-xs text-muted-foreground">已上传 {chatScreenshotPreviews.length} 张截图</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {chatScreenshotPreviews.map((preview, index) => (
+                              <div key={index} className="relative group">
+                                <img
+                                  src={preview}
+                                  alt={`聊天截图预览 ${index + 1}`}
+                                  className="w-full h-auto border rounded"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveScreenshot(index)}
+                                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  disabled={isSubmitting}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
