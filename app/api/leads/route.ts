@@ -5,6 +5,37 @@ import { handleDatabaseError } from '@/lib/utils'
 
 const logger = createLogger('API:Leads')
 
+// 获取当前用户信息
+async function getCurrentUser(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get('authorization')
+    const token = authHeader?.replace('Bearer ', '')
+
+    if (!token) {
+      return null
+    }
+
+    const { data: { user }, error } = await supabaseServer.auth.getUser(token)
+
+    if (error || !user) {
+      return null
+    }
+
+    // 获取用户档案信息
+    const { data: profile } = await supabaseServer
+      .from('user_profiles')
+      .select('name')
+      .eq('id', user.id)
+      .single()
+
+    // 返回用户姓名
+    return profile?.name || user.email?.split('@')[0] || '未知用户'
+  } catch (error) {
+    logger.error('获取当前用户失败', { error })
+    return null
+  }
+}
+
 // GET: 获取所有线索
 export async function GET(request: NextRequest) {
   try {
@@ -39,9 +70,13 @@ export async function POST(request: NextRequest) {
   try {
     const leadData = await request.json()
 
+    // 获取当前用户
+    const currentUser = await getCurrentUser(request)
+
     logger.info('创建新线索', {
-      orderSerial: leadData.order_serial,
-      sourceAccount: leadData.source_account,
+      orderSerial: leadData.report_number,
+      sourceAccount: leadData.xhs_source,
+      createdBy: currentUser,
     })
 
     const { data, error } = await supabaseServer
@@ -50,6 +85,9 @@ export async function POST(request: NextRequest) {
         ...leadData,
         // 确保日期格式正确
         entry_date: leadData.entry_date || new Date().toISOString().split('T')[0],
+        // 记录创建人和更新人信息
+        created_by: currentUser,
+        updated_by: currentUser,
       })
       .select()
       .single()
@@ -84,13 +122,21 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    logger.info('更新线索', { leadId: leadData.id })
+    // 获取当前用户
+    const currentUser = await getCurrentUser(request)
+
+    logger.info('更新线索', {
+      leadId: leadData.id,
+      updatedBy: currentUser,
+    })
 
     const { data, error } = await supabaseServer
       .from('leads')
       .update({
         ...leadData,
         updated_at: new Date().toISOString(),
+        // 记录更新人信息
+        updated_by: currentUser,
       })
       .eq('id', leadData.id)
       .select()

@@ -211,13 +211,14 @@ export default function LeadsPage() {
                     <TableHead>抢单微信</TableHead>
                     <TableHead>反馈状态</TableHead>
                     <TableHead>运营人员</TableHead>
+                    <TableHead>创建人</TableHead>
                     <TableHead className="text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {leads.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
                         暂无数据，点击"新增线索"开始添加
                       </TableCell>
                     </TableRow>
@@ -237,6 +238,18 @@ export default function LeadsPage() {
                         <TableCell>{lead.grab_wechat || "-"}</TableCell>
                         <TableCell>{getStatusBadge(lead.add_status || "")}</TableCell>
                         <TableCell>{lead.operator_id || "-"}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="text-xs text-muted-foreground">创建</span>
+                            <span className="text-sm">{lead.created_by || "-"}</span>
+                            {lead.updated_by && lead.updated_by !== lead.created_by && (
+                              <>
+                                <span className="text-xs text-muted-foreground">更新</span>
+                                <span className="text-sm">{lead.updated_by}</span>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             {/* 创建试听按钮 */}

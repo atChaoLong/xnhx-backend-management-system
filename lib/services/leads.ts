@@ -34,6 +34,10 @@ export interface Lead {
   feedback_time?: string          // 反馈时间
   add_status?: string             // 添加状态（已添加/未添加）
   conversion_status?: string      // 转化状态
+
+  // 创建人和更新人信息
+  created_by?: string             // 创建人姓名
+  updated_by?: string             // 最后更新人姓名
 }
 
 export interface NewLead {
