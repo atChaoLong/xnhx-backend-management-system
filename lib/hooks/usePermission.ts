@@ -5,6 +5,7 @@
 
 'use client'
 
+import React from 'react'
 import { useAppContext } from '@/lib/app-context'
 import { hasPermission, hasAnyPermission, getPermissions } from '@/lib/permissions'
 import { RESOURCES, ACTIONS, Role, Resource, Action } from '@/lib/permissions'
