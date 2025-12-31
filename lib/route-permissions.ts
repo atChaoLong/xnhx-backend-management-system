@@ -144,4 +144,5 @@ export const PUBLIC_PATHS = [
   '/api/classin',          // ClassIn 集成相关
   '/api/classin-sdk',      // ClassIn SDK 相关
   '/api/sync',             // 第三方同步相关
+  '/api/teachers/classin', // 教师ClassIn数据，所有人可查看
 ]

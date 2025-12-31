@@ -165,67 +165,100 @@ async function checkIfHasFormalOrderFromLesson(lessonId: string): Promise<boolea
  */
 export async function calculateTrialLessonStatus(lesson: any): Promise<TrialLessonStatus> {
   const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  today.setHours(23, 59, 59, 999) // 今天的最后一刻
 
-  // 1. 取消试听
+  // a. 取消试听："课程状态"=取消试听
   if (lesson.course_status === '取消试听') {
     return TrialLessonStatus.CANCELLED
   }
 
-  // 2. 待匹配老师
-  if (!lesson.matched_teacher) {
+  // b. 待匹配老师：初始状态（matched_teacher 为空）
+  if (!lesson.matched_teacher || lesson.matched_teacher.trim() === '') {
     return TrialLessonStatus.WAITING_MATCH
   }
 
-  // 3. 待确认老师
-  if (!lesson.confirmed_teacher) {
+  // c. 待确认老师："匹配老师"不为空 and "确认老师（教务）"为空
+  if (lesson.matched_teacher &&
+      (!lesson.confirmed_teacher || lesson.confirmed_teacher.trim() === '')) {
     return TrialLessonStatus.WAITING_CONFIRM
   }
 
-  // 4. 待确认时间
-  if (!lesson.confirmed_time) {
+  // d. 待确认时间："匹配老师"不为空 and "确认老师（教务）"不为空 and "试听时间"为空
+  if (lesson.matched_teacher &&
+      lesson.confirmed_teacher &&
+      (!lesson.trial_time || lesson.trial_time.trim() === '')) {
     return TrialLessonStatus.WAITING_TIME
   }
 
-  // 5. 待开链接
-  if (!lesson.class_link) {
+  // e. 待开链接："匹配老师"不为空 and "确认老师（教务）"不为空 and "试听时间"不为空 and "上课链接"为空
+  if (lesson.matched_teacher &&
+      lesson.confirmed_teacher &&
+      lesson.trial_time &&
+      (!lesson.class_link || lesson.class_link.trim() === '')) {
     return TrialLessonStatus.WAITING_LINK
   }
 
-  // 6. 已排待上课 OR 上完待反馈
-  const lessonTime = new Date(lesson.confirmed_time)
-  lessonTime.setHours(0, 0, 0, 0)
+  // 所有前置字段都已填写，检查时间和转化状态
+  // 使用 trial_time 而不是 confirmed_time
+  const lessonTime = new Date(lesson.trial_time)
+  lessonTime.setHours(23, 59, 59, 999) // 当天的最后一刻
 
-  if (lessonTime <= today) {
+  // 先检查是否已转化
+  const isConverted = await calculateIsConverted(lesson)
+
+  // h. 已完成："是否转化"不为空
+  if (isConverted) {
+    return TrialLessonStatus.COMPLETED
+  }
+
+  // f. 已排待上课：时间还未到，且未转化
+  if (lessonTime > today) {
     return TrialLessonStatus.SCHEDULED
-  } else if (!lesson.is_converted && !lesson.manual_converted) {
+  }
+
+  // g. 上完待反馈：时间已过，且"是否转化"为空
+  // 课程时间已过但没有转化标记
+  if (lessonTime <= today) {
     return TrialLessonStatus.WAITING_FEEDBACK
   }
 
-  // 7. 已完成
+  // 默认返回已完成
   return TrialLessonStatus.COMPLETED
 }
 
 /**
  * 计算是否转化
+ *
+ * 规则：
+ * - 是：产生正式订单 or "是否转化（手动）"=是
+ * - 其他选项都等于"是否转化（手动）"的值
  */
 export async function calculateIsConverted(lesson: any): Promise<boolean> {
+  // 检查是否产生正式订单
   const hasFormalOrder = await checkIfHasFormalOrderFromLesson(lesson.id)
-
   if (hasFormalOrder) {
     return true
   }
 
+  // 检查手动标记
+  const manualConverted = lesson.manual_converted
+
   // 手动标记为"是"
-  if (lesson.manual_converted === '是') {
+  if (manualConverted === '是') {
     return true
   }
 
-  // 其他选项都等于手动值
-  if (lesson.manual_converted === '否' || lesson.manual_converted === '待定') {
+  // 手动标记为"否"或"待定"
+  if (manualConverted === '否' || manualConverted === '待定') {
     return false
   }
 
+  // 没有手动标记，默认未转化
+  if (!manualConverted || manualConverted.trim() === '') {
+    return false
+  }
+
+  // 其他情况默认未转化
   return false
 }
 

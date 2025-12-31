@@ -90,7 +90,7 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
   // 销售顾问：线索跟进、学生管理、订单录入
   sales: {
     leads: ['view', 'feedback', 'convert'], // 移除 edit - 销售只能反馈状态，不能编辑基本信息
-    trialLessons: ['view', 'create', 'edit', 'confirmTime', 'convert'],
+    trialLessons: ['view', 'create', 'edit', 'matchTeacher', 'confirmTime', 'convert'], // 添加 matchTeacher - 销售可以匹配老师
     students: ['view', 'create', 'edit'],
     formalOrders: ['view', 'create', 'edit'],
     transactions: ['view'],
@@ -129,7 +129,7 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
   // 教务：试听老师匹配、课时核对
   academic_affairs: {
     leads: ['view'],
-    trialLessons: ['view', 'edit', 'matchTeacher', 'confirmTeacher', 'confirmTime', 'addLink'],
+    trialLessons: ['view', 'edit', 'confirmTeacher', 'confirmTime', 'addLink'], // 移除 matchTeacher - 教务只确认老师，不匹配
     students: ['view', 'manageHours'],
     formalOrders: ['view'],
     transactions: ['view', 'verifyHours'],
