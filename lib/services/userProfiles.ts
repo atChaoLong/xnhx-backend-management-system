@@ -14,19 +14,28 @@ export interface UserProfile {
 
 export const UserProfilesService = {
   /**
-   * 获取所有运营人员（user_profiles）
+   * 获取用户列表（可按角色过滤）
+   * @param role - 角色过滤，如 'operator', 'sales' 等，不传则获取所有用户
    */
-  async getAllOperators(): Promise<UserProfile[]> {
+  async getUsers(role?: string): Promise<UserProfile[]> {
     try {
-      const response = await api.get('/api/user-profiles')
+      const url = role ? `/api/user-profiles?role=${role}` : '/api/user-profiles'
+      const response = await api.get(url)
       if (!response.ok) {
-        throw new Error('获取运营人员列表失败')
+        throw new Error('获取用户列表失败')
       }
       const { data } = await response.json()
       return data || []
     } catch (error: any) {
-      console.error('获取运营人员失败:', error)
+      console.error('获取用户失败:', error)
       throw error
     }
+  },
+
+  /**
+   * 获取所有运营人员
+   */
+  async getAllOperators(): Promise<UserProfile[]> {
+    return this.getUsers('operator')
   }
 }

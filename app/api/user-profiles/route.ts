@@ -9,11 +9,21 @@ const logger = createLogger('API:UserProfiles')
 
 export async function GET(request: NextRequest) {
   try {
-    // 获取所有用户档案
-    const { data: profiles, error } = await supabaseServer
+    // 获取查询参数
+    const { searchParams } = new URL(request.url)
+    const roleFilter = searchParams.get('role')
+
+    // 构建查询
+    let query = supabaseServer
       .from('user_profiles')
-      .select('id, email, name, role, avatar_url, created_at')
-      .order('created_at', { ascending: false })
+      .select('*')
+
+    // 如果指定了 role 参数，则过滤
+    if (roleFilter) {
+      query = query.eq('role', roleFilter)
+    }
+
+    const { data: profiles, error } = await query.order('created_at', { ascending: false })
 
     if (error) {
       logger.error('获取用户档案失败', { error: error.message })
@@ -23,7 +33,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    logger.info('获取用户档案成功', { count: profiles?.length || 0 })
+    logger.info('获取用户档案成功', { count: profiles?.length || 0, role: roleFilter || 'all' })
 
     return NextResponse.json({
       data: profiles || [],
