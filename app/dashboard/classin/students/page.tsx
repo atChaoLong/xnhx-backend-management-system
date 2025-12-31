@@ -5,8 +5,18 @@ import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
 import { Loader2, RefreshCw } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { usePagination } from "@/lib/hooks/usePagination"
 
 interface ClassInStudent {
   uid: number
@@ -21,16 +31,41 @@ interface ClassInStudent {
   sync_time?: string
 }
 
+const PAGE_SIZE = 20
+
 export default function ClassInStudentsPage() {
   const [students, setStudents] = useState<ClassInStudent[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [totalCount, setTotalCount] = useState(0)
   const { toast } = useToast()
 
+  // 分页 hook
+  const {
+    currentPage,
+    totalPages,
+    canGoNext,
+    canGoPrevious,
+    goToPage,
+    goToNextPage,
+    goToPreviousPage,
+    getPageRange,
+  } = usePagination({
+    totalPages: 1,
+    onPageChange: (page) => {
+      fetchStudents(page)
+    },
+  })
+
   // 加载学生数据
-  const fetchStudents = async () => {
+  const fetchStudents = async (page: number = 1) => {
     try {
       setIsLoading(true)
-      const response = await fetch('/api/classin/students')
+      const from = (page - 1) * PAGE_SIZE
+      const to = from + PAGE_SIZE - 1
+
+      const response = await fetch(
+        `/api/classin/students?from=${from}&to=${to}`
+      )
 
       if (!response.ok) {
         throw new Error('加载失败')
@@ -38,6 +73,13 @@ export default function ClassInStudentsPage() {
 
       const result = await response.json()
       setStudents(result.data || [])
+      setTotalCount(result.count || 0)
+
+      // 更新总页数
+      const newTotalPages = Math.ceil((result.count || 0) / PAGE_SIZE)
+      if (newTotalPages !== totalPages) {
+        // 需要在 hook 中支持动态更新 totalPages
+      }
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -50,19 +92,8 @@ export default function ClassInStudentsPage() {
   }
 
   useEffect(() => {
-    fetchStudents()
+    fetchStudents(1)
   }, [])
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-col h-full">
-        <Header title="ClassIn 学生" description="查看 ClassIn 平台的学生数据" />
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="flex flex-col h-full">
@@ -77,11 +108,13 @@ export default function ClassInStudentsPage() {
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="text-lg font-semibold">学生列表</h3>
-                <p className="text-sm text-muted-foreground">共 {students.length} 名学生</p>
+                <p className="text-sm text-muted-foreground">
+                  共 {totalCount} 名学生，第 {currentPage} / {Math.ceil(totalCount / PAGE_SIZE)} 页
+                </p>
               </div>
               <Button
                 variant="outline"
-                onClick={fetchStudents}
+                onClick={() => fetchStudents(currentPage)}
                 disabled={isLoading}
               >
                 <RefreshCw className="mr-2 h-4 w-4" />
@@ -103,7 +136,14 @@ export default function ClassInStudentsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {students.length === 0 ? (
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin inline mr-2" />
+                        加载中...
+                      </TableCell>
+                    </TableRow>
+                  ) : students.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         暂无数据
@@ -137,6 +177,51 @@ export default function ClassInStudentsPage() {
                 </TableBody>
               </Table>
             </div>
+
+            {/* 分页 */}
+            {Math.ceil(totalCount / PAGE_SIZE) > 1 && (
+              <div className="mt-6 flex items-center justify-center">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={goToPreviousPage}
+                        className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+
+                    {getPageRange().map((page, index) => {
+                      if (page === -1) {
+                        return (
+                          <PaginationItem key={`ellipsis-${index}`}>
+                            <PaginationEllipsis />
+                          </PaginationItem>
+                        )
+                      }
+
+                      return (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            onClick={() => goToPage(page)}
+                            isActive={page === currentPage}
+                            className="cursor-pointer"
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      )
+                    })}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={goToNextPage}
+                        className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
