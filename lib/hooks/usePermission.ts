@@ -93,6 +93,7 @@ export function usePermission() {
     create: () => checkPermission(RESOURCES.formalOrders, ACTIONS.create),
     edit: () => checkPermission(RESOURCES.formalOrders, ACTIONS.edit),
     delete: () => checkPermission(RESOURCES.formalOrders, ACTIONS.delete),
+    addLink: () => checkPermission(RESOURCES.formalOrders, ACTIONS.addLink),
   }
 
   /**
