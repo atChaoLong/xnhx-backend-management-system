@@ -80,7 +80,7 @@ export default function NewLeadPage() {
   // 设置默认运营人员为当前用户
   useEffect(() => {
     if (currentUser && !formData.operator_id) {
-      setFormData(prev => ({ ...prev, operator_id: currentUser.name || currentUser.email || '' }))
+      setFormData(prev => ({ ...prev, operator_id: currentUser.id }))
     }
   }, [currentUser])
 
@@ -330,7 +330,7 @@ export default function NewLeadPage() {
                         </SelectTrigger>
                         <SelectContent>
                           {operators.map((operator) => (
-                            <SelectItem key={operator.id} value={operator.name || operator.email}>
+                            <SelectItem key={operator.id} value={operator.id}>
                               {operator.name || operator.email}
                             </SelectItem>
                           ))}
