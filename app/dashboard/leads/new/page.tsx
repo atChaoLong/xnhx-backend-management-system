@@ -20,16 +20,20 @@ import { ArrowLeft, Loader2 } from "lucide-react"
 import { LeadsService, NewLead } from "@/lib/services/leads"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { WechatAccountsService } from "@/lib/services/wechatAccounts"
+import { UserProfilesService, UserProfile } from "@/lib/services/userProfiles"
 import { uploadChatScreenshot } from "@/lib/services/upload"
 import { useToast } from "@/hooks/use-toast"
+import { useCurrentUser } from "@/lib/hooks/useCurrentUser"
 import Link from "next/link"
 
 export default function NewLeadPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const { user: currentUser } = useCurrentUser()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingDict, setIsLoadingDict] = useState(true)
   const [isLoadingWechat, setIsLoadingWechat] = useState(true)
+  const [isLoadingOperators, setIsLoadingOperators] = useState(true)
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
   const [chatScreenshotFiles, setChatScreenshotFiles] = useState<File[]>([])
   const [chatScreenshotPreviews, setChatScreenshotPreviews] = useState<string[]>([])
@@ -57,6 +61,9 @@ export default function NewLeadPage() {
     wechat_name: string
   }>>([])
 
+  // 运营人员数据
+  const [operators, setOperators] = useState<UserProfile[]>([])
+
   const [formData, setFormData] = useState({
     report_number: "",
     entry_date: new Date().toISOString().split("T")[0],
@@ -69,6 +76,13 @@ export default function NewLeadPage() {
     parent_wechat: "",
     grab_wechat: "",
   })
+
+  // 设置默认运营人员为当前用户
+  useEffect(() => {
+    if (currentUser && !formData.operator_id) {
+      setFormData(prev => ({ ...prev, operator_id: currentUser.name || currentUser.email || '' }))
+    }
+  }, [currentUser])
 
   // 加载字典数据
   useEffect(() => {
@@ -109,6 +123,23 @@ export default function NewLeadPage() {
     }
 
     loadWechatAccounts()
+  }, [])
+
+  // 加载运营人员数据
+  useEffect(() => {
+    const loadOperators = async () => {
+      try {
+        setIsLoadingOperators(true)
+        const profiles = await UserProfilesService.getAllOperators()
+        setOperators(profiles)
+      } catch (error) {
+        console.error("加载运营人员失败:", error)
+      } finally {
+        setIsLoadingOperators(false)
+      }
+    }
+
+    loadOperators()
   }, [])
 
   const handleInputChange = (field: string, value: string) => {
@@ -217,7 +248,7 @@ export default function NewLeadPage() {
       <div className="flex-1 overflow-auto p-6">
         <Card className="max-w-3xl mx-auto">
           <CardContent className="p-6">
-            {isLoadingDict || isLoadingWechat ? (
+            {isLoadingDict || isLoadingWechat || isLoadingOperators ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
@@ -293,13 +324,18 @@ export default function NewLeadPage() {
                       <Label htmlFor="operator_id">
                         运营人员 <span className="text-destructive">*</span>
                       </Label>
-                      <Input
-                        id="operator_id"
-                        value={formData.operator_id}
-                        onChange={(e) => handleInputChange("operator_id", e.target.value)}
-                        placeholder="请输入运营人员"
-                        required
-                      />
+                      <Select value={formData.operator_id} onValueChange={(value) => handleInputChange("operator_id", value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="选择运营人员" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {operators.map((operator) => (
+                            <SelectItem key={operator.id} value={operator.name || operator.email}>
+                              {operator.name || operator.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </div>
