@@ -1,212 +1,175 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Loader2, CheckCircle, XCircle } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Loader2, RefreshCw, Video } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
+interface ClassInClassroom {
+  class_id: number
+  name: string
+  course_id?: number
+  course_name?: string
+  class_status?: number
+  class_type?: number
+  start_time?: number
+  end_time?: number
+  stu_num?: number
+  audit_num?: number
+  teacher?: any
+  sync_time?: string
+}
+
 export default function ClassInIntegrationPage() {
+  const [classrooms, setClassrooms] = useState<ClassInClassroom[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
-  const [isLoading, setIsLoading] = useState(false)
-  const [cookie, setCookie] = useState("")
-  const [status, setStatus] = useState<"idle" | "success" | "error">("idle")
-  const [teacherCount, setTeacherCount] = useState<number>(0)
-  const [studentCount, setStudentCount] = useState<number>(0)
 
-  const handleTestConnection = async () => {
-    if (!cookie.trim()) {
-      toast({
-        variant: "destructive",
-        title: "验证失败",
-        description: "请输入 Cookie",
-      })
-      return
-    }
-
-    setIsLoading(true)
-    setStatus("idle")
-
+  // 加载课堂数据
+  const fetchClassrooms = async () => {
     try {
-      // 测试登录
-      const loginResponse = await fetch("/api/classin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cookie }),
-      })
+      setIsLoading(true)
+      const response = await fetch('/api/classin/classrooms')
 
-      if (!loginResponse.ok) {
-        throw new Error("登录失败")
+      if (!response.ok) {
+        throw new Error('加载失败')
       }
 
-      const loginData = await loginResponse.json()
-      if (!loginData.success) {
-        throw new Error(loginData.error || "登录失败")
-      }
-
-      // 获取老师列表
-      const teachersResponse = await fetch("/api/classin/teachers")
-      if (!teachersResponse.ok) {
-        throw new Error("获取老师列表失败")
-      }
-
-      const teachersData = await teachersResponse.json()
-      setTeacherCount(teachersData.data?.total || 0)
-
-      // 获取学生列表
-      const studentsResponse = await fetch("/api/classin/students")
-      if (!studentsResponse.ok) {
-        throw new Error("获取学生列表失败")
-      }
-
-      const studentsData = await studentsResponse.json()
-      setStudentCount(studentsData.data?.total || 0)
-
-      setStatus("success")
-
-      toast({
-        title: "连接成功",
-        description: `成功连接到 ClassIn API！老师: ${teachersData.data?.total || 0} 人, 学生: ${studentsData.data?.total || 0} 人`,
-      })
+      const result = await response.json()
+      setClassrooms(result.data || [])
     } catch (error: any) {
-      setStatus("error")
       toast({
         variant: "destructive",
-        title: "连接失败",
-        description: error.message || "无法连接到 ClassIn API",
+        title: "加载失败",
+        description: error.message || "无法加载 ClassIn 课堂数据",
       })
     } finally {
       setIsLoading(false)
     }
   }
 
+  useEffect(() => {
+    fetchClassrooms()
+  }, [])
+
+  // 格式化时间戳
+  const formatTimestamp = (timestamp?: number) => {
+    if (!timestamp) return '-'
+    return new Date(timestamp * 1000).toLocaleString('zh-CN')
+  }
+
+  // 获取课堂状态文本
+  const getClassStatusText = (status?: number) => {
+    const statusMap: Record<number, string> = {
+      0: '未开始',
+      1: '进行中',
+      2: '已结束',
+    }
+    return statusMap[status || 0] || '未知'
+  }
+
+  // 获取课堂状态样式
+  const getClassStatusStyle = (status?: number) => {
+    const styleMap: Record<number, string> = {
+      0: 'bg-gray-100 text-gray-800',
+      1: 'bg-green-100 text-green-800',
+      2: 'bg-blue-100 text-blue-800',
+    }
+    return styleMap[status || 0] || 'bg-gray-100 text-gray-800'
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="ClassIn 课堂" description="查看 ClassIn 平台的课堂数据" />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col h-full">
       <Header
-        title="ClassIn 集成"
-        description="配置和测试 ClassIn API 连接"
+        title="ClassIn 课堂"
+        description="查看 ClassIn 平台的课堂数据"
       />
 
       <div className="flex-1 overflow-auto p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
-          {/* 连接配置 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>API 连接配置</CardTitle>
-              <CardDescription>
-                从浏览器开发者工具中获取 Cookie 并输入进行连接测试
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="cookie">ClassIn Cookie</Label>
-                <Textarea
-                  id="cookie"
-                  placeholder="粘贴从浏览器开发者工具中获取的 Cookie..."
-                  value={cookie}
-                  onChange={(e) => setCookie(e.target.value)}
-                  rows={6}
-                  className="font-mono text-xs"
-                />
-                <p className="text-xs text-muted-foreground">
-                  在浏览器中登录 console.eeo.cn，打开开发者工具（F12），Application → Cookies → console.eeo.cn，复制所有 Cookie
-                </p>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-lg font-semibold">课堂列表</h3>
+                <p className="text-sm text-muted-foreground">共 {classrooms.length} 个课堂</p>
               </div>
-
               <Button
-                onClick={handleTestConnection}
+                variant="outline"
+                onClick={fetchClassrooms}
                 disabled={isLoading}
-                className="w-full"
               >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    测试连接中...
-                  </>
-                ) : (
-                  "测试连接"
-                )}
+                <RefreshCw className="mr-2 h-4 w-4" />
+                刷新
               </Button>
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* 连接状态 */}
-          {status !== "idle" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>连接状态</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {status === "success" ? (
-                  <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
-                    <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
-                    <div>
-                      <div className="font-semibold text-green-900 dark:text-green-100">
-                        连接成功
-                      </div>
-                      <div className="text-sm text-green-700 dark:text-green-300">
-                        老师总数: {teacherCount} 人 | 学生总数: {studentCount} 人
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-950 rounded-lg border border-red-200 dark:border-red-800">
-                    <XCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
-                    <div>
-                      <div className="font-semibold text-red-900 dark:text-red-100">
-                        连接失败
-                      </div>
-                      <div className="text-sm text-red-700 dark:text-red-300">
-                        请检查 Cookie 是否正确，或者是否已过期
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* 使用说明 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>使用说明</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm">
-              <div>
-                <h4 className="font-semibold mb-2">1. 获取 Cookie</h4>
-                <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-                  <li>在浏览器中打开 <code>console.eeo.cn</code> 并登录</li>
-                  <li>按 F12 打开开发者工具</li>
-                  <li>切换到 Application 标签</li>
-                  <li>左侧菜单中选择 Cookies → https://console.eeo.cn</li>
-                  <li>复制所有 Cookie（格式：name1=value1; name2=value2; ...）</li>
-                </ol>
-              </div>
-
-              <div>
-                <h4 className="font-semibold mb-2">2. 可用的 API</h4>
-                <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                  <li>GET /api/classin/teachers - 获取老师列表</li>
-                  <li>GET /api/classin/students - 获取学生列表</li>
-                  <li>POST /api/classin/login - 使用 Cookie 登录</li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="font-semibold mb-2">3. 注意事项</h4>
-                <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                  <li>Cookie 有效期约为 2 小时，过期后需要重新获取</li>
-                  <li>请勿泄露您的 Cookie 信息</li>
-                  <li>建议在生产环境中使用后端代理 API 请求</li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>课堂ID</TableHead>
+                    <TableHead>课堂名称</TableHead>
+                    <TableHead>所属班级</TableHead>
+                    <TableHead>开始时间</TableHead>
+                    <TableHead>结束时间</TableHead>
+                    <TableHead>学生数</TableHead>
+                    <TableHead>听课数</TableHead>
+                    <TableHead>状态</TableHead>
+                    <TableHead>最后同步</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {classrooms.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                        暂无数据
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    classrooms.map((classroom) => (
+                      <TableRow key={classroom.class_id}>
+                        <TableCell className="font-medium">{classroom.class_id}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Video className="h-4 w-4 text-muted-foreground" />
+                            {classroom.name || "-"}
+                          </div>
+                        </TableCell>
+                        <TableCell>{classroom.course_name || "-"}</TableCell>
+                        <TableCell>{formatTimestamp(classroom.start_time)}</TableCell>
+                        <TableCell>{formatTimestamp(classroom.end_time)}</TableCell>
+                        <TableCell>{classroom.stu_num || 0}</TableCell>
+                        <TableCell>{classroom.audit_num || 0}</TableCell>
+                        <TableCell>
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getClassStatusStyle(classroom.class_status)}`}>
+                            {getClassStatusText(classroom.class_status)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {classroom.sync_time ? new Date(classroom.sync_time).toLocaleString('zh-CN') : '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
