@@ -131,7 +131,7 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     leads: ['view'],
     trialLessons: ['view', 'edit', 'confirmTeacher', 'confirmTime', 'addLink'], // 移除 matchTeacher - 教务只确认老师，不匹配
     students: ['view', 'manageHours'],
-    formalOrders: ['view'],
+    formalOrders: ['view', 'addLink'], // 添加 addLink - 教务可以为正式订单开课
     transactions: ['view', 'verifyHours'],
     teacherCandidates: ['view', 'evaluate', 'uploadVideo', 'reviewVideo'],
     teachers: ['view', 'edit', 'notes'],
