@@ -25,7 +25,7 @@ import { usePermission } from "@/lib/hooks/usePermission"
 
 export default function LeadsPage() {
   const router = useRouter()
-  const { leads: leadsPerm } = usePermission()
+  const { leads: leadsPerm, user } = usePermission()
   const [leads, setLeads] = useState<Lead[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
@@ -133,10 +133,23 @@ export default function LeadsPage() {
   // 标记为已反馈
   const handleMarkAsFeedback = async (lead: Lead) => {
     try {
-      // 更新线索状态为已添加
-      await LeadsService.updateLead(lead.id, {
-        add_status: 'added'
+      // 使用专门的反馈API
+      const response = await fetch('/api/leads/feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token')}`,
+        },
+        body: JSON.stringify({
+          id: lead.id,
+          add_status: 'added'
+        })
       })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || '反馈失败')
+      }
 
       // 更新本地状态
       setLeads(prev => prev.map(l =>
@@ -303,21 +316,25 @@ export default function LeadsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            {/* 销售反馈按钮 */}
-                            {leadsPerm.feedback() && (
+                            {/* 销售反馈按钮 - 只在未反馈时显示 */}
+                            {/* 显示条件：有反馈权限 + 派给自己 + 未反馈（add_status不为'added'） */}
+                            {leadsPerm.feedback() &&
+                              (lead.grab_user_id === user?.id ||
+                               (lead.grab_wechat && user?.name && lead.grab_wechat.includes(user?.name))
+                              ) &&
+                              lead.add_status !== 'added' && (
                               <Button
                                 variant="outline"
                                 size="sm"
                                 title="标记为已反馈"
                                 onClick={() => handleMarkAsFeedback(lead)}
-                                disabled={lead.add_status === 'added'}
                               >
                                 <MessageCircle className="mr-2 h-4 w-4" />
                                 反馈
                               </Button>
                             )}
-                            {/* 创建试听按钮 */}
-                            {leadsPerm.convert() && (
+                            {/* 创建试听按钮 - 只在已添加状态下显示 */}
+                            {leadsPerm.convert() && lead.add_status === 'added' && (
                               <Button
                                 variant="default"
                                 size="sm"
@@ -328,7 +345,7 @@ export default function LeadsPage() {
                                 创建试听
                               </Button>
                             )}
-                            {/* 运营编辑按钮 */}
+                            {/* 运营编辑按钮 - 只有运营和管理员可以看到 */}
                             {leadsPerm.edit() && (
                               <Link href={`/dashboard/leads/${lead.id}/edit`}>
                                 <Button variant="ghost" size="icon" title="编辑">
@@ -336,7 +353,7 @@ export default function LeadsPage() {
                                 </Button>
                               </Link>
                             )}
-                            {/* 运营删除按钮 */}
+                            {/* 运营删除按钮 - 只有运营和管理员可以看到 */}
                             {leadsPerm.delete() && (
                               <Button
                                 variant="ghost"

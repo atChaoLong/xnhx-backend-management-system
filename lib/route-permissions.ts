@@ -18,6 +18,11 @@ export const ROUTE_PERMISSIONS = {
     DELETE: { resource: RESOURCES.leads, action: ACTIONS.delete },
   },
 
+  // 线索反馈（特殊权限）
+  '/api/leads/feedback': {
+    POST: { resource: RESOURCES.leads, action: ACTIONS.feedback },
+  },
+
   // 试听管理
   '/api/trial-lessons': {
     GET: { resource: RESOURCES.trialLessons, action: ACTIONS.view },
@@ -103,7 +108,7 @@ export const ROUTE_PERMISSIONS = {
  * 获取路由的权限要求
  */
 export function getRoutePermission(path: string, method: string) {
-  // 精确匹配
+  // 1. 先精确匹配
   if (path in ROUTE_PERMISSIONS) {
     const routePermissions = ROUTE_PERMISSIONS[path as keyof typeof ROUTE_PERMISSIONS]
     const methodPermissions = routePermissions[method as keyof typeof routePermissions]
@@ -112,9 +117,12 @@ export function getRoutePermission(path: string, method: string) {
     }
   }
 
-  // 前缀匹配（用于动态路由）
-  for (const [routePath, routeConfig] of Object.entries(ROUTE_PERMISSIONS)) {
+  // 2. 前缀匹配（用于动态路由，按路径长度降序排序，避免短路径误匹配）
+  const sortedPaths = Object.keys(ROUTE_PERMISSIONS).sort((a, b) => b.length - a.length)
+
+  for (const routePath of sortedPaths) {
     if (path.startsWith(routePath)) {
+      const routeConfig = ROUTE_PERMISSIONS[routePath as keyof typeof ROUTE_PERMISSIONS]
       const methodConfig = routeConfig[method as keyof typeof routeConfig]
       if (methodConfig) {
         return methodConfig

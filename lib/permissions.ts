@@ -61,12 +61,12 @@ export type Action = typeof ACTIONS[keyof typeof ACTIONS]
 
 // 权限矩阵
 const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
-  // 超级管理员：所有权限
+  // 超级管理员：只保留管理和查看权限，不参与日常业务操作
   admin: {
-    leads: ['view', 'create', 'edit', 'delete', 'feedback'],
-    trialLessons: ['view', 'create', 'edit', 'delete', 'matchTeacher', 'confirmTeacher', 'confirmTime', 'addLink', 'convert'],
-    students: ['view', 'create', 'edit', 'delete', 'schedule', 'manageHours', 'visit'],
-    formalOrders: ['view', 'create', 'edit', 'delete'],
+    leads: ['view', 'create', 'edit', 'delete'], // 移除 feedback - 管理员不直接反馈线索
+    trialLessons: ['view', 'edit', 'delete'], // 移除 create, convert - 管理员不创建试听
+    students: ['view', 'create', 'edit', 'delete'], // 保留学生管理
+    formalOrders: ['view', 'create', 'edit', 'delete'], // 保留订单管理
     transactions: ['view', 'create', 'verifyHours', 'payment', 'verifyPerformance'],
     teacherCandidates: ['view', 'interview', 'evaluate', 'uploadVideo', 'reviewVideo'],
     teachers: ['view', 'create', 'edit', 'delete', 'notes'],
@@ -89,7 +89,7 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
 
   // 销售顾问：线索跟进、学生管理、订单录入
   sales: {
-    leads: ['view', 'edit', 'feedback', 'convert'],
+    leads: ['view', 'feedback', 'convert'], // 移除 edit - 销售只能反馈状态，不能编辑基本信息
     trialLessons: ['view', 'create', 'edit', 'confirmTime', 'convert'],
     students: ['view', 'create', 'edit'],
     formalOrders: ['view', 'create', 'edit'],
@@ -102,7 +102,7 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
 
   // 班主任：学生管理、排课、回访、续费
   head_teacher: {
-    leads: ['view'],
+    leads: ['view', 'convert'], // 添加 convert - 班主任可以创建试听
     trialLessons: ['view', 'edit'],
     students: ['view', 'create', 'edit', 'schedule', 'visit'],
     formalOrders: ['view', 'create', 'edit'],
@@ -176,9 +176,8 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
 export function hasPermission(role: Role | undefined, resource: Resource, action: Action): boolean {
   if (!role) return false
 
-  // admin 拥有所有权限
-  if (role === ROLES.admin) return true
-
+  // 所有角色（包括admin）都必须在权限矩阵中明确定义权限
+  // admin不再自动拥有所有权限，需要在PERMISSION_MATRIX中明确配置
   const rolePermissions = PERMISSION_MATRIX[role]
   if (!rolePermissions) return false
 
@@ -210,11 +209,7 @@ export function hasAnyPermission(
 export function getPermissions(role: Role | undefined, resource: Resource): Action[] {
   if (!role) return []
 
-  if (role === ROLES.admin) {
-    // 返回所有可能的操作
-    return Object.values(ACTIONS)
-  }
-
+  // 所有角色（包括admin）都从权限矩阵中获取权限
   const rolePermissions = PERMISSION_MATRIX[role]
   return rolePermissions?.[resource] || []
 }

@@ -54,28 +54,34 @@ async function checkIfHasFormalOrder(leadId: string): Promise<boolean> {
 
 /**
  * 计算线索添加状态
+ *
+ * 状态流转规则:
+ * 1. 运营未派单: grab_wechat 为空
+ * 2. 已添加: add_status = 'added' 或产生试听
+ * 3. 未添加: add_status = 'not_added' 且无试听
+ * 4. 销售未反馈: add_status 为空且无试听
  */
 export async function calculateLeadAddStatus(lead: any): Promise<LeadAddStatus> {
   // 1. 运营未派单：抢单微信号为空
-  if (!lead.xhs_source) {
+  if (!lead.grab_wechat || lead.grab_wechat.trim() === '') {
     return LeadAddStatus.UNASSIGNED
   }
 
   // 2. 检查是否产生试听
   const hasTrialLesson = await checkIfHasTrialLesson(lead.id)
 
-  // 3. 已添加
-  if (lead.feedback_added === '已添加' || hasTrialLesson) {
+  // 3. 已添加 (even if add_status is 'not_added', if trial exists then 'added')
+  if (lead.add_status === 'added' || hasTrialLesson) {
     return LeadAddStatus.ADDED
   }
 
   // 4. 未添加
-  if (lead.feedback_added === '未添加') {
+  if (lead.add_status === 'not_added') {
     return LeadAddStatus.NOT_ADDED
   }
 
   // 5. 销售未反馈
-  if (!lead.feedback_added && !hasTrialLesson) {
+  if (!lead.add_status && !hasTrialLesson) {
     return LeadAddStatus.WAITING_FEEDBACK
   }
 
@@ -276,14 +282,14 @@ export enum VisitStatus {
 async function countVisitsThisMonth(studentId: string): Promise<number> {
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
 
   const { data } = await supabaseServer
-    .from('student_visits')
+    .from('visit_records')
     .select('id')
     .eq('student_id', studentId)
-    .gte('visit_date', startOfMonth.toISOString())
-    .lte('visit_date', endOfMonth.toISOString())
+    .gte('visit_date', startOfMonth.toISOString().split('T')[0]) // 使用日期格式
+    .lt('visit_date', endOfMonth.toISOString().split('T')[0])
 
   return data?.length || 0
 }
