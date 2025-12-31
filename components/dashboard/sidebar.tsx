@@ -27,7 +27,11 @@ import {
   Shield,
   ChevronDown,
   ChevronRight,
-  Calendar
+  Calendar,
+  Monitor,
+  User,
+  Video,
+  ClipboardList
 } from "lucide-react"
 import { useState } from "react"
 
@@ -79,6 +83,15 @@ const navigationGroups = [
       { name: "销售人员", href: "/dashboard/wechat-accounts", icon: MessageCircle },
       { name: "数据同步", href: "/dashboard/sync", icon: Database },
       { name: "ClassIn SDK", href: "/dashboard/classin-sdk", icon: Settings },
+    ]
+  },
+  {
+    title: "ClassIn管理",
+    items: [
+      { name: "学生", href: "/dashboard/classin/students", icon: Users },
+      { name: "老师", href: "/dashboard/classin/teachers", icon: GraduationCap },
+      { name: "班级", href: "/dashboard/classin/classes", icon: Monitor },
+      { name: "课堂", href: "/dashboard/classin", icon: Video },
     ]
   }
 ]
