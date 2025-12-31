@@ -130,6 +130,34 @@ export default function LeadsPage() {
     setLeadToDelete(null)
   }
 
+  // 标记为已反馈
+  const handleMarkAsFeedback = async (lead: Lead) => {
+    try {
+      // 更新线索状态为已添加
+      await LeadsService.updateLead(lead.id, {
+        add_status: 'added'
+      })
+
+      // 更新本地状态
+      setLeads(prev => prev.map(l =>
+        l.id === lead.id
+          ? { ...l, add_status: 'added' }
+          : l
+      ))
+
+      toast({
+        title: "标记成功",
+        description: "线索已标记为已反馈",
+      })
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "标记失败",
+        description: error.message || "无法标记线索",
+      })
+    }
+  }
+
   // 创建试听课程
   const handleCreateTrialLesson = (lead: Lead) => {
     // 跳转到试听新增页面，并传递线索ID
@@ -277,12 +305,16 @@ export default function LeadsPage() {
                           <div className="flex justify-end gap-2">
                             {/* 销售反馈按钮 */}
                             {leadsPerm.feedback() && (
-                              <Link href={`/dashboard/leads/${lead.id}/feedback`}>
-                                <Button variant="outline" size="sm" title="反馈线索">
-                                  <MessageCircle className="mr-2 h-4 w-4" />
-                                  反馈
-                                </Button>
-                              </Link>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                title="标记为已反馈"
+                                onClick={() => handleMarkAsFeedback(lead)}
+                                disabled={lead.add_status === 'added'}
+                              >
+                                <MessageCircle className="mr-2 h-4 w-4" />
+                                反馈
+                              </Button>
                             )}
                             {/* 创建试听按钮 */}
                             {leadsPerm.convert() && (
