@@ -19,7 +19,6 @@ import {
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { LeadsService, NewLead } from "@/lib/services/leads"
 import { DictionaryService } from "@/lib/services/dictionary"
-import { WechatAccountsService } from "@/lib/services/wechatAccounts"
 import { UserProfilesService, UserProfile } from "@/lib/services/userProfiles"
 import { uploadChatScreenshot } from "@/lib/services/upload"
 import { useToast } from "@/hooks/use-toast"
@@ -32,7 +31,7 @@ export default function NewLeadPage() {
   const { user: currentUser } = useCurrentUser()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingDict, setIsLoadingDict] = useState(true)
-  const [isLoadingWechat, setIsLoadingWechat] = useState(true)
+  const [isLoadingSales, setIsLoadingSales] = useState(true)
   const [isLoadingOperators, setIsLoadingOperators] = useState(true)
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
   const [chatScreenshotFiles, setChatScreenshotFiles] = useState<File[]>([])
@@ -54,15 +53,11 @@ export default function NewLeadPage() {
     sources: [],
   })
 
-  // 微信号数据
-  const [wechatAccounts, setWechatAccounts] = useState<Array<{
-    id: string
-    wechat_id: string
-    wechat_name: string
-  }>>([])
-
   // 运营人员数据
   const [operators, setOperators] = useState<UserProfile[]>([])
+
+  // 销售人员数据
+  const [sales, setSales] = useState<UserProfile[]>([])
 
   const [formData, setFormData] = useState({
     report_number: "",
@@ -108,23 +103,6 @@ export default function NewLeadPage() {
     loadDictionaries()
   }, [])
 
-  // 加载微信号数据
-  useEffect(() => {
-    const loadWechatAccounts = async () => {
-      try {
-        setIsLoadingWechat(true)
-        const accounts = await WechatAccountsService.getWechatAccounts()
-        setWechatAccounts(accounts)
-      } catch (error) {
-        console.error("加载微信号失败:", error)
-      } finally {
-        setIsLoadingWechat(false)
-      }
-    }
-
-    loadWechatAccounts()
-  }, [])
-
   // 加载运营人员数据
   useEffect(() => {
     const loadOperators = async () => {
@@ -140,6 +118,23 @@ export default function NewLeadPage() {
     }
 
     loadOperators()
+  }, [])
+
+  // 加载销售人员数据
+  useEffect(() => {
+    const loadSales = async () => {
+      try {
+        setIsLoadingSales(true)
+        const profiles = await UserProfilesService.getUsers('sales')
+        setSales(profiles)
+      } catch (error) {
+        console.error("加载销售人员失败:", error)
+      } finally {
+        setIsLoadingSales(false)
+      }
+    }
+
+    loadSales()
   }, [])
 
   const handleInputChange = (field: string, value: string) => {
@@ -248,7 +243,7 @@ export default function NewLeadPage() {
       <div className="flex-1 overflow-auto p-6">
         <Card className="max-w-3xl mx-auto">
           <CardContent className="p-6">
-            {isLoadingDict || isLoadingWechat || isLoadingOperators ? (
+            {isLoadingDict || isLoadingSales || isLoadingOperators ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
@@ -414,15 +409,15 @@ export default function NewLeadPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="grab_wechat">抢单微信号</Label>
+                      <Label htmlFor="grab_wechat">抢单微信</Label>
                       <Select value={formData.grab_wechat} onValueChange={(value) => handleInputChange("grab_wechat", value)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="选择微信号" />
+                          <SelectValue placeholder="选择销售" />
                         </SelectTrigger>
                         <SelectContent>
-                          {wechatAccounts.map((account) => (
-                            <SelectItem key={account.id} value={account.wechat_id}>
-                              {account.wechat_name} - {account.wechat_id}
+                          {sales.map((salesPerson) => (
+                            <SelectItem key={salesPerson.id} value={salesPerson.name || salesPerson.email}>
+                              {salesPerson.name || salesPerson.email}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -442,8 +437,9 @@ export default function NewLeadPage() {
                           <SelectValue placeholder="选择添加状态" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="已添加">已添加</SelectItem>
-                          <SelectItem value="未添加">未添加</SelectItem>
+                          <SelectItem value="added">已添加</SelectItem>
+                          <SelectItem value="not_added">未添加</SelectItem>
+                          <SelectItem value="waiting_feedback">等待反馈</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
