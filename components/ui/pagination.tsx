@@ -3,6 +3,13 @@ import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { ButtonProps, buttonVariants } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
   <nav
@@ -107,6 +114,71 @@ const PaginationEllipsis = ({
 )
 PaginationEllipsis.displayName = "PaginationEllipsis"
 
+// 每页数量选择器
+interface PaginationPageSizeProps {
+  pageSize: number
+  onPageSizeChange: (size: number) => void
+  options?: number[]
+  className?: string
+}
+
+const PaginationPageSize = ({
+  pageSize,
+  onPageSizeChange,
+  options = [10, 20, 50, 100],
+  className,
+}: PaginationPageSizeProps) => {
+  return (
+    <div className={cn("flex items-center gap-2", className)}>
+      <span className="text-sm text-muted-foreground">每页</span>
+      <Select
+        value={pageSize.toString()}
+        onValueChange={(value) => onPageSizeChange(Number(value))}
+      >
+        <SelectTrigger className="w-[70px] h-8">
+          <SelectValue placeholder={pageSize.toString()} />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option} value={option.toString()}>
+              {option}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <span className="text-sm text-muted-foreground">条</span>
+    </div>
+  )
+}
+PaginationPageSize.displayName = "PaginationPageSize"
+
+// 统计信息显示
+interface PaginationInfoProps {
+  currentPage: number
+  totalPages: number
+  totalCount: number
+  pageSize: number
+  className?: string
+}
+
+const PaginationInfo = ({
+  currentPage,
+  totalPages,
+  totalCount,
+  pageSize,
+  className,
+}: PaginationInfoProps) => {
+  const startItem = (currentPage - 1) * pageSize + 1
+  const endItem = Math.min(currentPage * pageSize, totalCount)
+
+  return (
+    <div className={cn("text-sm text-muted-foreground", className)}>
+      共 {totalCount} 条，第 {startItem}-{endItem} 条
+    </div>
+  )
+}
+PaginationInfo.displayName = "PaginationInfo"
+
 export {
   Pagination,
   PaginationContent,
@@ -115,4 +187,6 @@ export {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
+  PaginationPageSize,
+  PaginationInfo,
 }

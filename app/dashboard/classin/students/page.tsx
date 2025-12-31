@@ -13,6 +13,8 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
+  PaginationPageSize,
+  PaginationInfo,
 } from "@/components/ui/pagination"
 import { Loader2, RefreshCw } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
@@ -31,7 +33,7 @@ interface ClassInStudent {
   sync_time?: string
 }
 
-const PAGE_SIZE = 20
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
 
 export default function ClassInStudentsPage() {
   const [students, setStudents] = useState<ClassInStudent[]>([])
@@ -42,26 +44,30 @@ export default function ClassInStudentsPage() {
   // 分页 hook
   const {
     currentPage,
+    pageSize,
     totalPages,
+    totalCount: paginationTotal,
     canGoNext,
     canGoPrevious,
     goToPage,
     goToNextPage,
     goToPreviousPage,
+    handlePageSizeChange,
     getPageRange,
   } = usePagination({
-    totalPages: 1,
-    onPageChange: (page) => {
-      fetchStudents(page)
+    totalCount,
+    pageSize: 20,
+    onPageChange: (page, size) => {
+      fetchStudents(page, size)
     },
   })
 
   // 加载学生数据
-  const fetchStudents = async (page: number = 1) => {
+  const fetchStudents = async (page: number = 1, size: number = pageSize) => {
     try {
       setIsLoading(true)
-      const from = (page - 1) * PAGE_SIZE
-      const to = from + PAGE_SIZE - 1
+      const from = (page - 1) * size
+      const to = from + size - 1
 
       const response = await fetch(
         `/api/classin/students?from=${from}&to=${to}`
@@ -74,12 +80,6 @@ export default function ClassInStudentsPage() {
       const result = await response.json()
       setStudents(result.data || [])
       setTotalCount(result.count || 0)
-
-      // 更新总页数
-      const newTotalPages = Math.ceil((result.count || 0) / PAGE_SIZE)
-      if (newTotalPages !== totalPages) {
-        // 需要在 hook 中支持动态更新 totalPages
-      }
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -92,7 +92,7 @@ export default function ClassInStudentsPage() {
   }
 
   useEffect(() => {
-    fetchStudents(1)
+    fetchStudents(1, pageSize)
   }, [])
 
   return (
@@ -108,13 +108,16 @@ export default function ClassInStudentsPage() {
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="text-lg font-semibold">学生列表</h3>
-                <p className="text-sm text-muted-foreground">
-                  共 {totalCount} 名学生，第 {currentPage} / {Math.ceil(totalCount / PAGE_SIZE)} 页
-                </p>
+                <PaginationInfo
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalCount={totalCount}
+                  pageSize={pageSize}
+                />
               </div>
               <Button
                 variant="outline"
-                onClick={() => fetchStudents(currentPage)}
+                onClick={() => fetchStudents(currentPage, pageSize)}
                 disabled={isLoading}
               >
                 <RefreshCw className="mr-2 h-4 w-4" />
@@ -179,47 +182,67 @@ export default function ClassInStudentsPage() {
             </div>
 
             {/* 分页 */}
-            {Math.ceil(totalCount / PAGE_SIZE) > 1 && (
-              <div className="mt-6 flex items-center justify-center">
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        onClick={goToPreviousPage}
-                        className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                      />
-                    </PaginationItem>
+            {totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-between">
+                {/* 左侧：统计信息 */}
+                <PaginationInfo
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalCount={totalCount}
+                  pageSize={pageSize}
+                />
 
-                    {getPageRange().map((page, index) => {
-                      if (page === -1) {
+                {/* 中间：分页按钮 */}
+                <div className="flex items-center gap-4">
+                  <PaginationPageSize
+                    pageSize={pageSize}
+                    onPageSizeChange={handlePageSizeChange}
+                    options={PAGE_SIZE_OPTIONS}
+                  />
+
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={goToPreviousPage}
+                          className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+
+                      {getPageRange().map((page, index) => {
+                        if (page === -1) {
+                          return (
+                            <PaginationItem key={`ellipsis-${index}`}>
+                              <PaginationEllipsis />
+                            </PaginationItem>
+                          )
+                        }
+
                         return (
-                          <PaginationItem key={`ellipsis-${index}`}>
-                            <PaginationEllipsis />
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              onClick={() => goToPage(page)}
+                              isActive={page === currentPage}
+                              className="cursor-pointer"
+                            >
+                              {page}
+                            </PaginationLink>
                           </PaginationItem>
                         )
-                      }
+                      })}
 
-                      return (
-                        <PaginationItem key={page}>
-                          <PaginationLink
-                            onClick={() => goToPage(page)}
-                            isActive={page === currentPage}
-                            className="cursor-pointer"
-                          >
-                            {page}
-                          </PaginationLink>
-                        </PaginationItem>
-                      )
-                    })}
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={goToNextPage}
+                          className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
 
-                    <PaginationItem>
-                      <PaginationNext
-                        onClick={goToNextPage}
-                        className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
+                {/* 右侧：占位，保持布局平衡 */}
+                <div className="w-auto"></div>
               </div>
             )}
           </CardContent>

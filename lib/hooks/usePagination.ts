@@ -1,31 +1,50 @@
 import { useState, useCallback } from 'react'
 
 interface UsePaginationProps {
-  totalPages: number
+  totalCount: number
+  pageSize?: number
   initialPage?: number
-  onPageChange?: (page: number) => void
+  onPageChange?: (page: number, pageSize: number) => void
 }
 
 export function usePagination({
-  totalPages,
+  totalCount,
+  pageSize: initialPageSize = 20,
   initialPage = 1,
   onPageChange,
 }: UsePaginationProps) {
   const [currentPage, setCurrentPage] = useState(initialPage)
+  const [pageSize, setPageSize] = useState(initialPageSize)
 
+  // 计算总页数
+  const totalPages = Math.ceil(totalCount / pageSize)
+
+  // 页大小改变时，重置到第一页
+  const handlePageSizeChange = useCallback(
+    (newPageSize: number) => {
+      setPageSize(newPageSize)
+      setCurrentPage(1)
+      onPageChange?.(1, newPageSize)
+    },
+    [onPageChange]
+  )
+
+  // 跳转到指定页
   const goToPage = useCallback(
     (page: number) => {
       const newPage = Math.max(1, Math.min(page, totalPages))
       setCurrentPage(newPage)
-      onPageChange?.(newPage)
+      onPageChange?.(newPage, pageSize)
     },
-    [totalPages, onPageChange]
+    [totalPages, pageSize, onPageChange]
   )
 
+  // 下一页
   const goToNextPage = useCallback(() => {
     goToPage(currentPage + 1)
   }, [currentPage, goToPage])
 
+  // 上一页
   const goToPreviousPage = useCallback(() => {
     goToPage(currentPage - 1)
   }, [currentPage, goToPage])
@@ -67,12 +86,15 @@ export function usePagination({
 
   return {
     currentPage,
+    pageSize,
     totalPages,
+    totalCount,
     canGoNext,
     canGoPrevious,
     goToPage,
     goToNextPage,
     goToPreviousPage,
+    handlePageSizeChange,
     getPageRange,
   }
 }
