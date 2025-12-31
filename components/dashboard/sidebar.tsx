@@ -42,8 +42,8 @@ const navigationGroups = [
   {
     title: "客户管理",
     items: [
-      { name: "线索跟进", href: "/dashboard/daily-leads", icon: Target },
-      { name: "客户回访", href: "/dashboard/leads", icon: MessageCircle },
+      { name: "线索跟进", href: "/dashboard/leads", icon: Target },
+      { name: "客户回访", href: "/dashboard/daily-leads", icon: MessageCircle },
     ]
   },
   {
