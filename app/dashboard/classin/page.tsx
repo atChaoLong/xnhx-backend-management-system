@@ -5,8 +5,20 @@ import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationPageSize,
+  PaginationInfo,
+} from "@/components/ui/pagination"
 import { Loader2, RefreshCw, Video } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { usePagination } from "@/lib/hooks/usePagination"
 
 interface ClassInClassroom {
   class_id: number
@@ -23,16 +35,39 @@ interface ClassInClassroom {
   sync_time?: string
 }
 
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
+
 export default function ClassInIntegrationPage() {
   const [classrooms, setClassrooms] = useState<ClassInClassroom[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [totalCount, setTotalCount] = useState(0)
   const { toast } = useToast()
 
+  const {
+    currentPage,
+    pageSize,
+    totalPages,
+    canGoNext,
+    canGoPrevious,
+    goToPage,
+    goToNextPage,
+    goToPreviousPage,
+    handlePageSizeChange,
+    getPageRange,
+  } = usePagination({
+    totalCount,
+    pageSize: 20,
+    onPageChange: (page, size) => fetchClassrooms(page, size),
+  })
+
   // 加载课堂数据
-  const fetchClassrooms = async () => {
+  const fetchClassrooms = async (page: number = 1, size: number = pageSize) => {
     try {
       setIsLoading(true)
-      const response = await fetch('/api/classin/classrooms')
+      const from = (page - 1) * size
+      const to = from + size - 1
+
+      const response = await fetch(`/api/classin/classrooms?from=${from}&to=${to}`)
 
       if (!response.ok) {
         throw new Error('加载失败')
@@ -40,6 +75,7 @@ export default function ClassInIntegrationPage() {
 
       const result = await response.json()
       setClassrooms(result.data || [])
+      setTotalCount(result.count || 0)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -52,7 +88,7 @@ export default function ClassInIntegrationPage() {
   }
 
   useEffect(() => {
-    fetchClassrooms()
+    fetchClassrooms(1, pageSize)
   }, [])
 
   // 格式化时间戳
@@ -105,11 +141,16 @@ export default function ClassInIntegrationPage() {
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="text-lg font-semibold">课堂列表</h3>
-                <p className="text-sm text-muted-foreground">共 {classrooms.length} 个课堂</p>
+                <PaginationInfo
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalCount={totalCount}
+                  pageSize={pageSize}
+                />
               </div>
               <Button
                 variant="outline"
-                onClick={fetchClassrooms}
+                onClick={() => fetchClassrooms(currentPage, pageSize)}
                 disabled={isLoading}
               >
                 <RefreshCw className="mr-2 h-4 w-4" />
@@ -133,7 +174,14 @@ export default function ClassInIntegrationPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {classrooms.length === 0 ? (
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin inline mr-2" />
+                        加载中...
+                      </TableCell>
+                    </TableRow>
+                  ) : classrooms.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                         暂无数据
@@ -168,6 +216,61 @@ export default function ClassInIntegrationPage() {
                 </TableBody>
               </Table>
             </div>
+
+            {totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-between">
+                <PaginationInfo
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalCount={totalCount}
+                  pageSize={pageSize}
+                />
+                <div className="flex items-center gap-4">
+                  <PaginationPageSize
+                    pageSize={pageSize}
+                    onPageSizeChange={handlePageSizeChange}
+                    options={PAGE_SIZE_OPTIONS}
+                  />
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={goToPreviousPage}
+                          className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                      {getPageRange().map((page, index) => {
+                        if (page === -1) {
+                          return (
+                            <PaginationItem key={`ellipsis-${index}`}>
+                              <PaginationEllipsis />
+                            </PaginationItem>
+                          )
+                        }
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              onClick={() => goToPage(page)}
+                              isActive={page === currentPage}
+                              className="cursor-pointer"
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        )
+                      })}
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={goToNextPage}
+                          className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+                <div className="w-auto"></div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

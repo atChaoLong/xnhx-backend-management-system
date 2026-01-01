@@ -11,8 +11,10 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
+    const from = parseInt(searchParams.get('from') || '0')
+    const to = parseInt(searchParams.get('to') || '19')
 
-    logger.debug('获取试听课程数据', { id })
+    logger.debug('获取试听课程数据', { id, from, to })
 
     // 如果提供了ID，查询单个试听课程
     if (id) {
@@ -48,12 +50,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ data })
     }
 
-    // 否则获取所有试听课程，按试听时间降序排序
+    // 先获取总数
+    const { count: totalCount } = await supabaseServer
+      .from('trial_lessons')
+      .select('*', { count: 'exact', head: true })
+
+    // 分页查询数据，按试听时间降序排序
     const { data, error } = await supabaseServer
       .from('trial_lessons')
       .select('*')
       .order('trial_time', { ascending: false })
       .order('created_at', { ascending: false })
+      .range(from, to)
 
     if (error) {
       logger.error('获取试听课程列表失败', { message: error.message, code: error.code })
@@ -83,7 +91,12 @@ export async function GET(request: NextRequest) {
     }
 
     logger.debug('获取试听课程列表成功', { count: lessonsWithStatus.length || 0 })
-    return NextResponse.json({ data: lessonsWithStatus })
+    return NextResponse.json({
+      data: lessonsWithStatus,
+      count: totalCount || 0,
+      from,
+      to,
+    })
   } catch (error: any) {
     logger.error('获取试听课程异常', { message: error.message, stack: error.stack })
     return NextResponse.json(

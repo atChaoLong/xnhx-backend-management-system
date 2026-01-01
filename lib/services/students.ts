@@ -39,9 +39,24 @@ export interface NewStudent {
 }
 
 /**
- * 获取所有学生
+ * 获取学生列表（支持分页）
  */
-export async function getStudents(): Promise<Student[]> {
+export async function getStudents(from: number = 0, to: number = 19): Promise<{ data: Student[], count: number }> {
+  const response = await api.get(`/api/students?from=${from}&to=${to}`)
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: '获取学生列表失败' }))
+    throw new Error(error.error || '获取学生列表失败')
+  }
+
+  const result = await response.json()
+  return { data: result.data as Student[], count: result.count || 0 }
+}
+
+/**
+ * 获取所有学生（不带分页，用于兼容旧代码）
+ */
+export async function getAllStudents(): Promise<Student[]> {
   const response = await api.get("/api/students")
 
   if (!response.ok) {
@@ -123,6 +138,7 @@ export async function deleteStudent(id: string): Promise<boolean> {
  */
 export const StudentsService = {
   getStudents,
+  getAllStudents,
   getStudentById,
   createStudent,
   updateStudent,

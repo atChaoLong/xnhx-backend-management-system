@@ -5,13 +5,15 @@ import { handleDatabaseError } from "@/lib/utils"
 
 const logger = createLogger('API:Teachers')
 
-// GET: 获取老师列表（支持ID查询单个）
+// GET: 获取老师列表（支持ID查询单个和分页）
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
+    const from = parseInt(searchParams.get('from') || '0')
+    const to = parseInt(searchParams.get('to') || '19')
 
-    logger.debug('获取老师数据', { id })
+    logger.debug('获取老师数据', { id, from, to })
 
     // 如果提供了ID，查询单个老师
     if (id) {
@@ -33,11 +35,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ data })
     }
 
-    // 否则获取所有老师，按创建时间降序排序
+    // 先获取总数
+    const { count: totalCount } = await supabaseServer
+      .from('teacher_profiles')
+      .select('*', { count: 'exact', head: true })
+
+    // 分页查询数据，按创建时间降序排序
     const { data, error } = await supabaseServer
       .from('teacher_profiles')
       .select('*')
       .order('created_at', { ascending: false })
+      .range(from, to)
 
     if (error) {
       logger.error('获取老师列表失败', { message: error.message, code: error.code })
@@ -48,7 +56,12 @@ export async function GET(request: NextRequest) {
     }
 
     logger.debug('获取老师列表成功', { count: data?.length || 0 })
-    return NextResponse.json({ data })
+    return NextResponse.json({
+      data: data || [],
+      count: totalCount || 0,
+      from,
+      to,
+    })
   } catch (error: any) {
     logger.error('获取老师异常', { message: error.message, stack: error.stack })
     return NextResponse.json(

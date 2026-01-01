@@ -42,10 +42,22 @@ export async function GET(request: NextRequest) {
   try {
     logger.debug('获取线索列表')
 
+    // 获取分页参数
+    const { searchParams } = new URL(request.url)
+    const from = parseInt(searchParams.get('from') || '0')
+    const to = parseInt(searchParams.get('to') || '19')
+
+    // 先获取总数
+    const { count: totalCount } = await supabaseServer
+      .from('leads')
+      .select('*', { count: 'exact', head: true })
+
+    // 分页查询数据
     const { data, error } = await supabaseServer
       .from('leads')
       .select('*')
       .order('created_at', { ascending: false })
+      .range(from, to)
 
     if (error) {
       logger.error('获取线索失败', { message: error.message, code: error.code })
@@ -77,7 +89,12 @@ export async function GET(request: NextRequest) {
     }
 
     logger.info('获取线索成功', { count: leadsWithStatus.length || 0 })
-    return NextResponse.json({ data: leadsWithStatus })
+    return NextResponse.json({
+      data: leadsWithStatus,
+      count: totalCount || 0,
+      from,
+      to,
+    })
   } catch (error: any) {
     logger.error('获取线索异常', { message: error.message, stack: error.stack })
     return NextResponse.json(

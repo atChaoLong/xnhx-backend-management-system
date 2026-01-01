@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -13,21 +13,53 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationPageSize,
+  PaginationInfo,
+} from "@/components/ui/pagination"
 import { Plus, Edit, Trash2, Loader2, AlertTriangle } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { StudentsService, Student } from "@/lib/services/students"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
+import { usePagination } from "@/lib/hooks/usePagination"
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<Student[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [totalCount, setTotalCount] = useState(0)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
   const [isLoadingDict, setIsLoadingDict] = useState(true)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null)
   const { toast } = useToast()
+
+  const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
+
+  const {
+    currentPage,
+    pageSize,
+    totalPages,
+    canGoNext,
+    canGoPrevious,
+    goToPage,
+    goToNextPage,
+    goToPreviousPage,
+    handlePageSizeChange,
+    getPageRange,
+  } = usePagination({
+    totalCount,
+    pageSize: 20,
+    onPageChange: (page, size) => fetchStudents(page, size),
+  })
 
   // 字典数据映射
   const [dictMaps, setDictMaps] = useState<{
@@ -39,11 +71,14 @@ export default function StudentsPage() {
   })
 
   // 加载学生列表
-  const fetchStudents = useCallback(async () => {
+  const fetchStudents = async (page: number = 1, size: number = pageSize) => {
     try {
       setIsLoading(true)
-      const data = await StudentsService.getStudents()
+      const from = (page - 1) * size
+      const to = from + size - 1
+      const { data, count } = await StudentsService.getStudents(from, to)
       setStudents(data)
+      setTotalCount(count)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -53,7 +88,7 @@ export default function StudentsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   // 加载字典数据
   useEffect(() => {
@@ -78,8 +113,8 @@ export default function StudentsPage() {
   }, [])
 
   useEffect(() => {
-    fetchStudents()
-  }, [fetchStudents])
+    fetchStudents(1, pageSize)
+  }, [])
 
   // 删除学生
   const handleDeleteClick = (id: string) => {
@@ -97,7 +132,7 @@ export default function StudentsPage() {
         title: "删除成功",
         description: "学生已删除",
       })
-      fetchStudents()
+      fetchStudents(currentPage, pageSize)
       setDeleteDialogOpen(false)
       setStudentToDelete(null)
     } catch (error: any) {
@@ -146,10 +181,15 @@ export default function StudentsPage() {
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="text-lg font-semibold">学生列表</h3>
-                <p className="text-sm text-muted-foreground">共 {students.length} 名学生</p>
+                <PaginationInfo
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalCount={totalCount}
+                  pageSize={pageSize}
+                />
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={fetchStudents} disabled={isLoading}>
+                <Button variant="outline" onClick={() => fetchStudents(currentPage, pageSize)} disabled={isLoading}>
                   刷新
                 </Button>
                 <Link href="/dashboard/students/new">
@@ -227,6 +267,61 @@ export default function StudentsPage() {
                 </TableBody>
               </Table>
             </div>
+
+            {totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-between">
+                <PaginationInfo
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalCount={totalCount}
+                  pageSize={pageSize}
+                />
+                <div className="flex items-center gap-4">
+                  <PaginationPageSize
+                    pageSize={pageSize}
+                    onPageSizeChange={handlePageSizeChange}
+                    options={PAGE_SIZE_OPTIONS}
+                  />
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={goToPreviousPage}
+                          className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                      {getPageRange().map((page, index) => {
+                        if (page === -1) {
+                          return (
+                            <PaginationItem key={`ellipsis-${index}`}>
+                              <PaginationEllipsis />
+                            </PaginationItem>
+                          )
+                        }
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              onClick={() => goToPage(page)}
+                              isActive={page === currentPage}
+                              className="cursor-pointer"
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        )
+                      })}
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={goToNextPage}
+                          className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+                <div className="w-auto"></div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

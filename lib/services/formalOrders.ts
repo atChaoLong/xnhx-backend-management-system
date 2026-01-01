@@ -86,9 +86,24 @@ export function generateOrderNumber(): string {
 }
 
 /**
- * 获取所有正式订单
+ * 获取所有正式订单（支持分页）
  */
-export async function getFormalOrders(): Promise<FormalOrder[]> {
+export async function getFormalOrders(from: number = 0, to: number = 19): Promise<{ data: FormalOrder[], count: number }> {
+  const response = await api.get(`/api/formal-orders?from=${from}&to=${to}`)
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: '获取正式订单列表失败' }))
+    throw new Error(error.error || '获取正式订单列表失败')
+  }
+
+  const result = await response.json()
+  return { data: result.data as FormalOrder[], count: result.count || 0 }
+}
+
+/**
+ * 获取所有正式订单（不带分页，用于兼容旧代码）
+ */
+export async function getAllFormalOrders(): Promise<FormalOrder[]> {
   const response = await api.get("/api/formal-orders")
 
   if (!response.ok) {

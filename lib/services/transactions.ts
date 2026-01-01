@@ -48,9 +48,24 @@ export interface NewTransactionRecord {
 }
 
 /**
- * 获取所有异动记录
+ * 获取异动记录列表（支持分页）
  */
-export async function getTransactionRecords(): Promise<TransactionRecord[]> {
+export async function getTransactionRecords(from: number = 0, to: number = 19): Promise<{ data: TransactionRecord[], count: number }> {
+  const response = await api.get(`/api/transactions?from=${from}&to=${to}`)
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: '获取异动记录列表失败' }))
+    throw new Error(error.error || '获取异动记录列表失败')
+  }
+
+  const result = await response.json()
+  return { data: result.data as TransactionRecord[], count: result.count || 0 }
+}
+
+/**
+ * 获取所有异动记录（不带分页，用于兼容旧代码）
+ */
+export async function getAllTransactionRecords(): Promise<TransactionRecord[]> {
   const response = await api.get("/api/transactions")
 
   if (!response.ok) {
@@ -130,12 +145,14 @@ export async function deleteTransactionRecord(id: string): Promise<boolean> {
 // Service object for compatibility
 export const TransactionsService = {
   getTransactionRecords,
+  getAllTransactionRecords,
   getTransactionRecordById,
   createTransactionRecord,
   updateTransactionRecord,
   deleteTransactionRecord,
   // 向后兼容的方法名
   getTransactions: getTransactionRecords,
+  getAllTransactions: getAllTransactionRecords,
   getTransactionById: getTransactionRecordById,
   createTransaction: createTransactionRecord,
   updateTransaction: updateTransactionRecord,

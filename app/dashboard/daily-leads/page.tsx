@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -13,26 +13,61 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationPageSize,
+  PaginationInfo,
+} from "@/components/ui/pagination"
 import { Plus, Edit, Trash2, Loader2, AlertTriangle } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { DailyLeadsService, DailyLead } from "@/lib/services/dailyLeads"
 import { useToast } from "@/hooks/use-toast"
+import { usePagination } from "@/lib/hooks/usePagination"
 
 export default function DailyLeadsPage() {
   const [leads, setLeads] = useState<DailyLead[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [totalCount, setTotalCount] = useState(0)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [leadToDelete, setLeadToDelete] = useState<string | null>(null)
   const { toast } = useToast()
 
+  const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
+
+  const {
+    currentPage,
+    pageSize,
+    totalPages,
+    canGoNext,
+    canGoPrevious,
+    goToPage,
+    goToNextPage,
+    goToPreviousPage,
+    handlePageSizeChange,
+    getPageRange,
+  } = usePagination({
+    totalCount,
+    pageSize: 20,
+    onPageChange: (page, size) => fetchLeads(page, size),
+  })
+
   // 加载线索列表
-  const fetchLeads = useCallback(async () => {
+  const fetchLeads = async (page: number = 1, size: number = pageSize) => {
     try {
       setIsLoading(true)
-      const data = await DailyLeadsService.getDailyLeads()
+      const from = (page - 1) * size
+      const to = from + size - 1
+      const { data, count } = await DailyLeadsService.getDailyLeads(from, to)
       setLeads(data)
+      setTotalCount(count)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -42,11 +77,11 @@ export default function DailyLeadsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   useEffect(() => {
-    fetchLeads()
-  }, [fetchLeads])
+    fetchLeads(1, pageSize)
+  }, [])
 
   // 删除线索
   const handleDeleteClick = (id: string) => {
@@ -64,7 +99,7 @@ export default function DailyLeadsPage() {
         title: "删除成功",
         description: "线索已删除",
       })
-      fetchLeads()
+      fetchLeads(currentPage, pageSize)
       setDeleteDialogOpen(false)
       setLeadToDelete(null)
     } catch (error: any) {
@@ -94,7 +129,7 @@ export default function DailyLeadsPage() {
         title: "更新成功",
         description: `已${lead.is_added ? '标记为未添加' : '标记为已添加'}`,
       })
-      fetchLeads()
+      fetchLeads(currentPage, pageSize)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -128,10 +163,15 @@ export default function DailyLeadsPage() {
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="text-lg font-semibold">线索列表</h3>
-                <p className="text-sm text-muted-foreground">共 {leads.length} 条线索</p>
+                <PaginationInfo
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalCount={totalCount}
+                  pageSize={pageSize}
+                />
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={fetchLeads} disabled={isLoading}>
+                <Button variant="outline" onClick={() => fetchLeads(currentPage, pageSize)} disabled={isLoading}>
                   刷新
                 </Button>
                 <Link href="/dashboard/daily-leads/new">
@@ -214,6 +254,61 @@ export default function DailyLeadsPage() {
                 </TableBody>
               </Table>
             </div>
+
+            {totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-between">
+                <PaginationInfo
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalCount={totalCount}
+                  pageSize={pageSize}
+                />
+                <div className="flex items-center gap-4">
+                  <PaginationPageSize
+                    pageSize={pageSize}
+                    onPageSizeChange={handlePageSizeChange}
+                    options={PAGE_SIZE_OPTIONS}
+                  />
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={goToPreviousPage}
+                          className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                      {getPageRange().map((page, index) => {
+                        if (page === -1) {
+                          return (
+                            <PaginationItem key={`ellipsis-${index}`}>
+                              <PaginationEllipsis />
+                            </PaginationItem>
+                          )
+                        }
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              onClick={() => goToPage(page)}
+                              isActive={page === currentPage}
+                              className="cursor-pointer"
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        )
+                      })}
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={goToNextPage}
+                          className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+                <div className="w-auto"></div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

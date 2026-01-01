@@ -85,9 +85,24 @@ export interface TeacherCandidate {
 export type NewTeacherCandidate = Omit<TeacherCandidate, 'id' | 'created_at' | 'updated_at'>
 
 /**
- * 获取所有老师面试
+ * 获取老师面试列表（支持分页）
  */
-export async function getTeacherCandidates(): Promise<TeacherCandidate[]> {
+export async function getTeacherCandidates(from: number = 0, to: number = 19): Promise<{ data: TeacherCandidate[], count: number }> {
+  const response = await api.get(`/api/teacher-candidates?from=${from}&to=${to}`)
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: '获取老师面试列表失败' }))
+    throw new Error(error.error || '获取老师面试列表失败')
+  }
+
+  const result = await response.json()
+  return { data: result.data as TeacherCandidate[], count: result.count || 0 }
+}
+
+/**
+ * 获取所有老师面试（不带分页，用于兼容旧代码）
+ */
+export async function getAllTeacherCandidates(): Promise<TeacherCandidate[]> {
   const response = await api.get("/api/teacher-candidates")
 
   if (!response.ok) {
@@ -169,6 +184,7 @@ export async function deleteTeacherCandidate(id: string): Promise<boolean> {
  */
 export const TeacherCandidatesService = {
   getTeacherCandidates,
+  getAllTeacherCandidates,
   getTeacherCandidateById,
   createTeacherCandidate,
   updateTeacherCandidate,

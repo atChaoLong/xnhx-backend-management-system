@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -13,26 +13,61 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationPageSize,
+  PaginationInfo,
+} from "@/components/ui/pagination"
 import { Plus, Edit, Trash2, Loader2, AlertTriangle } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { TransactionsService } from "@/lib/services/transactions"
 import { useToast } from "@/hooks/use-toast"
+import { usePagination } from "@/lib/hooks/usePagination"
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [totalCount, setTotalCount] = useState(0)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null)
   const { toast } = useToast()
 
+  const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
+
+  const {
+    currentPage,
+    pageSize,
+    totalPages,
+    canGoNext,
+    canGoPrevious,
+    goToPage,
+    goToNextPage,
+    goToPreviousPage,
+    handlePageSizeChange,
+    getPageRange,
+  } = usePagination({
+    totalCount,
+    pageSize: 20,
+    onPageChange: (page, size) => fetchTransactions(page, size),
+  })
+
   // 加载异动记录列表
-  const fetchTransactions = useCallback(async () => {
+  const fetchTransactions = async (page: number = 1, size: number = pageSize) => {
     try {
       setIsLoading(true)
-      const data = await TransactionsService.getTransactions()
+      const from = (page - 1) * size
+      const to = from + size - 1
+      const { data, count } = await TransactionsService.getTransactions(from, to)
       setTransactions(data)
+      setTotalCount(count)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -42,11 +77,11 @@ export default function TransactionsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   useEffect(() => {
-    fetchTransactions()
-  }, [fetchTransactions])
+    fetchTransactions(1, pageSize)
+  }, [])
 
   // 删除异动记录
   const handleDeleteClick = (id: string) => {
@@ -64,7 +99,7 @@ export default function TransactionsPage() {
         title: "删除成功",
         description: "异动记录已删除",
       })
-      fetchTransactions()
+      fetchTransactions(currentPage, pageSize)
       setDeleteDialogOpen(false)
       setTransactionToDelete(null)
     } catch (error: any) {
@@ -123,7 +158,7 @@ export default function TransactionsPage() {
         title: "更新成功",
         description: "状态已更新",
       })
-      fetchTransactions()
+      fetchTransactions(currentPage, pageSize)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -157,10 +192,15 @@ export default function TransactionsPage() {
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="text-lg font-semibold">异动记录列表</h3>
-                <p className="text-sm text-muted-foreground">共 {transactions.length} 条异动记录</p>
+                <PaginationInfo
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalCount={totalCount}
+                  pageSize={pageSize}
+                />
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={fetchTransactions} disabled={isLoading}>
+                <Button variant="outline" onClick={() => fetchTransactions(currentPage, pageSize)} disabled={isLoading}>
                   刷新
                 </Button>
                 <Link href="/dashboard/transactions/new">
@@ -237,6 +277,61 @@ export default function TransactionsPage() {
                 </TableBody>
               </Table>
             </div>
+
+            {totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-between">
+                <PaginationInfo
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalCount={totalCount}
+                  pageSize={pageSize}
+                />
+                <div className="flex items-center gap-4">
+                  <PaginationPageSize
+                    pageSize={pageSize}
+                    onPageSizeChange={handlePageSizeChange}
+                    options={PAGE_SIZE_OPTIONS}
+                  />
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={goToPreviousPage}
+                          className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                      {getPageRange().map((page, index) => {
+                        if (page === -1) {
+                          return (
+                            <PaginationItem key={`ellipsis-${index}`}>
+                              <PaginationEllipsis />
+                            </PaginationItem>
+                          )
+                        }
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              onClick={() => goToPage(page)}
+                              isActive={page === currentPage}
+                              className="cursor-pointer"
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        )
+                      })}
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={goToNextPage}
+                          className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+                <div className="w-auto"></div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

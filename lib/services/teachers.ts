@@ -57,9 +57,24 @@ export interface Teacher {
 export type NewTeacher = Omit<Teacher, 'id' | 'created_at' | 'updated_at'>
 
 /**
- * 获取所有老师
+ * 获取老师列表（支持分页）
  */
-export async function getTeachers(): Promise<Teacher[]> {
+export async function getTeachers(from: number = 0, to: number = 19): Promise<{ data: Teacher[], count: number }> {
+  const response = await api.get(`/api/teachers?from=${from}&to=${to}`)
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: '获取老师列表失败' }))
+    throw new Error(error.error || '获取老师列表失败')
+  }
+
+  const result = await response.json()
+  return { data: result.data as Teacher[], count: result.count || 0 }
+}
+
+/**
+ * 获取所有老师（不带分页，用于兼容旧代码）
+ */
+export async function getAllTeachers(): Promise<Teacher[]> {
   const response = await api.get("/api/teachers")
 
   if (!response.ok) {
@@ -141,6 +156,7 @@ export async function deleteTeacher(id: string): Promise<boolean> {
  */
 export const TeachersService = {
   getTeachers,
+  getAllTeachers,
   getTeacherById,
   createTeacher,
   updateTeacher,

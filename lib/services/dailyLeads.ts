@@ -35,9 +35,24 @@ export interface NewDailyLead {
 }
 
 /**
- * 获取所有每日线索
+ * 获取每日线索列表（支持分页）
  */
-export async function getDailyLeads(): Promise<DailyLead[]> {
+export async function getDailyLeads(from: number = 0, to: number = 19): Promise<{ data: DailyLead[], count: number }> {
+  const response = await api.get(`/api/daily-leads?from=${from}&to=${to}`)
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: '获取每日线索列表失败' }))
+    throw new Error(error.error || '获取每日线索列表失败')
+  }
+
+  const result = await response.json()
+  return { data: result.data as DailyLead[], count: result.count || 0 }
+}
+
+/**
+ * 获取所有每日线索（不带分页，用于兼容旧代码）
+ */
+export async function getAllDailyLeads(): Promise<DailyLead[]> {
   const response = await api.get("/api/daily-leads")
 
   if (!response.ok) {
@@ -119,6 +134,7 @@ export async function deleteDailyLead(id: string): Promise<boolean> {
  */
 export const DailyLeadsService = {
   getDailyLeads,
+  getAllDailyLeads,
   getDailyLeadById,
   createDailyLead,
   updateDailyLead,

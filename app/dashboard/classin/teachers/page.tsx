@@ -5,8 +5,20 @@ import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationPageSize,
+  PaginationInfo,
+} from "@/components/ui/pagination"
 import { Loader2, RefreshCw } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { usePagination } from "@/lib/hooks/usePagination"
 
 interface ClassInTeacher {
   uid: number
@@ -21,16 +33,38 @@ interface ClassInTeacher {
   sync_time?: string
 }
 
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
+
 export default function ClassInTeachersPage() {
   const [teachers, setTeachers] = useState<ClassInTeacher[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [totalCount, setTotalCount] = useState(0)
   const { toast } = useToast()
 
-  // 加载老师数据
-  const fetchTeachers = async () => {
+  const {
+    currentPage,
+    pageSize,
+    totalPages,
+    canGoNext,
+    canGoPrevious,
+    goToPage,
+    goToNextPage,
+    goToPreviousPage,
+    handlePageSizeChange,
+    getPageRange,
+  } = usePagination({
+    totalCount,
+    pageSize: 20,
+    onPageChange: (page, size) => fetchTeachers(page, size),
+  })
+
+  const fetchTeachers = async (page: number = 1, size: number = pageSize) => {
     try {
       setIsLoading(true)
-      const response = await fetch('/api/classin/teachers')
+      const from = (page - 1) * size
+      const to = from + size - 1
+
+      const response = await fetch(`/api/classin/teachers?from=${from}&to=${to}`)
 
       if (!response.ok) {
         throw new Error('加载失败')
@@ -38,6 +72,7 @@ export default function ClassInTeachersPage() {
 
       const result = await response.json()
       setTeachers(result.data || [])
+      setTotalCount(result.count || 0)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -50,19 +85,8 @@ export default function ClassInTeachersPage() {
   }
 
   useEffect(() => {
-    fetchTeachers()
+    fetchTeachers(1, pageSize)
   }, [])
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-col h-full">
-        <Header title="ClassIn 老师" description="查看 ClassIn 平台的老师数据" />
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="flex flex-col h-full">
@@ -77,11 +101,16 @@ export default function ClassInTeachersPage() {
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="text-lg font-semibold">老师列表</h3>
-                <p className="text-sm text-muted-foreground">共 {teachers.length} 名老师</p>
+                <PaginationInfo
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalCount={totalCount}
+                  pageSize={pageSize}
+                />
               </div>
               <Button
                 variant="outline"
-                onClick={fetchTeachers}
+                onClick={() => fetchTeachers(currentPage, pageSize)}
                 disabled={isLoading}
               >
                 <RefreshCw className="mr-2 h-4 w-4" />
@@ -104,7 +133,14 @@ export default function ClassInTeachersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {teachers.length === 0 ? (
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin inline mr-2" />
+                        加载中...
+                      </TableCell>
+                    </TableRow>
+                  ) : teachers.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         暂无数据
@@ -139,6 +175,61 @@ export default function ClassInTeachersPage() {
                 </TableBody>
               </Table>
             </div>
+
+            {totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-between">
+                <PaginationInfo
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalCount={totalCount}
+                  pageSize={pageSize}
+                />
+                <div className="flex items-center gap-4">
+                  <PaginationPageSize
+                    pageSize={pageSize}
+                    onPageSizeChange={handlePageSizeChange}
+                    options={PAGE_SIZE_OPTIONS}
+                  />
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={goToPreviousPage}
+                          className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                      {getPageRange().map((page, index) => {
+                        if (page === -1) {
+                          return (
+                            <PaginationItem key={`ellipsis-${index}`}>
+                              <PaginationEllipsis />
+                            </PaginationItem>
+                          )
+                        }
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              onClick={() => goToPage(page)}
+                              isActive={page === currentPage}
+                              className="cursor-pointer"
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        )
+                      })}
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={goToNextPage}
+                          className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+                <div className="w-auto"></div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

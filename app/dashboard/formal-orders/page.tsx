@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -13,6 +13,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationPageSize,
+  PaginationInfo,
+} from "@/components/ui/pagination"
 import { Plus, Edit, Trash2, Loader2, AlertTriangle, CheckCircle } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
@@ -20,24 +31,31 @@ import { useRouter } from "next/navigation"
 import { FormalOrdersService, FormalOrder } from "@/lib/services/formalOrders"
 import { useToast } from "@/hooks/use-toast"
 import { usePermission } from "@/lib/hooks/usePermission"
+import { usePagination } from "@/lib/hooks/usePagination"
 
 export default function FormalOrdersPage() {
   const router = useRouter()
   const { formalOrders: formalOrdersPerm } = usePermission()
   const [orders, setOrders] = useState<FormalOrder[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [totalCount, setTotalCount] = useState(0)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
   const [isCreatingClass, setIsCreatingClass] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null)
   const { toast } = useToast()
 
+  const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
+
   // 加载正式订单列表
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = async (page: number = 1, size: number = pageSize) => {
     try {
       setIsLoading(true)
-      const data = await FormalOrdersService.getFormalOrders()
+      const from = (page - 1) * size
+      const to = from + size - 1
+      const { data, count } = await FormalOrdersService.getFormalOrders(from, to)
       setOrders(data)
+      setTotalCount(count)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -47,11 +65,30 @@ export default function FormalOrdersPage() {
     } finally {
       setIsLoading(false)
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }
+
+  const {
+    currentPage,
+    pageSize,
+    totalPages,
+    canGoNext,
+    canGoPrevious,
+    goToPage,
+    goToNextPage,
+    goToPreviousPage,
+    handlePageSizeChange,
+    getPageRange,
+  } = usePagination({
+    totalCount,
+    pageSize: 20,
+    onPageChange: (page, size) => {
+      fetchOrders(page, size)
+    },
+  })
 
   useEffect(() => {
-    fetchOrders()
-  }, [fetchOrders])
+    fetchOrders(1, pageSize)
+  }, [])
 
   // 删除正式订单
   const handleDeleteClick = (id: string) => {
@@ -246,10 +283,15 @@ export default function FormalOrdersPage() {
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="text-lg font-semibold">正式订单列表</h3>
-                <p className="text-sm text-muted-foreground">共 {orders.length} 个正式订单</p>
+                <PaginationInfo
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalCount={totalCount}
+                  pageSize={pageSize}
+                />
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={fetchOrders} disabled={isLoading}>
+                <Button variant="outline" onClick={() => fetchOrders(currentPage, pageSize)} disabled={isLoading}>
                   刷新
                 </Button>
                 <Link href="/dashboard/formal-orders/new">
@@ -279,7 +321,14 @@ export default function FormalOrdersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {orders.length === 0 ? (
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={11} className="text-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin inline mr-2" />
+                        加载中...
+                      </TableCell>
+                    </TableRow>
+                  ) : orders.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                         暂无数据，点击"新增正式订单"开始添加
@@ -356,6 +405,61 @@ export default function FormalOrdersPage() {
                 </TableBody>
               </Table>
             </div>
+
+            {totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-between">
+                <PaginationInfo
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalCount={totalCount}
+                  pageSize={pageSize}
+                />
+                <div className="flex items-center gap-4">
+                  <PaginationPageSize
+                    pageSize={pageSize}
+                    onPageSizeChange={handlePageSizeChange}
+                    options={PAGE_SIZE_OPTIONS}
+                  />
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={goToPreviousPage}
+                          className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                      {getPageRange().map((page, index) => {
+                        if (page === -1) {
+                          return (
+                            <PaginationItem key={`ellipsis-${index}`}>
+                              <PaginationEllipsis />
+                            </PaginationItem>
+                          )
+                        }
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              onClick={() => goToPage(page)}
+                              isActive={page === currentPage}
+                              className="cursor-pointer"
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        )
+                      })}
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={goToNextPage}
+                          className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+                <div className="w-auto"></div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

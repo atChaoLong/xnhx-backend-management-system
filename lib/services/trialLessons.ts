@@ -81,9 +81,24 @@ export interface NewTrialLesson {
 }
 
 /**
- * 获取所有试听课程
+ * 获取所有试听课程（支持分页）
  */
-export async function getTrialLessons(): Promise<TrialLesson[]> {
+export async function getTrialLessons(from: number = 0, to: number = 19): Promise<{ data: TrialLesson[], count: number }> {
+  const response = await api.get(`/api/trial-lessons?from=${from}&to=${to}`)
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: '获取试听课程列表失败' }))
+    throw new Error(error.error || '获取试听课程列表失败')
+  }
+
+  const result = await response.json()
+  return { data: result.data as TrialLesson[], count: result.count || 0 }
+}
+
+/**
+ * 获取所有试听课程（不带分页，用于兼容旧代码）
+ */
+export async function getAllTrialLessons(): Promise<TrialLesson[]> {
   const response = await api.get("/api/trial-lessons")
 
   if (!response.ok) {

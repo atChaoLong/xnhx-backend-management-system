@@ -63,9 +63,24 @@ export interface NewLead {
 
 export const LeadsService = {
   /**
-   * 获取所有线索
+   * 获取所有线索（支持分页）
    */
-  async getLeads(): Promise<Lead[]> {
+  async getLeads(from: number = 0, to: number = 19): Promise<{ data: Lead[], count: number }> {
+    const response = await api.get(`/api/leads?from=${from}&to=${to}`)
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: '获取线索失败' }))
+      throw new Error(error.error || '获取线索失败')
+    }
+
+    const result = await response.json()
+    return { data: result.data as Lead[], count: result.count || 0 }
+  },
+
+  /**
+   * 获取所有线索（不带分页，用于兼容旧代码）
+   */
+  async getAllLeads(): Promise<Lead[]> {
     const response = await api.get('/api/leads')
 
     if (!response.ok) {
