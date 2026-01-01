@@ -182,8 +182,7 @@ export default function ClassInStudentsPage() {
             </div>
 
             {/* 分页 */}
-            {totalPages > 1 && (
-              <div className="mt-6 flex items-center justify-between">
+            <div className="mt-6 flex items-center justify-between">
                 {/* 左侧：统计信息 */}
                 <PaginationInfo
                   currentPage={currentPage}
@@ -243,8 +242,7 @@ export default function ClassInStudentsPage() {
 
                 {/* 右侧：占位，保持布局平衡 */}
                 <div className="w-auto"></div>
-              </div>
-            )}
+                    </div>
           </CardContent>
         </Card>
       </div>

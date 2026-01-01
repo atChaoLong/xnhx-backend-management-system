@@ -428,60 +428,58 @@ export default function LeadsPage() {
               </Table>
             </div>
 
-            {totalPages > 1 && (
-              <div className="mt-6 flex items-center justify-between">
-                <PaginationInfo
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  totalCount={totalCount}
+            <div className="mt-6 flex items-center justify-between">
+              <PaginationInfo
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalCount={totalCount}
+                pageSize={pageSize}
+              />
+              <div className="flex items-center gap-4">
+                <PaginationPageSize
                   pageSize={pageSize}
+                  onPageSizeChange={handlePageSizeChange}
+                  options={PAGE_SIZE_OPTIONS}
                 />
-                <div className="flex items-center gap-4">
-                  <PaginationPageSize
-                    pageSize={pageSize}
-                    onPageSizeChange={handlePageSizeChange}
-                    options={PAGE_SIZE_OPTIONS}
-                  />
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious
-                          onClick={goToPreviousPage}
-                          className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                        />
-                      </PaginationItem>
-                      {getPageRange().map((page, index) => {
-                        if (page === -1) {
-                          return (
-                            <PaginationItem key={`ellipsis-${index}`}>
-                              <PaginationEllipsis />
-                            </PaginationItem>
-                          )
-                        }
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={goToPreviousPage}
+                        className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                    {getPageRange().map((page, index) => {
+                      if (page === -1) {
                         return (
-                          <PaginationItem key={page}>
-                            <PaginationLink
-                              onClick={() => goToPage(page)}
-                              isActive={page === currentPage}
-                              className="cursor-pointer"
-                            >
-                              {page}
-                            </PaginationLink>
+                          <PaginationItem key={`ellipsis-${index}`}>
+                            <PaginationEllipsis />
                           </PaginationItem>
                         )
-                      })}
-                      <PaginationItem>
-                        <PaginationNext
-                          onClick={goToNextPage}
-                          className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                </div>
-                <div className="w-auto"></div>
+                      }
+                      return (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            onClick={() => goToPage(page)}
+                            isActive={page === currentPage}
+                            className="cursor-pointer"
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      )
+                    })}
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={goToNextPage}
+                        className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
               </div>
-            )}
+              <div className="w-auto"></div>
+            </div>
           </CardContent>
         </Card>
       </div>

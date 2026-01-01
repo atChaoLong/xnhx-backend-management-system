@@ -343,8 +343,7 @@ export default function TeachersPage() {
               </Table>
             </div>
 
-            {totalPages > 1 && (
-              <div className="mt-6 flex items-center justify-between">
+            <div className="mt-6 flex items-center justify-between">
                 <PaginationInfo
                   currentPage={currentPage}
                   totalPages={totalPages}
@@ -395,8 +394,7 @@ export default function TeachersPage() {
                   </Pagination>
                 </div>
                 <div className="w-auto"></div>
-              </div>
-            )}
+                    </div>
           </CardContent>
         </Card>
       </div>
