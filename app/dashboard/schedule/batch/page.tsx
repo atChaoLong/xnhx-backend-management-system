@@ -41,16 +41,21 @@ export default function BatchSchedulePage() {
   // 订单数据
   const [selectedOrderId, setSelectedOrderId] = useState("")
   const [orders, setOrders] = useState<any[]>([])
+  const [selectedOrder, setSelectedOrder] = useState<any>(null)
 
   // 字典数据
   const [subjects, setSubjects] = useState<any[]>([])
 
   // 排课列表
   const [scheduleList, setScheduleList] = useState<ScheduleItem[]>([])
+  const [previewList, setPreviewList] = useState<ScheduleItem[]>([])
 
   // 全选
   const [selectAll, setSelectAll] = useState(false)
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
+
+  // UI状态
+  const [showPreview, setShowPreview] = useState(false)
 
   // 加载订单和字典数据
   useEffect(() => {
@@ -76,19 +81,19 @@ export default function BatchSchedulePage() {
     loadData()
   }, [])
 
-  // 从订单生成排课列表
-  const generateScheduleFromOrder = async (orderId: string) => {
+  // 选择订单时预览排课信息
+  const handleOrderChange = async (orderId: string) => {
+    setSelectedOrderId(orderId)
+    setShowPreview(false)
+    setPreviewList([])
+    setScheduleList([])
+
     if (!orderId) {
-      toast({
-        variant: "destructive",
-        title: "请选择订单",
-        description: "请先选择要排课的正式订单",
-      })
+      setSelectedOrder(null)
       return
     }
 
     try {
-      setIsLoading(true)
       const order = orders.find(o => o.id === orderId)
       if (!order) {
         throw new Error("订单不存在")
@@ -97,25 +102,23 @@ export default function BatchSchedulePage() {
       // 获取学生信息
       const student = await StudentsService.getStudentById(order.student_id)
 
-      // 计算需要排课的数量
+      setSelectedOrder({ ...order, student_name: student.student_name })
+
+      // 生成预览列表（不实际应用到scheduleList）
       const totalSessions = order.total_sessions || 1
       const sessionDuration = order.session_duration || 60
-
-      // 生成排课列表
-      const newScheduleList: ScheduleItem[] = []
+      const preview: ScheduleItem[] = []
       const now = new Date()
 
       for (let i = 0; i < totalSessions; i++) {
-        // 默认每周一次，从下周开始
         const scheduleDate = new Date(now)
         scheduleDate.setDate(now.getDate() + 7 + (i * 7))
 
-        // 默认时间：下午2点-3点
         const startTime = "14:00"
         const endTime = `${14 + Math.floor(sessionDuration / 60)}:${String(sessionDuration % 60).padStart(2, '0')}`
 
-        newScheduleList.push({
-          id: `${orderId}-${i}-${Date.now()}`,
+        preview.push({
+          id: `preview-${orderId}-${i}`,
           studentId: order.student_id,
           studentName: student.student_name || "未知学生",
           teacherId: order.teacher_names?.[0] || "",
@@ -128,23 +131,41 @@ export default function BatchSchedulePage() {
         })
       }
 
-      setScheduleList(newScheduleList)
-      setSelectedItems(new Set())
-      setSelectAll(false)
-
-      toast({
-        title: "生成成功",
-        description: `已生成 ${totalSessions} 节课程的排课列表`,
-      })
+      setPreviewList(preview)
+      setShowPreview(true)
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "生成失败",
-        description: error.message || "无法生成排课列表",
+        title: "加载失败",
+        description: error.message || "无法加载订单信息",
       })
-    } finally {
-      setIsLoading(false)
     }
+  }
+
+  // 确认生成排课列表
+  const confirmGenerateSchedule = () => {
+    if (previewList.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "没有可生成的课程",
+        description: "请先选择订单查看预览",
+      })
+      return
+    }
+
+    // 将预览列表转换为实际的排课列表（生成新的ID）
+    const actualScheduleList = previewList.map((item, index) => ({
+      ...item,
+      id: `schedule-${Date.now()}-${index}`,
+    }))
+
+    setScheduleList(actualScheduleList)
+    setShowPreview(false)
+
+    toast({
+      title: "生成成功",
+      description: `已生成 ${actualScheduleList.length} 节课程的排课列表`,
+    })
   }
 
   // 手动添加单节课程
@@ -271,53 +292,138 @@ export default function BatchSchedulePage() {
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold mb-4">1. 选择正式订单</h3>
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="order">选择订单</Label>
-                    <select
-                      id="order"
-                      value={selectedOrderId}
-                      onChange={(e) => setSelectedOrderId(e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                    >
-                      <option value="">请选择正式订单</option>
-                      {orders.map((order) => (
-                        <option key={order.id} value={order.id}>
-                          {order.order_number} - {order.student_name} ({order.subjects?.join(', ')})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="flex items-end">
-                    <Button
-                      onClick={() => generateScheduleFromOrder(selectedOrderId)}
-                      disabled={!selectedOrderId}
-                      className="w-full"
-                    >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      生成排课列表
-                    </Button>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="order">选择订单</Label>
+                  <select
+                    id="order"
+                    value={selectedOrderId}
+                    onChange={(e) => handleOrderChange(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                  >
+                    <option value="">请选择正式订单</option>
+                    {orders.map((order) => (
+                      <option key={order.id} value={order.id}>
+                        {order.order_number} - {order.student_name} ({order.subjects?.join(', ')})
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                {selectedOrderId && (
-                  <div className="mt-4 p-4 bg-muted rounded-lg">
-                    <p className="text-sm text-muted-foreground">
-                      提示：选择订单后会自动生成排课列表，您可以对每节课进行调整
-                    </p>
+                {selectedOrder && (
+                  <div className="mt-4 p-4 bg-muted rounded-lg space-y-2">
+                    <h4 className="font-medium text-sm">订单信息</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">学生姓名：</span>
+                        <span className="font-medium">{selectedOrder.student_name}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">总课时：</span>
+                        <span className="font-medium">{selectedOrder.total_sessions} 节</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">课时时长：</span>
+                        <span className="font-medium">{selectedOrder.session_duration} 分钟</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">科目：</span>
+                        <span className="font-medium">{selectedOrder.subjects?.join(', ')}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">老师：</span>
+                        <span className="font-medium">{selectedOrder.teacher_names?.join(', ')}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">排课模式：</span>
+                        <span className="font-medium">{selectedOrder.fixed_mode}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">课程频次：</span>
+                        <span className="font-medium">{selectedOrder.frequency}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">订单号：</span>
+                        <span className="font-medium">{selectedOrder.order_number}</span>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
             </CardContent>
           </Card>
 
+          {/* 预览区 */}
+          {showPreview && previewList.length > 0 && (
+            <Card className="border-blue-200 bg-blue-50/50">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold">2. 排课预览</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      将生成 {previewList.length} 节课程，默认每周一次，从下周开始
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowPreview(false)
+                        setPreviewList([])
+                      }}
+                    >
+                      取消
+                    </Button>
+                    <Button
+                      onClick={confirmGenerateSchedule}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      确认生成
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="rounded-md border bg-white">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-16">序号</TableHead>
+                        <TableHead>日期</TableHead>
+                        <TableHead>时间段</TableHead>
+                        <TableHead>学生</TableHead>
+                        <TableHead>老师</TableHead>
+                        <TableHead>科目</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {previewList.map((item, index) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">{index + 1}</TableCell>
+                          <TableCell>{item.date}</TableCell>
+                          <TableCell>{item.startTime} - {item.endTime}</TableCell>
+                          <TableCell>{item.studentName}</TableCell>
+                          <TableCell>{item.teacherName}</TableCell>
+                          <TableCell>{item.subject}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <div className="mt-4 p-3 bg-blue-100 rounded-lg text-sm text-blue-800">
+                  💡 提示：确认生成后，您可以编辑每节课的日期、时间、教室等信息
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* 排课列表区 */}
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">
-                  2. 排课列表
+          {scheduleList.length > 0 && (
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">
+                    {showPreview ? "3. 排课列表" : "2. 排课列表"}
                   {scheduleList.length > 0 && (
                     <span className="ml-2 text-sm font-normal text-muted-foreground">
                       (共 {scheduleList.length} 节课)
@@ -459,6 +565,7 @@ export default function BatchSchedulePage() {
               )}
             </CardContent>
           </Card>
+          )}
 
           {/* 提交按钮区 */}
           {scheduleList.length > 0 && (
