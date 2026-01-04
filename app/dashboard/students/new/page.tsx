@@ -151,9 +151,14 @@ export default function NewStudentPage() {
     setIsRegisteringClassIn(true)
 
     try {
+      const token = localStorage.getItem('supabase.auth.token')
+      
       const response = await fetch('/api/students/register-classin', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify({
           studentId,
           telephone: formData.parent_phone,
