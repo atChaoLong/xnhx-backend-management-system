@@ -10,7 +10,6 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2 } from "lucide-react"
 import { TeacherCandidatesService, NewTeacherCandidate } from "@/lib/services/teacherCandidates"
-import { DailyLeadsService, DailyLead } from "@/lib/services/dailyLeads"
 import { getDictionaryItems, DictionaryItem } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
@@ -19,8 +18,6 @@ export default function NewTeacherCandidatePage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [dailyLeads, setDailyLeads] = useState<DailyLead[]>([])
-  const [isLoadingLeads, setIsLoadingLeads] = useState(true)
   const [gradeLevels, setGradeLevels] = useState<DictionaryItem[]>([])
   const [subjects, setSubjects] = useState<DictionaryItem[]>([])
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
@@ -29,7 +26,6 @@ export default function NewTeacherCandidatePage() {
     // 基本信息
     name: "",
     wechat_id: "",
-    daily_lead_id: "",
     resume_url: "",
     profile_photo_url: "",
 
@@ -59,23 +55,6 @@ export default function NewTeacherCandidatePage() {
     can_teach_graduation_class: false,
   })
 
-  // 加载每日线索列表
-  useEffect(() => {
-    const loadDailyLeads = async () => {
-      try {
-        setIsLoadingLeads(true)
-        const data = await DailyLeadsService.getDailyLeads()
-        setDailyLeads(data)
-      } catch (error: any) {
-        console.error("加载每日线索失败:", error)
-      } finally {
-        setIsLoadingLeads(false)
-      }
-    }
-
-    loadDailyLeads()
-  }, [])
-
   // 加载字典数据
   useEffect(() => {
     const loadDictionaries = async () => {
@@ -93,19 +72,6 @@ export default function NewTeacherCandidatePage() {
 
     loadDictionaries()
   }, [])
-
-  // 处理每日线索选择
-  const handleLeadSelect = (leadId: string) => {
-    const selectedLead = dailyLeads.find(lead => lead.id === leadId)
-    if (selectedLead) {
-      setFormData((prev) => ({
-        ...prev,
-        daily_lead_id: leadId,
-        name: selectedLead.name,
-        wechat_id: selectedLead.wechat_number,
-      }))
-    }
-  }
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -150,7 +116,6 @@ export default function NewTeacherCandidatePage() {
       const payload: NewTeacherCandidate = {
         name: formData.name.trim(),
         wechat_id: formData.wechat_id.trim(),
-        daily_lead_id: formData.daily_lead_id || undefined,
         resume_url: formData.resume_url.trim() || undefined,
         profile_photo_url: formData.profile_photo_url.trim() || undefined,
         grade_level: formData.grade_level || undefined,
@@ -216,24 +181,6 @@ export default function NewTeacherCandidatePage() {
         <Card className="max-w-3xl mx-auto">
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* 每日线索选择 */}
-              <div className="space-y-2">
-                <Label htmlFor="daily_lead_id">从每日线索选择（可选）</Label>
-                <select
-                  id="daily_lead_id"
-                  value={formData.daily_lead_id}
-                  onChange={(e) => handleLeadSelect(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                >
-                  <option value="">请选择每日线索</option>
-                  {dailyLeads.map((lead) => (
-                    <option key={lead.id} value={lead.id}>
-                      {lead.name} - {lead.wechat_number} ({lead.assigned_person})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               {/* 基本信息 */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">基本信息</h3>
