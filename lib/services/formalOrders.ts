@@ -183,6 +183,7 @@ export async function deleteFormalOrder(id: string): Promise<boolean> {
 // Service object for compatibility
 export const FormalOrdersService = {
   getFormalOrders,
+  getAllFormalOrders,
   getFormalOrderById,
   createFormalOrder,
   updateFormalOrder,
