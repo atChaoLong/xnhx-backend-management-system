@@ -128,6 +128,7 @@ const navigationGroups: MenuGroup[] = [
       { name: "学生", href: "/dashboard/classin/students", icon: Users },
       { name: "老师", href: "/dashboard/classin/teachers", icon: GraduationCap },
       { name: "班级", href: "/dashboard/classin/classes", icon: Monitor },
+      { name: "从订单创建班级", href: "/dashboard/classin/classes/from-order", icon: Users },
       { name: "课堂", href: "/dashboard/classin", icon: Video },
     ]
   }
