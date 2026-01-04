@@ -132,8 +132,8 @@ export default function EditFormalOrderPage() {
         getDictionaryItems('fixed_mode'),
         getDictionaryItems('class_frequency'),
         getDictionaryItems('subject'),
-        TeachersService.getTeachers(),
-        StudentsService.getStudents(),
+        TeachersService.getAllTeachers(),
+        StudentsService.getAllStudents(),
       ])
       setOrderTypes(orderTypeData)
       setPaymentChannels(paymentChannelData)

@@ -52,7 +52,7 @@ export default function NewTransactionPage() {
     const loadData = async () => {
       const [orderTypeData, studentsData] = await Promise.all([
         getDictionaryItems('payment_type'),
-        StudentsService.getStudents(),
+        StudentsService.getAllStudents(),
       ])
       setOrderTypes(orderTypeData)
       setStudents(studentsData)
