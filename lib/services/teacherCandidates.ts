@@ -78,7 +78,15 @@ export interface TeacherCandidate {
   current_rate?: number
   approved_hourly_rate?: number
 
-  // 候选人状态
+  // 招聘流程
+  recruitment_step?: 'scheduling' | 'interview_video' | 'teaching_review' | 'salary_negotiation' | 'final_entry' | 'rejected'
+  recruitment_status?: 'waiting_contact' | 'scheduled' | 'video_uploaded' | 'pending_teaching_review' | 'teaching_review_approved' | 'pending_salary' | 'in_teacher_pool' | 'review_rejected'
+  video_reviewed_at?: string
+  reviewed_by?: string
+  salary_confirmed_at?: string
+  salary_confirmed_by?: string
+
+  // 后期使用（目前未启用）
   candidate_status?: 'waiting_contact' | 'contacted' | 'interviewing' | 'pending_review' | 'pending_entry' | 'review_rejected' | 'can_trial_lesson' | 'trial_review_pending' | 'can_formal' | 'pause_scheduling' | 'disabled'
 }
 
