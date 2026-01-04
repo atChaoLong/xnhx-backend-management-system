@@ -156,20 +156,6 @@ export default function NewTeacherCandidatePage() {
     }
   }
 
-  if (isLoadingLeads) {
-    return (
-      <div className="flex flex-col h-full">
-        <Header
-          title="新增老师面试"
-          description="填写老师面试信息（核心字段）"
-        />
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="flex flex-col h-full">
       <Header
