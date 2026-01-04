@@ -15,7 +15,7 @@ export interface TeacherCandidate {
 
   // 基本信息
   name: string
-  wechat_id: string
+  wechat_id?: string
   daily_lead_id?: string
   resume_url?: string
   profile_photo_url?: string
@@ -77,6 +77,9 @@ export interface TeacherCandidate {
   // 薪资信息
   current_rate?: number
   approved_hourly_rate?: number
+
+  // 候选人状态
+  candidate_status?: 'waiting_contact' | 'contacted' | 'interviewing' | 'pending_review' | 'pending_entry' | 'review_rejected' | 'can_trial_lesson' | 'trial_review_pending' | 'can_formal' | 'pause_scheduling' | 'disabled'
 }
 
 /**

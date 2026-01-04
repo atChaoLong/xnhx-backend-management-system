@@ -2,17 +2,15 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
-import { Loader2 } from "lucide-react"
+import { Loader2, X, Upload } from "lucide-react"
 import { TeacherCandidatesService, NewTeacherCandidate } from "@/lib/services/teacherCandidates"
 import { getDictionaryItems, DictionaryItem } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
-import Link from "next/link"
+import { uploadFile } from "@/lib/supabase-client"
 
 export default function NewTeacherCandidatePage() {
   const router = useRouter()
@@ -54,6 +52,9 @@ export default function NewTeacherCandidatePage() {
     teacher_level: "",
     can_teach_graduation_class: false,
   })
+
+  const [resumeFile, setResumeFile] = useState<File | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
 
   // 加载字典数据
   useEffect(() => {
@@ -101,22 +102,46 @@ export default function NewTeacherCandidatePage() {
       return
     }
 
-    if (!formData.wechat_id.trim()) {
+    if (!resumeFile) {
       toast({
         variant: "destructive",
         title: "验证失败",
-        description: "请输入微信号",
+        description: "请上传简历",
       })
       return
     }
 
+
+
     setIsSubmitting(true)
 
     try {
+      let resume_url: string | undefined = undefined
+
+      // 如果有上传文件，则上传到存储服务
+      if (resumeFile) {
+        try {
+          setIsUploading(true)
+          resume_url = await uploadFile(resumeFile, 'teacher-resumes')
+          toast({
+            title: "上传成功",
+            description: "简历已上传",
+          })
+        } catch (error: any) {
+          toast({
+            variant: "destructive",
+            title: "上传失败",
+            description: error.message || "无法上传简历",
+          })
+          setIsUploading(false)
+          return
+        }
+      }
+
       const payload: NewTeacherCandidate = {
         name: formData.name.trim(),
-        wechat_id: formData.wechat_id.trim(),
-        resume_url: formData.resume_url.trim() || undefined,
+        wechat_id: formData.wechat_id.trim() || undefined,
+        resume_url: resume_url || formData.resume_url.trim() || undefined,
         profile_photo_url: formData.profile_photo_url.trim() || undefined,
         grade_level: formData.grade_level || undefined,
         subjects_taught: selectedSubjects.length > 0 ? selectedSubjects : undefined,
@@ -153,206 +178,223 @@ export default function NewTeacherCandidatePage() {
       })
     } finally {
       setIsSubmitting(false)
+      setIsUploading(false)
     }
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <Header
-        title="新增老师面试"
-        description="填写老师面试信息（核心字段）"
-      />
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-lg max-w-3xl w-full max-h-[90vh] flex flex-col">
+        {/* 标题栏 */}
+        <div className="flex items-center justify-between p-6 border-b">
+          <h1 className="text-lg font-semibold">新增老师面试</h1>
+          <button
+            onClick={() => router.back()}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
-      <div className="flex-1 overflow-auto p-6">
-        <Card className="max-w-3xl mx-auto">
-          <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* 基本信息 */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold">基本信息</h3>
-
-                <div className="grid grid-cols-2 gap-4">
-                  {/* 1. 候选人称呼 */}
-                  <div className="space-y-2">
-                    <Label htmlFor="name">
-                      候选人称呼 <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="name"
-                      placeholder="请输入姓名"
-                      value={formData.name}
-                      onChange={(e) => handleInputChange("name", e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  {/* 4. 微信号（必填） */}
-                  <div className="space-y-2">
-                    <Label htmlFor="wechat_id">
-                      微信号 <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="wechat_id"
-                      placeholder="请输入微信号"
-                      value={formData.wechat_id}
-                      onChange={(e) => handleInputChange("wechat_id", e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  {/* 5. 简历 */}
-                  <div className="space-y-2">
-                    <Label htmlFor="resume_url">简历</Label>
-                    <Input
-                      id="resume_url"
-                      type="url"
-                      placeholder="简历链接URL"
-                      value={formData.resume_url}
-                      onChange={(e) => handleInputChange("resume_url", e.target.value)}
-                    />
-                  </div>
-
-                  {/* 6. 年级段 */}
-                  <div className="space-y-2">
-                    <Label htmlFor="grade_level">年级段</Label>
-                    <select
-                      id="grade_level"
-                      value={formData.grade_level}
-                      onChange={(e) => handleInputChange("grade_level", e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                    >
-                      <option value="">请选择年级段</option>
-                      {gradeLevels.map((grade) => (
-                        <option key={grade.id} value={grade.code}>
-                          {grade.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* 7. 教授学科 */}
-                  <div className="space-y-2 col-span-2">
-                    <Label>教授学科</Label>
-                    <div className="border rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
-                      {subjects.map((subject) => (
-                        <div key={subject.id} className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            id={`subject-${subject.code}`}
-                            checked={selectedSubjects.includes(subject.code)}
-                            onChange={() => handleSubjectToggle(subject.code)}
-                            className="h-4 w-4 rounded border-gray-300"
-                          />
-                          <label
-                            htmlFor={`subject-${subject.code}`}
-                            className="text-sm cursor-pointer"
-                          >
-                            {subject.label}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+        {/* 表单内容 */}
+        <div className="flex-1 overflow-auto p-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* 基本信息 */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-blue-500">基本信息</h3>
+              <div className="border-b pb-4 space-y-3">
+                {/* 候选人称呼 */}
+                <div className="flex items-center gap-4">
+                  <Label htmlFor="name" className="text-xs min-w-20">
+                    候选人称呼 <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="name"
+                    placeholder="请输入姓名"
+                    value={formData.name}
+                    onChange={(e) => handleInputChange("name", e.target.value)}
+                    className="h-9 text-sm flex-1"
+                    required
+                  />
                 </div>
-              </div>
 
-              {/* 约面信息 */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold">约面信息</h3>
+                {/* 微信号 */}
+                <div className="flex items-center gap-4">
+                  <Label htmlFor="wechat_id" className="text-xs min-w-20">微信号</Label>
+                  <Input
+                    id="wechat_id"
+                    placeholder="请输入微信号"
+                    value={formData.wechat_id}
+                    onChange={(e) => handleInputChange("wechat_id", e.target.value)}
+                    className="h-9 text-sm flex-1"
+                  />
+                </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  {/* 3/9. 面试时间 */}
-                  <div className="space-y-2">
-                    <Label htmlFor="interview_datetime">面试时间</Label>
+                {/* 简历 */}
+                <div className="flex items-center gap-4">
+                  <Label htmlFor="resume_file" className="text-xs min-w-20">
+                    简历 <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="flex-1 flex items-center gap-2">
                     <Input
-                      id="interview_datetime"
-                      type="datetime-local"
-                      value={formData.interview_date && formData.interview_time ? `${formData.interview_date}T${formData.interview_time}` : ''}
+                      id="resume_file"
+                      type="file"
+                      accept=".pdf,.doc,.docx"
                       onChange={(e) => {
-                        const [date, time] = e.target.value.split('T')
-                        handleInputChange("interview_date", date)
-                        handleInputChange("interview_time", time || '')
+                        if (e.target.files?.[0]) {
+                          setResumeFile(e.target.files[0])
+                        }
                       }}
+                      className="h-9 text-sm flex-1"
+                      disabled={isUploading}
+                      required
                     />
-                  </div>
-
-                  {/* 8. 约面人 */}
-                  <div className="space-y-2">
-                    <Label htmlFor="interview_officer">约面人</Label>
-                    <Input
-                      id="interview_officer"
-                      placeholder="约面人姓名"
-                      value={formData.interview_officer}
-                      onChange={(e) => handleInputChange("interview_officer", e.target.value)}
-                    />
-                  </div>
-
-                  {/* 10. 面试链接 */}
-                  <div className="space-y-2">
-                    <Label htmlFor="interview_link">面试链接</Label>
-                    <Input
-                      id="interview_link"
-                      type="url"
-                      placeholder="面试链接URL"
-                      value={formData.interview_link}
-                      onChange={(e) => handleInputChange("interview_link", e.target.value)}
-                    />
-                  </div>
-
-                  {/* 11. 面试官 */}
-                  <div className="space-y-2">
-                    <Label htmlFor="interviewer_name">面试官</Label>
-                    <Input
-                      id="interviewer_name"
-                      placeholder="面试官姓名"
-                      value={formData.interviewer_name}
-                      onChange={(e) => handleInputChange("interviewer_name", e.target.value)}
-                    />
+                    {resumeFile && (
+                      <span className="text-xs text-gray-600 whitespace-nowrap">
+                        {resumeFile.name}
+                      </span>
+                    )}
                   </div>
                 </div>
-              </div>
 
-              {/* 复核状态 */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold">复核信息（勿填）</h3>
-
-                {/* 2. 复核信息（勿填） */}
-                <div className="space-y-2">
-                  <Label htmlFor="review_status">复核状态</Label>
+                {/* 年级段 */}
+                <div className="flex items-center gap-4">
+                  <Label htmlFor="grade_level" className="text-xs min-w-20">年级段</Label>
                   <select
-                    id="review_status"
-                    value={formData.review_status}
-                    onChange={(e) => handleInputChange("review_status", e.target.value as '' | '已复核' | '已通过')}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                    id="grade_level"
+                    value={formData.grade_level}
+                    onChange={(e) => handleInputChange("grade_level", e.target.value)}
+                    className="flex h-9 flex-1 rounded-md border border-input bg-background px-2 py-1 text-sm"
                   >
-                    <option value="">（空白）</option>
-                    <option value="已复核">已复核</option>
-                    <option value="已通过">已通过</option>
+                    <option value="">请选择</option>
+                    {gradeLevels.map((grade) => (
+                      <option key={grade.id} value={grade.code}>
+                        {grade.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
-              </div>
 
-              {/* 操作按钮 */}
-              <div className="flex justify-end gap-4 pt-4 border-t">
-                <Link href="/dashboard/teacher-candidates">
-                  <Button type="button" variant="outline" disabled={isSubmitting}>
-                    取消
-                  </Button>
-                </Link>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      提交中...
-                    </>
-                  ) : (
-                    "提交"
-                  )}
-                </Button>
+                {/* 教授学科 */}
+                <div className="flex gap-4">
+                  <Label className="text-xs min-w-20 pt-2">教授学科</Label>
+                  <div className="border rounded-md p-2 space-y-2 max-h-28 overflow-y-auto bg-gray-50 flex-1">
+                    {subjects.map((subject) => (
+                      <div key={subject.id} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`subject-${subject.code}`}
+                          checked={selectedSubjects.includes(subject.code)}
+                          onChange={() => handleSubjectToggle(subject.code)}
+                          className="h-4 w-4 rounded border-gray-300"
+                        />
+                        <label
+                          htmlFor={`subject-${subject.code}`}
+                          className="text-xs cursor-pointer"
+                        >
+                          {subject.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </form>
-          </CardContent>
-        </Card>
+            </div>
+
+            {/* 约面信息 */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-blue-500">约面信息</h3>
+              <div className="border-b pb-4 space-y-3">
+                {/* 面试时间 */}
+                <div className="flex items-center gap-4">
+                  <Label htmlFor="interview_datetime" className="text-xs min-w-20">面试时间</Label>
+                  <Input
+                    id="interview_datetime"
+                    type="datetime-local"
+                    value={formData.interview_date && formData.interview_time ? `${formData.interview_date}T${formData.interview_time}` : ''}
+                    onChange={(e) => {
+                      const [date, time] = e.target.value.split('T')
+                      handleInputChange("interview_date", date)
+                      handleInputChange("interview_time", time || '')
+                    }}
+                    className="h-9 text-sm flex-1"
+                  />
+                </div>
+
+                {/* 约面人 */}
+                <div className="flex items-center gap-4">
+                  <Label htmlFor="interview_officer" className="text-xs min-w-20">约面人</Label>
+                  <Input
+                    id="interview_officer"
+                    placeholder="约面人姓名"
+                    value={formData.interview_officer}
+                    onChange={(e) => handleInputChange("interview_officer", e.target.value)}
+                    className="h-9 text-sm flex-1"
+                  />
+                </div>
+
+                {/* 面试链接 */}
+                <div className="flex items-center gap-4">
+                  <Label htmlFor="interview_link" className="text-xs min-w-20">面试链接</Label>
+                  <Input
+                    id="interview_link"
+                    type="url"
+                    placeholder="面试链接"
+                    value={formData.interview_link}
+                    onChange={(e) => handleInputChange("interview_link", e.target.value)}
+                    className="h-9 text-sm flex-1"
+                  />
+                </div>
+
+                {/* 面试官 */}
+                <div className="flex items-center gap-4">
+                  <Label htmlFor="interviewer_name" className="text-xs min-w-20">面试官</Label>
+                  <Input
+                    id="interviewer_name"
+                    placeholder="面试官姓名"
+                    value={formData.interviewer_name}
+                    onChange={(e) => handleInputChange("interviewer_name", e.target.value)}
+                    className="h-9 text-sm flex-1"
+                  />
+                </div>
+              </div>
+            </div>
+
+
+          </form>
+        </div>
+
+        {/* 操作按钮 */}
+        <div className="flex justify-end gap-3 p-6 border-t bg-gray-50">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.back()}
+            disabled={isSubmitting || isUploading}
+            className="h-9"
+          >
+            取消
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={isSubmitting || isUploading}
+            className="h-9 bg-blue-500 hover:bg-blue-600"
+          >
+            {isUploading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                上传中...
+              </>
+            ) : isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                保存中...
+              </>
+            ) : (
+              "保存"
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   )

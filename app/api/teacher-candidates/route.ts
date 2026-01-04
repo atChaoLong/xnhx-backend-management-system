@@ -88,17 +88,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!body.wechat_id || typeof body.wechat_id !== 'string' || !body.wechat_id.trim()) {
-      logger.error('创建老师面试失败 - 微信号为空', { body })
-      return NextResponse.json(
-        { error: '微信号不能为空' },
-        { status: 400 }
-      )
-    }
-
     const insertData = {
       name: body.name.trim(),
-      wechat_id: body.wechat_id.trim(),
+      wechat_id: body.wechat_id && typeof body.wechat_id === 'string' ? body.wechat_id.trim() : null,
       daily_lead_id: body.daily_lead_id || null,
       resume_url: body.resume_url || null,
       profile_photo_url: body.profile_photo_url || null,
@@ -192,14 +184,6 @@ export async function PUT(request: NextRequest) {
       logger.error('更新老师面试失败 - 姓名为空', { id, updateData })
       return NextResponse.json(
         { error: '姓名不能为空' },
-        { status: 400 }
-      )
-    }
-
-    if (updateData.wechat_id !== undefined && (!updateData.wechat_id || !updateData.wechat_id.trim())) {
-      logger.error('更新老师面试失败 - 微信号为空', { id, updateData })
-      return NextResponse.json(
-        { error: '微信号不能为空' },
         { status: 400 }
       )
     }

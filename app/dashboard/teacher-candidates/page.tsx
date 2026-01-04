@@ -118,25 +118,62 @@ export default function TeacherCandidatesPage() {
     setCandidateToDelete(null)
   }
 
-  // 获取复核状态标签样式
-  const getStatusBadge = (status?: string) => {
-    switch (status) {
-      case '已复核':
-        return 'bg-green-100 text-green-800'
-      case '不符合':
-        return 'bg-red-100 text-red-800'
-      case '待复核':
-      default:
-        return 'bg-yellow-100 text-yellow-800'
+  // 计算候选人的当前状态
+  const calculateCandidateStatus = (candidate: TeacherCandidate): string => {
+    // 如果已手动设置状态，使用该状态
+    if (candidate.candidate_status === 'review_rejected') return '复核拒绝'
+    if (candidate.candidate_status === 'pending_entry') return '待入库'
+    if (candidate.candidate_status === 'pause_scheduling') return '暂停排课'
+    if (candidate.candidate_status === 'disabled') return '停用'
+
+    // 自动计算状态
+    // 1. 有面试录像或试讲视频 -> 待复核
+    if (candidate.video_recording_url || candidate.trial_video_url) {
+      return '待复核'
     }
+
+    // 2. 有确切的面试时间 -> 面试中
+    if (candidate.interview_date) {
+      return '面试中'
+    }
+
+    // 3. 有微信号 -> 已联系
+    if (candidate.wechat_id) {
+      return '已联系'
+    }
+
+    // 4. 默认状态 -> 待联系
+    return '待联系'
   }
 
-  // 获取是否录用标签样式
-  const getHiredBadge = (isHired?: boolean) => {
-    if (isHired) {
-      return 'bg-blue-100 text-blue-800'
+  // 获取状态标签样式
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case '待联系':
+        return 'bg-gray-100 text-gray-800'
+      case '已联系':
+        return 'bg-blue-100 text-blue-800'
+      case '面试中':
+        return 'bg-purple-100 text-purple-800'
+      case '待复核':
+        return 'bg-yellow-100 text-yellow-800'
+      case '待入库':
+        return 'bg-cyan-100 text-cyan-800'
+      case '复核拒绝':
+        return 'bg-red-100 text-red-800'
+      case '可排试听':
+        return 'bg-green-100 text-green-800'
+      case '试听后待复核':
+        return 'bg-orange-100 text-orange-800'
+      case '可排正式':
+        return 'bg-emerald-100 text-emerald-800'
+      case '暂停排课':
+        return 'bg-amber-100 text-amber-800'
+      case '停用':
+        return 'bg-red-200 text-red-900'
+      default:
+        return 'bg-gray-100 text-gray-800'
     }
-    return 'bg-gray-100 text-gray-800'
   }
 
   if (isLoading) {
@@ -192,67 +229,64 @@ export default function TeacherCandidatesPage() {
                     <TableHead>年级</TableHead>
                     <TableHead>科目</TableHead>
                     <TableHead>面试日期</TableHead>
-                    <TableHead>复核状态</TableHead>
-                    <TableHead>录用状态</TableHead>
+                    <TableHead>候选人状态</TableHead>
                     <TableHead className="text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {candidates.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         暂无数据，点击"新增面试"开始添加
                       </TableCell>
                     </TableRow>
                   ) : (
-                    candidates.map((candidate) => (
-                      <TableRow key={candidate.id}>
-                        <TableCell className="font-medium">{candidate.name || "-"}</TableCell>
-                        <TableCell>{candidate.wechat_id || "-"}</TableCell>
-                        <TableCell>{candidate.grade_level || "-"}</TableCell>
-                        <TableCell>
-                          {candidate.subjects_taught && candidate.subjects_taught.length > 0
-                            ? candidate.subjects_taught.join(", ")
-                            : "-"}
-                        </TableCell>
-                        <TableCell>
-                          {candidate.interview_date
-                            ? format(new Date(candidate.interview_date), 'yyyy-MM-dd')
-                            : "-"}
-                        </TableCell>
-                        <TableCell>
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(candidate.review_status)}`}>
-                            {candidate.review_status || '待复核'}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getHiredBadge(candidate.is_hired)}`}>
-                            {candidate.is_hired ? '已录用' : '未录用'}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Link href={`/dashboard/teacher-candidates/${candidate.id}/edit`}>
-                              <Button variant="ghost" size="icon">
-                                <Edit className="h-4 w-4" />
+                    candidates.map((candidate) => {
+                      const status = calculateCandidateStatus(candidate)
+                      return (
+                        <TableRow key={candidate.id}>
+                          <TableCell className="font-medium">{candidate.name || "-"}</TableCell>
+                          <TableCell>{candidate.wechat_id || "-"}</TableCell>
+                          <TableCell>{candidate.grade_level || "-"}</TableCell>
+                          <TableCell>
+                            {candidate.subjects_taught && candidate.subjects_taught.length > 0
+                              ? candidate.subjects_taught.join(", ")
+                              : "-"}
+                          </TableCell>
+                          <TableCell>
+                            {candidate.interview_date
+                              ? format(new Date(candidate.interview_date), 'yyyy-MM-dd')
+                              : "-"}
+                          </TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(status)}`}>
+                              {status}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Link href={`/dashboard/teacher-candidates/${candidate.id}/edit`}>
+                                <Button variant="ghost" size="icon">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteClick(candidate.id)}
+                                disabled={isDeleting === candidate.id}
+                              >
+                                {isDeleting === candidate.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                )}
                               </Button>
-                            </Link>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteClick(candidate.id)}
-                              disabled={isDeleting === candidate.id}
-                            >
-                              {isDeleting === candidate.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              )}
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
                   )}
                 </TableBody>
               </Table>
