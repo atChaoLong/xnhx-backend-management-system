@@ -54,6 +54,7 @@ export default function NewTeacherCandidatePage() {
   })
 
   const [resumeFile, setResumeFile] = useState<File | null>(null)
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
 
   // 加载字典数据
@@ -116,33 +117,53 @@ export default function NewTeacherCandidatePage() {
     setIsSubmitting(true)
 
     try {
-      let resume_url: string | undefined = undefined
+       let resume_url: string | undefined = undefined
+       let profile_photo_url: string | undefined = undefined
 
-      // 如果有上传文件，则上传到存储服务
-      if (resumeFile) {
-        try {
-          setIsUploading(true)
-          resume_url = await uploadFile(resumeFile, 'teacher-resumes')
-          toast({
-            title: "上传成功",
-            description: "简历已上传",
-          })
-        } catch (error: any) {
-          toast({
-            variant: "destructive",
-            title: "上传失败",
-            description: error.message || "无法上传简历",
-          })
-          setIsUploading(false)
-          return
-        }
-      }
+       // 上传简历
+       if (resumeFile) {
+         try {
+           setIsUploading(true)
+           resume_url = await uploadFile(resumeFile, 'teacher-resumes')
+           toast({
+             title: "上传成功",
+             description: "简历已上传",
+           })
+         } catch (error: any) {
+           toast({
+             variant: "destructive",
+             title: "上传失败",
+             description: error.message || "无法上传简历",
+           })
+           setIsUploading(false)
+           return
+         }
+       }
+
+       // 上传形象照
+       if (photoFile) {
+         try {
+           profile_photo_url = await uploadFile(photoFile, 'teacher-photos')
+           toast({
+             title: "上传成功",
+             description: "形象照已上传",
+           })
+         } catch (error: any) {
+           toast({
+             variant: "destructive",
+             title: "上传失败",
+             description: error.message || "无法上传形象照",
+           })
+           setIsUploading(false)
+           return
+         }
+       }
 
       const payload: NewTeacherCandidate = {
         name: formData.name.trim(),
         wechat_id: formData.wechat_id.trim() || undefined,
         resume_url: resume_url || formData.resume_url.trim() || undefined,
-        profile_photo_url: formData.profile_photo_url.trim() || undefined,
+        profile_photo_url: profile_photo_url || formData.profile_photo_url.trim() || undefined,
         grade_level: formData.grade_level || undefined,
         subjects_taught: selectedSubjects.length > 0 ? selectedSubjects : undefined,
         teacher_type: formData.teacher_type || undefined,
@@ -252,6 +273,30 @@ export default function NewTeacherCandidatePage() {
                     {resumeFile && (
                       <span className="text-xs text-gray-600 whitespace-nowrap">
                         {resumeFile.name}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 形象照 */}
+                <div className="flex items-center gap-4">
+                  <Label htmlFor="photo_file" className="text-xs min-w-20">形象照</Label>
+                  <div className="flex-1 flex items-center gap-2">
+                    <Input
+                      id="photo_file"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) {
+                          setPhotoFile(e.target.files[0])
+                        }
+                      }}
+                      className="h-9 text-sm flex-1"
+                      disabled={isUploading}
+                    />
+                    {photoFile && (
+                      <span className="text-xs text-gray-600 whitespace-nowrap">
+                        {photoFile.name}
                       </span>
                     )}
                   </div>

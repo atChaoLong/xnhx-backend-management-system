@@ -58,7 +58,7 @@ export interface TeacherCandidate {
   affinity?: string
 
   // 复核状态
-  review_status?: '已通过' | '已复核' | ''
+  review_status?: '待复核' | '已复核' | '不符合'
   reviewed_by?: string
   review_result?: string
   review_evaluation_comment?: string
