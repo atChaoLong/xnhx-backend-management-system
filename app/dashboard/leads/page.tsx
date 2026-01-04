@@ -351,7 +351,7 @@ export default function LeadsPage() {
                         <TableCell>{lead.grab_wechat || "-"}</TableCell>
                         <TableCell>{getStatusBadge(lead.add_status || "")}</TableCell>
                         <TableCell>{getConvertStatusBadge(lead.convert_status || "")}</TableCell>
-                        <TableCell>{lead.operator_id || "-"}</TableCell>
+                        <TableCell>{lead.operator_name || lead.operator_id || "-"}</TableCell>
                         <TableCell>
                           <div className="flex flex-col">
                             <span className="text-xs text-muted-foreground">创建</span>

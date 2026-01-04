@@ -17,6 +17,7 @@ export interface Lead {
   xhs_source: string              // 小红书账号来源
   add_method_code: string         // 添加方式代码
   operator_id: string             // 运营人员ID
+  operator_name?: string          // 运营人员名字
 
   // 可选字段
   grade_code?: string             // 年级代码（可选）

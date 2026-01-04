@@ -72,6 +72,24 @@ export async function GET(request: NextRequest) {
     if (data && data.length > 0) {
       const statusResults = await batchCalculateLeadStatus(data)
 
+      // 获取所有unique的operator_id
+      const operatorIds = Array.from(new Set(data.map(lead => lead.operator_id).filter(Boolean)))
+      
+      // 批量查询运营人员信息
+      let operatorMap = new Map<string, string>()
+      if (operatorIds.length > 0) {
+        const { data: operators } = await supabaseServer
+          .from('user_profiles')
+          .select('id, name')
+          .in('id', operatorIds)
+        
+        if (operators) {
+          operators.forEach(op => {
+            operatorMap.set(op.id, op.name)
+          })
+        }
+      }
+
       // 合并状态到数据
       for (let i = 0; i < data.length; i++) {
         const lead = data[i]
@@ -84,6 +102,8 @@ export async function GET(request: NextRequest) {
           add_status_name: status.addStatusName,
           convert_status: status.convertStatus,
           convert_status_name: status.convertStatusName,
+          // 添加运营人员名字
+          operator_name: operatorMap.get(lead.operator_id) || lead.operator_id,
         })
       }
     }
