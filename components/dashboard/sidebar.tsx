@@ -106,6 +106,7 @@ const navigationGroups: MenuGroup[] = [
       { name: "课后服务质检", href: "/dashboard/students", icon: ClipboardList, permission: { resource: 'students', action: 'visit' } },
       { name: "学生库", href: "/dashboard/students", icon: Users, permission: { resource: 'students', action: 'view' } },
       { name: "待试听匹配", href: "/dashboard/trial-lessons", icon: Calendar, permission: { resource: 'trialLessons', action: 'matchTeacher' } },
+      { name: "批量排课", href: "/dashboard/schedule/batch", icon: Calendar },
     ]
   },
   {
