@@ -313,9 +313,13 @@ export default function TrialLessonsPage() {
       setIsCreatingClass(lesson.id)
 
       // 后端接口内部处理：若无课程则创建课程+单元+课堂；若有课程则仅创建课堂
+      const token = localStorage.getItem('supabase.auth.token')
       const resp = await fetch('/api/trial-lessons/open-class', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ trialLessonId: lesson.id })
       })
       const result = await resp.json()
