@@ -59,21 +59,32 @@ const navigationGroups: MenuGroup[] = [
     ]
   },
   {
-    title: "运营管理",
-    roles: ['admin', 'operator'],
+    title: "线索报单",
+    roles: ['admin', 'operator', 'sales'],
     items: [
-      { name: "线索录入", href: "/dashboard/leads", icon: Target, permission: { resource: 'leads', action: 'create' } },
-      { name: "客户回访", href: "/dashboard/daily-leads", icon: MessageCircle, permission: { resource: 'leads', action: 'view' } },
+      { name: "线索登记表", href: "/dashboard/leads", icon: Target, permission: { resource: 'leads', action: 'create' } },
+      { name: "线索管理", href: "/dashboard/leads", icon: Eye, permission: { resource: 'leads', action: 'view' } },
     ]
   },
   {
-    title: "销售管理",
+    title: "试听管理",
     roles: ['admin', 'sales', 'head_teacher'],
     items: [
-      { name: "线索管理", href: "/dashboard/leads", icon: Target, permission: { resource: 'leads', action: 'view' } },
       { name: "试听课程", href: "/dashboard/trial-lessons", icon: BookOpen, permission: { resource: 'trialLessons', action: 'view' } },
-      { name: "正式订单", href: "/dashboard/formal-orders", icon: FileText, permission: { resource: 'formalOrders', action: 'view' } },
       { name: "学生管理", href: "/dashboard/students", icon: Users, permission: { resource: 'students', action: 'view' } },
+    ]
+  },
+  {
+    title: "订单管理",
+    roles: ['admin', 'sales', 'head_teacher'],
+    items: [
+      { name: "正式订单", href: "/dashboard/formal-orders", icon: FileText, permission: { resource: 'formalOrders', action: 'view' } },
+    ]
+  },
+  {
+    title: "课程异动",
+    roles: ['admin', 'head_teacher', 'academic_affairs', 'finance', 'hr'],
+    items: [
       { name: "异动记录", href: "/dashboard/transactions", icon: RefreshCw, permission: { resource: 'transactions', action: 'view' } },
     ]
   },
@@ -90,17 +101,21 @@ const navigationGroups: MenuGroup[] = [
     items: [
       { name: "待入库", href: "/dashboard/teachers", icon: GraduationCap, permission: { resource: 'teachers', action: 'create' } },
       { name: "储备", href: "/dashboard/teachers", icon: Users, permission: { resource: 'teachers', action: 'view' } },
-      { name: "老师库（教学版）", href: "/dashboard/teachers", icon: School, permission: { resource: 'teachers', action: 'edit' } },
-      { name: "老师库（销售版）", href: "/dashboard/teachers", icon: Phone, permission: { resource: 'teachers', action: 'view' } },
-      { name: "新入库异常", href: "/dashboard/teachers", icon: AlertTriangle, permission: { resource: 'teachers', action: 'notes' } },
+    ]
+  },
+  {
+    title: "班主任工作台",
+    roles: ['admin', 'head_teacher'],
+    items: [
+      { name: "学生管理", href: "/dashboard/students", icon: Users, permission: { resource: 'students', action: 'view' } },
+      { name: "批量排课", href: "/dashboard/schedule/batch", icon: Calendar },
+      { name: "正式订单", href: "/dashboard/formal-orders", icon: FileText, permission: { resource: 'formalOrders', action: 'view' } },
     ]
   },
   {
     title: "教务管理",
     roles: ['admin', 'academic_affairs'],
     items: [
-      { name: "试听转化质检", href: "/dashboard/trial-lessons", icon: TestTube, permission: { resource: 'trialLessons', action: 'edit' } },
-      { name: "课后服务质检", href: "/dashboard/students", icon: ClipboardList, permission: { resource: 'students', action: 'visit' } },
       { name: "学生库", href: "/dashboard/students", icon: Users, permission: { resource: 'students', action: 'view' } },
       { name: "待试听匹配", href: "/dashboard/trial-lessons", icon: Calendar, permission: { resource: 'trialLessons', action: 'matchTeacher' } },
       { name: "批量排课", href: "/dashboard/schedule/batch", icon: Calendar },
