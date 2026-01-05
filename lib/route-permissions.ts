@@ -30,6 +30,14 @@ export const ROUTE_PERMISSIONS = {
     PUT: { resource: RESOURCES.trialLessons, action: ACTIONS.edit },
     DELETE: { resource: RESOURCES.trialLessons, action: ACTIONS.delete },
   },
+  // 试听开课（后端内部消化）
+  '/api/trial-lessons/open-class': {
+    POST: { resource: RESOURCES.trialLessons, action: ACTIONS.addLink },
+  },
+  // 试听创建ClassIn课程（保留旧接口）
+  '/api/trial-lessons/create-classin': {
+    POST: { resource: RESOURCES.trialLessons, action: ACTIONS.addLink },
+  },
 
   // 学生管理
   '/api/students': {
