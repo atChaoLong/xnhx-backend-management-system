@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
 import { handleDatabaseError } from "@/lib/utils"
+import { getClassInSDKService } from "@/lib/services/classin-sdk/service"
 
 const logger = createLogger('API:Students')
 
@@ -71,7 +72,9 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST: 创建新学生
+/**
+ * 创建新学生，并自动注册到 ClassIn 系统（使用统一初始密码）
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -113,7 +116,69 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info('创建学生成功', { id: data.id, student_name: data.student_name })
-    return NextResponse.json({ data }, { status: 201 })
+
+    // 自动注册到 ClassIn：需要家长电话作为账号、学生姓名作为昵称
+    const telephone = insertData.parent_phone
+    const nickname = insertData.student_name
+    const initialPassword = process.env.CLASSIN_DEFAULT_PASSWORD || "test123456"
+
+    if (!telephone) {
+      return NextResponse.json(
+        { error: '注册到 ClassIn 需要填写家长电话（parent_phone）' },
+        { status: 400 }
+      )
+    }
+
+    if (!initialPassword) {
+      return NextResponse.json(
+        { error: '未配置 ClassIn 初始密码（环境变量 CLASSIN_DEFAULT_PASSWORD）' },
+        { status: 500 }
+      )
+    }
+
+    const sdk = getClassInSDKService()
+
+    try {
+      const uid = await sdk.registerStudent({
+        telephone,
+        nickname,
+        password: initialPassword,
+      })
+
+      try {
+        await sdk.addSchoolStudent({
+          studentAccount: telephone,
+          studentName: nickname,
+        })
+      } catch (e: any) {
+        logger.warn('添加学生到机构失败（可能已存在）', { message: e?.message })
+      }
+
+      const { error: updateError } = await supabaseServer
+        .from('students')
+        .update({
+          classin_uid: uid,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', data.id)
+
+      if (updateError) {
+        logger.error('更新学生 ClassIn UID 失败', { id: data.id, error: updateError })
+        return NextResponse.json(
+          { error: '注册成功但保存 UID 失败' },
+          { status: 500 }
+        )
+      }
+
+      const merged = { ...data, classin_uid: uid }
+      return NextResponse.json({ data: merged }, { status: 201 })
+    } catch (err: any) {
+      logger.error('注册学生到 ClassIn 异常', { message: err.message, stack: err.stack })
+      return NextResponse.json(
+        { error: err.message || '注册到 ClassIn 失败' },
+        { status: 500 }
+      )
+    }
   } catch (error: any) {
     logger.error('创建学生异常', { message: error.message, stack: error.stack })
     return NextResponse.json(
