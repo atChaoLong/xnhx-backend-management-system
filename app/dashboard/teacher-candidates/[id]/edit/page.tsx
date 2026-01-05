@@ -260,7 +260,7 @@ export default function EditTeacherCandidatePage() {
         hired_notes: formData.hired_notes || undefined,
       }
 
-      await TeacherCandidatesService.updateTeacherCandidate(payload)
+      await TeacherCandidatesService.updateTeacherCandidate(payload as any)
 
       toast({
         title: "保存成功",

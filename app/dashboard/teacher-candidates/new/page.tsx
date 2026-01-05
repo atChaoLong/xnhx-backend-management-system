@@ -40,9 +40,14 @@ export default function NewTeacherCandidatePage() {
     interview_time: "",
     interview_link: "",
     interview_officer: "",
+    interview_exception: "",
+
+    // 面试过程
+    initial_evaluation: "",
+    video_recording_url: "",
 
     // 复核状态
-    review_status: "" as '' | '已复核' | '已通过',
+    review_status: "待复核" as '待复核' | '已复核' | '不符合',
     reviewed_by: "",
     review_result: "",
     review_evaluation_comment: "",
@@ -55,6 +60,7 @@ export default function NewTeacherCandidatePage() {
 
   const [resumeFile, setResumeFile] = useState<File | null>(null)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [videoFile, setVideoFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
 
   // 加载字典数据
@@ -119,6 +125,7 @@ export default function NewTeacherCandidatePage() {
     try {
        let resume_url: string | undefined = undefined
        let profile_photo_url: string | undefined = undefined
+       let video_recording_url: string | undefined = undefined
 
        // 上传简历
        if (resumeFile) {
@@ -159,6 +166,25 @@ export default function NewTeacherCandidatePage() {
          }
        }
 
+       // 上传面试视频（可选）
+       if (videoFile) {
+         try {
+           video_recording_url = await uploadFile(videoFile, 'teacher-interview-videos')
+           toast({
+             title: "上传成功",
+             description: "面试视频已上传",
+           })
+         } catch (error: any) {
+           toast({
+             variant: "destructive",
+             title: "上传失败",
+             description: error.message || "无法上传面试视频",
+           })
+           setIsUploading(false)
+           return
+         }
+       }
+
       const payload: NewTeacherCandidate = {
         name: formData.name.trim(),
         wechat_id: formData.wechat_id.trim() || undefined,
@@ -174,6 +200,9 @@ export default function NewTeacherCandidatePage() {
         interview_time: formData.interview_time || undefined,
         interview_link: formData.interview_link || undefined,
         interview_officer: formData.interview_officer || undefined,
+        interview_exception: formData.interview_exception || undefined,
+        initial_evaluation: formData.initial_evaluation || undefined,
+        video_recording_url: video_recording_url || formData.video_recording_url || undefined,
         review_status: formData.review_status,
         reviewed_by: formData.reviewed_by || undefined,
         review_result: formData.review_result || undefined,
@@ -402,9 +431,77 @@ export default function NewTeacherCandidatePage() {
                     className="h-9 text-sm flex-1"
                   />
                 </div>
+                
+                {/* 面试异常 */}
+                <div className="flex items-start gap-4">
+                  <Label htmlFor="interview_exception" className="text-xs min-w-20">面试异常</Label>
+                  <Textarea
+                    id="interview_exception"
+                    placeholder="如迟到、中途退出、音视频问题等"
+                    value={formData.interview_exception}
+                    onChange={(e) => handleInputChange("interview_exception", e.target.value)}
+                    className="text-sm flex-1"
+                    rows={3}
+                  />
+                </div>
               </div>
             </div>
 
+            {/* 面试过程 */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-blue-500">面试过程</h3>
+              <div className="border-b pb-4 space-y-3">
+                {/* 初试评价 */}
+                <div className="flex items-start gap-4">
+                  <Label htmlFor="initial_evaluation" className="text-xs min-w-20">初试评价</Label>
+                  <Textarea
+                    id="initial_evaluation"
+                    placeholder="第一印象与初步评价"
+                    value={formData.initial_evaluation}
+                    onChange={(e) => handleInputChange("initial_evaluation", e.target.value)}
+                    className="text-sm flex-1"
+                    rows={3}
+                  />
+                </div>
+
+                {/* 面试视频上传 */}
+                <div className="flex items-center gap-4">
+                  <Label htmlFor="video_file" className="text-xs min-w-20">面试视频</Label>
+                  <div className="flex-1 flex items-center gap-2">
+                    <Input
+                      id="video_file"
+                      type="file"
+                      accept="video/*"
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) {
+                          setVideoFile(e.target.files[0])
+                        }
+                      }}
+                      className="h-9 text-sm flex-1"
+                      disabled={isUploading}
+                    />
+                    {videoFile && (
+                      <span className="text-xs text-gray-600 whitespace-nowrap">
+                        {videoFile.name}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 面试录像链接（可选直接填URL） */}
+                <div className="flex items-center gap-4">
+                  <Label htmlFor="video_recording_url" className="text-xs min-w-20">录像链接</Label>
+                  <Input
+                    id="video_recording_url"
+                    type="url"
+                    placeholder="如已上传至外部，请填写URL"
+                    value={formData.video_recording_url}
+                    onChange={(e) => handleInputChange("video_recording_url", e.target.value)}
+                    className="h-9 text-sm flex-1"
+                  />
+                </div>
+              </div>
+            </div>
 
           </form>
         </div>
