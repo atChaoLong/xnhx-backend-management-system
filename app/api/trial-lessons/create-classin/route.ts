@@ -112,12 +112,8 @@ export async function POST(request: NextRequest) {
 
       logger.info('创建课程成功', { courseId })
 
-      // 7.2 创建单元
-      const unitResult: any = await sdk.createUnit({
-        courseId,
-        name: unitName
-      })
-      unitId = (typeof unitResult === 'object' ? unitResult.unitId : unitResult)
+      // 7.2 跳过显式创建单元，使用课程ID作为单元ID
+      unitId = courseId
 
       logger.info('创建单元成功', { unitId })
 
