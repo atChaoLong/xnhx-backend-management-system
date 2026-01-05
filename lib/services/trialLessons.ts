@@ -43,6 +43,10 @@ export interface TrialLesson {
   classin_class_id?: number
   classin_unit_id?: number
   classin_activity_id?: number
+  class_link?: string
+  lesson_status?: string
+  lesson_status_name?: string
+  is_converted?: boolean
 }
 
 export interface NewTrialLesson {

@@ -312,53 +312,19 @@ export default function TrialLessonsPage() {
     try {
       setIsCreatingClass(lesson.id)
 
-      // 获取老师的 ClassIn UID
-      const teacherResponse = await fetch('/api/teachers/classin')
-      const { data: teachers } = await teacherResponse.json()
-      const teacher = teachers.find((t: any) => t.teacher_name === lesson.confirmed_teacher)
-
-      if (!teacher || !teacher.classin_uid) {
-        toast({
-          variant: "destructive",
-        title: "无法开课",
-        description: "老师未绑定 ClassIn 账号",
-        })
-        return
-      }
-
-      // 调用 ClassIn SDK 创建课室
-      const classResponse = await fetch('/api/classin-sdk/classroom', {
+      // 后端接口内部处理：若无课程则创建课程+单元+课堂；若有课程则仅创建课堂
+      const resp = await fetch('/api/trial-lessons/open-class', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token')}`
-        },
-        body: JSON.stringify({
-          courseId: process.env.NEXT_PUBLIC_CLASSIN_DEFAULT_COURSE_ID || 'default_course',
-          unitId: process.env.NEXT_PUBLIC_CLASSIN_DEFAULT_UNIT_ID || 'default_unit',
-          name: `${lesson.child_name || '学生'}的试听课`,
-          teacherUid: teacher.classin_uid,
-          startTime: new Date(lesson.trial_time).getTime() / 1000, // 转为秒级时间戳
-          endTime: new Date(new Date(lesson.trial_time).getTime() + (lesson.trial_duration || 60) * 60 * 1000).getTime() / 1000,
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trialLessonId: lesson.id })
       })
-
-      if (!classResponse.ok) {
-        const error = await classResponse.json()
-        throw new Error(error.error || '创建课室失败')
+      const result = await resp.json()
+      if (!resp.ok || !result.success) {
+        throw new Error(result.error || '开课失败')
       }
-
-      const { data: classroom } = await classResponse.json()
-
-      // 更新试听课程的上课链接
-      await TrialLessonsService.updateTrialLesson({
-        ...lesson,
-        class_link: classroom.liveUrl || classroom.url || '',
-      })
-
       toast({
         title: "开课成功",
-        description: "课室已创建，链接已生成",
+        description: "课程/课堂已创建并更新到记录",
       })
       fetchLessons()
     } catch (error: any) {
@@ -782,6 +748,7 @@ export default function TrialLessonsPage() {
                       <PaginationItem>
                         <PaginationPrevious
                           onClick={goToPreviousPage}
+                          disabled={!canGoPrevious}
                           className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
                         />
                       </PaginationItem>
@@ -798,6 +765,7 @@ export default function TrialLessonsPage() {
                             <PaginationLink
                               onClick={() => goToPage(page)}
                               isActive={page === currentPage}
+                              disabled={false}
                               className="cursor-pointer"
                             >
                               {page}
@@ -808,6 +776,7 @@ export default function TrialLessonsPage() {
                       <PaginationItem>
                         <PaginationNext
                           onClick={goToNextPage}
+                          disabled={!canGoNext}
                           className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
                         />
                       </PaginationItem>
