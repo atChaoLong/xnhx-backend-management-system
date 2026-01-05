@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { getClassInSDKService } from "@/lib/services/classin-sdk/service"
 import { createLogger } from "@/lib/logger"
+import { DictionaryService } from "@/lib/services/dictionary"
 
 const logger = createLogger('API:TrialLessonsOpenClass')
 
@@ -58,10 +59,17 @@ export async function POST(request: NextRequest) {
     let activityId: number
 
     if (!courseId) {
-      const courseName = `${lesson.child_name}-${lesson.trial_subject || ''}-试听课程`
+      const dicts = await DictionaryService.getAllDictionaries()
+      const getLabelByCode = (code: string, category: string) => {
+        const items = dicts[category] || []
+        const item = items.find((i: any) => i.code === code)
+        return item?.label || code
+      }
+      const subjectLabel = getLabelByCode(lesson.trial_subject || '', 'subject')
+      const courseName = `【试听】${lesson.child_name}${subjectLabel}课`
       courseId = await sdk.createCourse({ courseName })
-      const unitResult = await sdk.createUnit({ courseId, name: '试听单元' })
-      unitId = unitResult.unitId || unitResult
+      const unitResult: any = await sdk.createUnit({ courseId, name: '试听单元' })
+      unitId = (typeof unitResult === 'object' ? unitResult.unitId : unitResult)
 
       try {
         await supabaseServer
@@ -82,10 +90,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const dicts2 = await DictionaryService.getAllDictionaries()
+    const getLabelByCode2 = (code: string, category: string) => {
+      const items = dicts2[category] || []
+      const item = items.find((i: any) => i.code === code)
+      return item?.label || code
+    }
+    const subjectLabel2 = getLabelByCode2(lesson.trial_subject || '', 'subject')
     const classroomResult = await sdk.createClassroom({
       courseId,
       unitId,
-      name: `${lesson.child_name || '学生'}的试听课`,
+      name: `【试听】${lesson.child_name}${subjectLabel2}课`,
       teacherUid: teacherData.uid,
       startTime: trialTime,
       endTime: endTime,
@@ -126,4 +141,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-

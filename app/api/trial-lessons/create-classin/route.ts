@@ -66,9 +66,9 @@ export async function POST(request: NextRequest) {
     const sdk = getClassInSDKService()
 
     // 课程名称和课堂名称
-    const courseName = `${lesson.child_name}-${subjectLabel}-试听课程`
+    const courseName = `【试听】${lesson.child_name}${subjectLabel}课`
     const unitName = '试听单元'
-    const classroomName = `${lesson.child_name}-${subjectLabel}-试听课`
+    const classroomName = `【试听】${lesson.child_name}${subjectLabel}课`
 
     // 计算开始和结束时间
     const trialTime = new Date(lesson.trial_time)
@@ -103,11 +103,11 @@ export async function POST(request: NextRequest) {
       logger.info('创建课程成功', { courseId })
 
       // 7.2 创建单元
-      const unitResult = await sdk.createUnit({
+      const unitResult: any = await sdk.createUnit({
         courseId,
         name: unitName
       })
-      unitId = unitResult.unitId || unitResult
+      unitId = (typeof unitResult === 'object' ? unitResult.unitId : unitResult)
 
       logger.info('创建单元成功', { unitId })
 
