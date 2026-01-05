@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
 import { handleDatabaseError } from "@/lib/utils"
+import { getClassInSDKService } from "@/lib/services/classin-sdk/service"
 
 const logger = createLogger('API:Teachers')
 
@@ -71,7 +72,9 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST: 创建新老师
+/**
+ * 创建新老师，并可选注册到 ClassIn 系统
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -130,6 +133,81 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info('创建老师成功', { id: data.id, teacher_name: data.teacher_name })
+
+    // 可选：注册到 ClassIn（参考 /api/teachers/register-classin）
+    const registerToClassIn = true
+    const classinPassword: string | undefined = "test123456"
+
+    if (registerToClassIn) {
+      if (!classinPassword || !insertData.classin_phone) {
+        return NextResponse.json(
+          { error: '注册到 ClassIn 需要提供 classin_password 且必须有 classin_phone' },
+          { status: 400 }
+        )
+      }
+
+      const sdk = getClassInSDKService()
+
+      try {
+        const uid = await sdk.registerTeacher({
+          telephone: insertData.classin_phone,
+          nickname: insertData.teacher_name,
+          password: classinPassword,
+        })
+
+        logger.info('ClassIn 老师注册成功', { uid })
+
+        // 保存 ClassIn 映射到主表
+        const { error: updateError } = await supabaseServer
+          .from('teacher_profiles')
+          .update({
+            used_classin: true,
+            classin_uid: uid,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', data.id)
+
+        if (updateError) {
+          logger.error('更新老师 ClassIn UID 失败', { id: data.id, error: updateError })
+          return NextResponse.json(
+            { error: '注册成功但保存 UID 失败' },
+            { status: 500 }
+          )
+        }
+
+        // 同步到 teacher_classin 表
+        try {
+          await supabaseServer
+            .from('teacher_classin')
+            .upsert({
+              uid: uid,
+              name: insertData.teacher_name,
+              mobile: insertData.classin_phone,
+              is_del: 0,
+              updated_at: new Date().toISOString(),
+            }, {
+              onConflict: 'uid'
+            })
+
+          logger.info('老师信息同步到 teacher_classin 表成功', { uid })
+        } catch (error: any) {
+          logger.warn('同步到 teacher_classin 表失败（非致命）', {
+            message: error.message
+          })
+        }
+
+        // 将 uid 回填到响应
+        const merged = { ...data, classin_uid: uid, used_classin: true }
+        return NextResponse.json({ data: merged }, { status: 201 })
+      } catch (err: any) {
+        logger.error('注册老师到 ClassIn 异常', { message: err.message, stack: err.stack })
+        return NextResponse.json(
+          { error: err.message || '注册到 ClassIn 失败' },
+          { status: 500 }
+        )
+      }
+    }
+
     return NextResponse.json({ data }, { status: 201 })
   } catch (error: any) {
     logger.error('创建老师异常', { message: error.message, stack: error.stack })
