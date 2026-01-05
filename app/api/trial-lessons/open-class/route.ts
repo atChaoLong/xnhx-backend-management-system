@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { getClassInSDKService } from "@/lib/services/classin-sdk/service"
 import { createLogger } from "@/lib/logger"
-import { DictionaryService } from "@/lib/services/dictionary"
+ 
 
 const logger = createLogger('API:TrialLessonsOpenClass')
 
@@ -58,26 +58,20 @@ export async function POST(request: NextRequest) {
     let classId: number
     let activityId: number
 
+    const subjectCode = (lesson.trial_subject || '').toLowerCase()
+    const SUBJECT_LABELS: Record<string, string> = {
+      chinese: '语文',
+      math: '数学',
+      english: '英语',
+      physics: '物理',
+      chemistry: '化学',
+      biology: '生物',
+      history: '历史',
+      geography: '地理',
+      politics: '政治'
+    }
+    const subjectLabel = SUBJECT_LABELS[subjectCode] || subjectCode
     if (!courseId) {
-      const dicts = await DictionaryService.getAllDictionaries()
-      const getLabelByCode = (code: string, category: string) => {
-        const items = dicts[category] || []
-        const item = items.find((i: any) => i.code === code)
-        return item?.label || ''
-      }
-      const subjectCode = (lesson.trial_subject || '').toLowerCase()
-      const SUBJECT_LABELS: Record<string, string> = {
-        chinese: '语文',
-        math: '数学',
-        english: '英语',
-        physics: '物理',
-        chemistry: '化学',
-        biology: '生物',
-        history: '历史',
-        geography: '地理',
-        politics: '政治'
-      }
-      const subjectLabel = SUBJECT_LABELS[subjectCode] || getLabelByCode(subjectCode, 'subject') || subjectCode
       const courseName = `【试听】${lesson.child_name} ${subjectLabel}课`
       courseId = await sdk.createCourse({ courseName })
       // 不创建单元，不传 unitId（创建在无主题单元下）
@@ -102,25 +96,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const dicts2 = await DictionaryService.getAllDictionaries()
-    const getLabelByCode2 = (code: string, category: string) => {
-      const items = dicts2[category] || []
-      const item = items.find((i: any) => i.code === code)
-      return item?.label || ''
-    }
-    const subjectCode2 = (lesson.trial_subject || '').toLowerCase()
-    const SUBJECT_LABELS2: Record<string, string> = {
-      chinese: '语文',
-      math: '数学',
-      english: '英语',
-      physics: '物理',
-      chemistry: '化学',
-      biology: '生物',
-      history: '历史',
-      geography: '地理',
-      politics: '政治'
-    }
-    const subjectLabel2 = SUBJECT_LABELS2[subjectCode2] || getLabelByCode2(subjectCode2, 'subject') || subjectCode2
+    const subjectLabel2 = SUBJECT_LABELS[subjectCode] || subjectCode
     const classroomResult = await sdk.createClassroom({
       courseId,
       name: `【试听】${lesson.child_name} ${subjectLabel2}课`,

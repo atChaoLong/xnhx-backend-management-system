@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { getClassInSDKService } from "@/lib/services/classin-sdk/service"
-import { DictionaryService } from "@/lib/services/dictionary"
+ 
 import { createLogger } from "@/lib/logger"
 
 const logger = createLogger('API:TrialLessonscreateClassIn')
@@ -50,13 +50,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '教师未在ClassIn系统中找到，请检查教师姓名是否正确' }, { status: 400 })
     }
 
-    // 5. 加载字典数据以转换编码为中文
-    const dicts = await DictionaryService.getAllDictionaries()
-    const getLabelByCode = (code: string, category: string) => {
-      const items = dicts[category] || []
-      const item = items.find((i: any) => i.code === code)
-      return item?.label || ''
-    }
+    // 5. 学科中文映射（服务端兜底）
     const subjectCode = (lesson.trial_subject || '').toLowerCase()
     const SUBJECT_LABELS: Record<string, string> = {
       chinese: '语文',
@@ -69,8 +63,7 @@ export async function POST(request: NextRequest) {
       geography: '地理',
       politics: '政治'
     }
-    const subjectLabel = SUBJECT_LABELS[subjectCode] || getLabelByCode(subjectCode, 'subject') || subjectCode
-    const gradeLabel = getLabelByCode(lesson.grade || '', 'grade')
+    const subjectLabel = SUBJECT_LABELS[subjectCode] || subjectCode
 
     // 6. 使用 SDK 创建课程和课堂
     const sdk = getClassInSDKService()
