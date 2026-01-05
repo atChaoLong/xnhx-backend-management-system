@@ -77,7 +77,7 @@ export default function NewTrialLessonPage() {
   // 加载字典数据
   useEffect(() => {
     const loadData = async () => {
-      const [regionData, gradeData, subjectData, trialDurationData, classinTeachersData, leadsData] = await Promise.all([
+      const [regionData, gradeData, subjectData, trialDurationData, classinTeachersData, leadsResult] = await Promise.all([
         getDictionaryItems('province'),
         getDictionaryItems('grade'),
         getDictionaryItems('subject'),
@@ -90,7 +90,7 @@ export default function NewTrialLessonPage() {
       setSubjects(subjectData)
       setTrialDurations(trialDurationData)
       setTeachers(classinTeachersData)
-      setLeads(leadsData)
+      setLeads(leadsResult.data || [])
     }
     loadData()
   }, [])

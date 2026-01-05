@@ -68,7 +68,7 @@ const navigationGroups: MenuGroup[] = [
   },
   {
     title: "试听管理",
-    roles: ['admin', 'sales', 'head_teacher'],
+    roles: ['admin', 'sales', 'head_teacher', 'academic_affairs'],
     items: [
       { name: "试听课程", href: "/dashboard/trial-lessons", icon: BookOpen, permission: { resource: 'trialLessons', action: 'view' } },
       { name: "学生管理", href: "/dashboard/students", icon: Users, permission: { resource: 'students', action: 'view' } },

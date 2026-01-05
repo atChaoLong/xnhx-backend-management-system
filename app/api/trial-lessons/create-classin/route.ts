@@ -138,6 +138,27 @@ export async function POST(request: NextRequest) {
       throw error
     }
 
+    try {
+      await supabaseServer
+        .from('class_classin')
+        .upsert({
+          course_id: courseId,
+          course_name: courseName,
+          creator_uid: teacherData.uid,
+          creater_name: lesson.confirmed_teacher || '',
+          add_time: Math.floor(Date.now() / 1000),
+          course_state: 1,
+          teacher_num: 1,
+          student_num: 0,
+          sync_time: new Date().toISOString(),
+        }, {
+          onConflict: 'course_id'
+        })
+      logger.info('写入 class_classin 成功', { courseId, courseName })
+    } catch (error: any) {
+      logger.warn('写入 class_classin 失败（非致命）', { message: error.message })
+    }
+
     // 8. 更新试听课程记录
     const { error: updateError } = await supabaseServer
       .from('trial_lessons')
