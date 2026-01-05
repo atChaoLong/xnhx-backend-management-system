@@ -52,23 +52,33 @@ export async function POST(request: NextRequest) {
 
     // 5. 加载字典数据以转换编码为中文
     const dicts = await DictionaryService.getAllDictionaries()
-
     const getLabelByCode = (code: string, category: string) => {
       const items = dicts[category] || []
       const item = items.find((i: any) => i.code === code)
-      return item?.label || code
+      return item?.label || ''
     }
-
-    const subjectLabel = getLabelByCode(lesson.trial_subject || '', 'subject')
+    const subjectCode = (lesson.trial_subject || '').toLowerCase()
+    const SUBJECT_LABELS: Record<string, string> = {
+      chinese: '语文',
+      math: '数学',
+      english: '英语',
+      physics: '物理',
+      chemistry: '化学',
+      biology: '生物',
+      history: '历史',
+      geography: '地理',
+      politics: '政治'
+    }
+    const subjectLabel = SUBJECT_LABELS[subjectCode] || getLabelByCode(subjectCode, 'subject') || subjectCode
     const gradeLabel = getLabelByCode(lesson.grade || '', 'grade')
 
     // 6. 使用 SDK 创建课程和课堂
     const sdk = getClassInSDKService()
 
     // 课程名称和课堂名称
-    const courseName = `【试听】${lesson.child_name} ${subjectLabel || (lesson.trial_subject || '').trim()}课`
+    const courseName = `【试听】${lesson.child_name} ${subjectLabel}课`
     const unitName = '试听单元'
-    const classroomName = `【试听】${lesson.child_name} ${subjectLabel || (lesson.trial_subject || '').trim()}课`
+    const classroomName = `【试听】${lesson.child_name} ${subjectLabel}课`
 
     // 计算开始和结束时间
     const trialTime = new Date(lesson.trial_time)

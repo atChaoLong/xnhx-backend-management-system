@@ -63,10 +63,22 @@ export async function POST(request: NextRequest) {
       const getLabelByCode = (code: string, category: string) => {
         const items = dicts[category] || []
         const item = items.find((i: any) => i.code === code)
-        return item?.label || code
+        return item?.label || ''
       }
-      const subjectLabel = getLabelByCode(lesson.trial_subject || '', 'subject')
-      const courseName = `【试听】${lesson.child_name} ${subjectLabel || (lesson.trial_subject || '').trim()}课`
+      const subjectCode = (lesson.trial_subject || '').toLowerCase()
+      const SUBJECT_LABELS: Record<string, string> = {
+        chinese: '语文',
+        math: '数学',
+        english: '英语',
+        physics: '物理',
+        chemistry: '化学',
+        biology: '生物',
+        history: '历史',
+        geography: '地理',
+        politics: '政治'
+      }
+      const subjectLabel = SUBJECT_LABELS[subjectCode] || getLabelByCode(subjectCode, 'subject') || subjectCode
+      const courseName = `【试听】${lesson.child_name} ${subjectLabel}课`
       courseId = await sdk.createCourse({ courseName })
       const unitResult: any = await sdk.createUnit({ courseId, name: '试听单元' })
       unitId = (typeof unitResult === 'object' ? unitResult.unitId : unitResult)
@@ -94,13 +106,25 @@ export async function POST(request: NextRequest) {
     const getLabelByCode2 = (code: string, category: string) => {
       const items = dicts2[category] || []
       const item = items.find((i: any) => i.code === code)
-      return item?.label || code
+      return item?.label || ''
     }
-    const subjectLabel2 = getLabelByCode2(lesson.trial_subject || '', 'subject')
+    const subjectCode2 = (lesson.trial_subject || '').toLowerCase()
+    const SUBJECT_LABELS2: Record<string, string> = {
+      chinese: '语文',
+      math: '数学',
+      english: '英语',
+      physics: '物理',
+      chemistry: '化学',
+      biology: '生物',
+      history: '历史',
+      geography: '地理',
+      politics: '政治'
+    }
+    const subjectLabel2 = SUBJECT_LABELS2[subjectCode2] || getLabelByCode2(subjectCode2, 'subject') || subjectCode2
     const classroomResult = await sdk.createClassroom({
       courseId,
       unitId,
-      name: `【试听】${lesson.child_name} ${subjectLabel2 || (lesson.trial_subject || '').trim()}课`,
+      name: `【试听】${lesson.child_name} ${subjectLabel2}课`,
       teacherUid: teacherData.uid,
       startTime: trialTime,
       endTime: endTime,
