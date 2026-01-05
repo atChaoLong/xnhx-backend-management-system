@@ -81,10 +81,7 @@ const navigationGroups: MenuGroup[] = [
     title: "老师面试",
     roles: ['admin', 'hr', 'academic_affairs'],
     items: [
-      { name: "老师约面", href: "/dashboard/teacher-candidates", icon: UserPlus, permission: { resource: 'teacherCandidates', action: 'interview' } },
-      { name: "初试管理", href: "/dashboard/teacher-candidates", icon: ClipboardList, permission: { resource: 'teacherCandidates', action: 'evaluate' } },
-      { name: "录像上传", href: "/dashboard/teacher-candidates", icon: Video, permission: { resource: 'teacherCandidates', action: 'uploadVideo' } },
-      { name: "教学复核", href: "/dashboard/teacher-candidates", icon: Eye, permission: { resource: 'teacherCandidates', action: 'reviewVideo' } },
+      { name: "面试管理", href: "/dashboard/teacher-candidates", icon: ClipboardList, permission: { resource: 'teacherCandidates', action: 'view' } },
     ]
   },
   {
