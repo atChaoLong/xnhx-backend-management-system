@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     const endTime = new Date(trialTime.getTime() + durationMs)
 
     let courseId: number = lesson.classin_course_id || 0
-    let unitId: number = lesson.classin_unit_id || 0
+    let unitId: number | undefined = lesson.classin_unit_id || undefined
     let classId: number
     let activityId: number
 
@@ -80,8 +80,8 @@ export async function POST(request: NextRequest) {
       const subjectLabel = SUBJECT_LABELS[subjectCode] || getLabelByCode(subjectCode, 'subject') || subjectCode
       const courseName = `【试听】${lesson.child_name} ${subjectLabel}课`
       courseId = await sdk.createCourse({ courseName })
-      // 不创建单元，使用课程ID作为单元ID
-      unitId = courseId
+      // 不创建单元，不传 unitId（创建在无主题单元下）
+      unitId = undefined
 
       try {
         await supabaseServer
@@ -121,12 +121,8 @@ export async function POST(request: NextRequest) {
       politics: '政治'
     }
     const subjectLabel2 = SUBJECT_LABELS2[subjectCode2] || getLabelByCode2(subjectCode2, 'subject') || subjectCode2
-    // 如果记录中没有单元ID，同样使用课程ID作为单元ID
-    if (!unitId) unitId = courseId
-
     const classroomResult = await sdk.createClassroom({
       courseId,
-      unitId,
       name: `【试听】${lesson.child_name} ${subjectLabel2}课`,
       teacherUid: teacherData.uid,
       startTime: trialTime,

@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     // 7. 执行创建流程
     let courseId: number
-    let unitId: number
+    let unitId: number | undefined
     let classId: number
     let activityId: number
 
@@ -112,15 +112,14 @@ export async function POST(request: NextRequest) {
 
       logger.info('创建课程成功', { courseId })
 
-      // 7.2 跳过显式创建单元，使用课程ID作为单元ID
-      unitId = courseId
+      // 7.2 跳过显式创建单元，不传 unitId（创建在无主题单元下）
+      unitId = undefined
 
       logger.info('创建单元成功', { unitId })
 
       // 7.3 创建课堂活动
       const classroomResult = await sdk.createClassroom({
         courseId,
-        unitId,
         name: classroomName,
         teacherUid: teacherData.uid,
         startTime: trialTime,
@@ -166,17 +165,17 @@ export async function POST(request: NextRequest) {
     }
 
     // 8. 更新试听课程记录
-    const { error: updateError } = await supabaseServer
-      .from('trial_lessons')
-      .update({
-        classin_course_id: courseId,
-        classin_class_id: classId,
-        classin_activity_id: activityId,
-        classin_unit_id: unitId,
-        course_status: '已排课',
-        status: 'confirmed',
-        updated_at: new Date().toISOString(),
-      })
+      const { error: updateError } = await supabaseServer
+        .from('trial_lessons')
+        .update({
+          classin_course_id: courseId,
+          classin_class_id: classId,
+          classin_activity_id: activityId,
+          classin_unit_id: unitId || null,
+          course_status: '已排课',
+          status: 'confirmed',
+          updated_at: new Date().toISOString(),
+        })
       .eq('id', trialLessonId)
 
     if (updateError) {

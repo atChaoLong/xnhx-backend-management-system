@@ -42,7 +42,7 @@ export interface CreateUnitParams {
 
 export interface CreateClassroomParams {
   courseId: number
-  unitId: number
+  unitId?: number
   name: string
   teacherUid: number
   startTime: string | number | Date
