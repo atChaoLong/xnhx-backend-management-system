@@ -66,9 +66,9 @@ export async function POST(request: NextRequest) {
     const sdk = getClassInSDKService()
 
     // 课程名称和课堂名称
-    const courseName = `【试听】${lesson.child_name}${subjectLabel}课`
+    const courseName = `【试听】${lesson.child_name} ${subjectLabel || (lesson.trial_subject || '').trim()}课`
     const unitName = '试听单元'
-    const classroomName = `【试听】${lesson.child_name}${subjectLabel}课`
+    const classroomName = `【试听】${lesson.child_name} ${subjectLabel || (lesson.trial_subject || '').trim()}课`
 
     // 计算开始和结束时间
     const trialTime = new Date(lesson.trial_time)

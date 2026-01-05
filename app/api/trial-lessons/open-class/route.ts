@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
         return item?.label || code
       }
       const subjectLabel = getLabelByCode(lesson.trial_subject || '', 'subject')
-      const courseName = `【试听】${lesson.child_name}${subjectLabel}课`
+      const courseName = `【试听】${lesson.child_name} ${subjectLabel || (lesson.trial_subject || '').trim()}课`
       courseId = await sdk.createCourse({ courseName })
       const unitResult: any = await sdk.createUnit({ courseId, name: '试听单元' })
       unitId = (typeof unitResult === 'object' ? unitResult.unitId : unitResult)
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     const classroomResult = await sdk.createClassroom({
       courseId,
       unitId,
-      name: `【试听】${lesson.child_name}${subjectLabel2}课`,
+      name: `【试听】${lesson.child_name} ${subjectLabel2 || (lesson.trial_subject || '').trim()}课`,
       teacherUid: teacherData.uid,
       startTime: trialTime,
       endTime: endTime,
