@@ -42,6 +42,16 @@ export function ReviewTab({ formData, onInputChange, currentUser }: ReviewTabPro
             onChange={(e) => onInputChange("reviewed_by", e.target.value)}
           />
         </div>
+        <div className="space-y-2">
+          <Label htmlFor="review_result">复核结果</Label>
+          <Textarea
+            id="review_result"
+            placeholder="复核意见和建议"
+            value={formData.review_result || ""}
+            onChange={(e) => onInputChange("review_result", e.target.value)}
+            rows={3}
+          />
+        </div>
 
         <div className="space-y-2">
           <Label htmlFor="review_evaluation_comment">复核评价（定薪参考）</Label>
