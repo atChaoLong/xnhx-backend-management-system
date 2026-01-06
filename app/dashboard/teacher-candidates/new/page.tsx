@@ -191,10 +191,10 @@ export default function NewTeacherCandidatePage() {
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-blue-500">基本信息</h3>
               <div className="border-b pb-4 space-y-3">
-                {/* 候选人称呼 */}
+                {/* 老师名字 */}
                 <div className="flex items-center gap-4">
-                  <Label htmlFor="name" className="text-xs min-w-20">
-                    候选人称呼 <span className="text-red-500">*</span>
+                  <Label htmlFor="name" className="text-xs w-28">
+                    老师名字
                   </Label>
                   <Input
                     id="name"
@@ -208,7 +208,7 @@ export default function NewTeacherCandidatePage() {
 
                 {/* 微信号 */}
                 <div className="flex items-center gap-4">
-                  <Label htmlFor="wechat_id" className="text-xs min-w-20">微信号</Label>
+                  <Label htmlFor="wechat_id" className="text-xs w-28">微信号</Label>
                   <Input
                     id="wechat_id"
                     placeholder="请输入微信号"
@@ -218,10 +218,10 @@ export default function NewTeacherCandidatePage() {
                   />
                 </div>
 
-                {/* 简历 */}
+                {/* 老师简历 */}
                 <div className="flex items-center gap-4">
-                  <Label htmlFor="resume_file" className="text-xs min-w-20">
-                    简历 <span className="text-red-500">*</span>
+                  <Label htmlFor="resume_file" className="text-xs w-28">
+                    老师简历
                   </Label>
                   <div className="flex-1 flex items-center gap-2">
                     <Input
@@ -247,7 +247,7 @@ export default function NewTeacherCandidatePage() {
 
                 {/* 年级段 */}
                 <div className="flex items-center gap-4">
-                  <Label className="text-xs min-w-20">年级段（多选）</Label>
+                  <Label className="text-xs w-28">年级段</Label>
                   <div className="flex-1 flex items-center gap-4">
                     {[
                       { code: 'primary', label: '小学' },
@@ -268,8 +268,8 @@ export default function NewTeacherCandidatePage() {
                 </div>
 
                 {/* 教授学科 */}
-                <div className="flex gap-4">
-                  <Label className="text-xs min-w-20 pt-2">教授学科</Label>
+                <div className="flex items-start gap-4">
+                  <Label className="text-xs w-28">教授学科</Label>
                   <div className="border rounded-md p-2 space-y-2 max-h-28 overflow-y-auto bg-gray-50 flex-1">
                     {subjects.map((subject) => (
                       <div key={subject.id} className="flex items-center space-x-2">
@@ -298,7 +298,7 @@ export default function NewTeacherCandidatePage() {
               <h3 className="text-sm font-semibold text-blue-500">约面信息</h3>
               <div className="border-b pb-4 space-y-3">
                 <div className="flex items-center gap-4">
-                  <Label htmlFor="interview_date" className="text-xs min-w-20">约面日期</Label>
+                  <Label htmlFor="interview_date" className="text-xs w-28">约面日期</Label>
                   <Input
                     id="interview_date"
                     type="date"
@@ -308,7 +308,7 @@ export default function NewTeacherCandidatePage() {
                   />
                 </div>
                 <div className="flex items-center gap-4">
-                  <Label htmlFor="interview_time" className="text-xs min-w-20">面试时间</Label>
+                  <Label htmlFor="interview_time" className="text-xs w-28">面试时间</Label>
                   <Input
                     id="interview_time"
                     type="time"
@@ -320,7 +320,7 @@ export default function NewTeacherCandidatePage() {
 
                 {/* 面试链接 */}
                 <div className="flex items-center gap-4">
-                  <Label htmlFor="interview_link" className="text-xs min-w-20">面试链接</Label>
+                  <Label htmlFor="interview_link" className="text-xs w-28">面试链接</Label>
                   <Input
                     id="interview_link"
                     type="url"
@@ -333,7 +333,7 @@ export default function NewTeacherCandidatePage() {
 
                 {/* 面试官 */}
                 <div className="flex items-center gap-4">
-                  <Label htmlFor="interviewer_name" className="text-xs min-w-20">面试官</Label>
+                  <Label htmlFor="interviewer_name" className="text-xs w-28">面试官</Label>
                   <Input
                     id="interviewer_name"
                     placeholder="面试官姓名"
@@ -350,7 +350,7 @@ export default function NewTeacherCandidatePage() {
               <h3 className="text-sm font-semibold text-blue-500">面试录像</h3>
               <div className="border-b pb-4 space-y-3">
                 <div className="flex items-center gap-4">
-                  <Label htmlFor="video_recording_url" className="text-xs min-w-20">录像链接</Label>
+                  <Label htmlFor="video_recording_url" className="text-xs w-28">录像链接</Label>
                   <Input
                     id="video_recording_url"
                     type="url"
