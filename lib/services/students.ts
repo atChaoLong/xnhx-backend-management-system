@@ -13,29 +13,23 @@ export interface Student {
   id: string
   created_at: string
   updated_at: string
-  student_number?: string        // 学生学号
-  student_name: string           // 学生姓名（必填）
-  grade_code?: string            // 年级代码
-  region?: string                // 地域
-  school?: string                // 学校
-  parent_phone?: string          // 家长电话
-  head_teacher_id?: string       // 班主任ID
-  status?: string                // 状态
-  classin_uid?: number           // ClassIn 学生 UID
+  student_code?: string
+  student_name: string
+  status?: string
+  parent_phone?: string
+  classin_initial_password?: string
+  classin_uid?: number
 }
 
 /**
  * 新建学生类型（不包含 id, created_at, updated_at）
  */
 export interface NewStudent {
-  student_number?: string
+  student_code?: string
   student_name: string
-  grade_code?: string
-  region?: string
-  school?: string
   parent_phone?: string
-  head_teacher_id?: string
   status?: string
+  classin_initial_password?: string
 }
 
 /**

@@ -16,11 +16,10 @@ export async function GET(request: NextRequest) {
 
     logger.debug('获取学生数据', { id, from, to })
 
-    // 如果提供了ID，查询单个学生
     if (id) {
       const { data, error } = await supabaseServer
         .from('students')
-        .select('*')
+        .select('id, created_at, updated_at, student_code, student_name, status, parent_phone, classin_initial_password, classin_uid')
         .eq('id', id)
         .single()
 
@@ -36,15 +35,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ data })
     }
 
-    // 先获取总数
     const { count: totalCount } = await supabaseServer
       .from('students')
       .select('*', { count: 'exact', head: true })
 
-    // 分页查询数据
     const { data, error } = await supabaseServer
       .from('students')
-      .select('*')
+      .select('id, created_at, updated_at, student_code, student_name, status, parent_phone, classin_initial_password, classin_uid')
       .order('created_at', { ascending: false })
       .range(from, to)
 

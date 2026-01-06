@@ -28,7 +28,6 @@ import { Plus, Edit, Trash2, Loader2, AlertTriangle } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { StudentsService, Student } from "@/lib/services/students"
-import { DictionaryService } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
 import { usePagination } from "@/lib/hooks/usePagination"
 
@@ -37,7 +36,6 @@ export default function StudentsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
-  const [isLoadingDict, setIsLoadingDict] = useState(true)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null)
   const { toast } = useToast()
@@ -61,14 +59,6 @@ export default function StudentsPage() {
     onPageChange: (page, size) => fetchStudents(page, size),
   })
 
-  // 字典数据映射
-  const [dictMaps, setDictMaps] = useState<{
-    grades: Map<string, string>
-    regions: Map<string, string>
-  }>({
-    grades: new Map(),
-    regions: new Map(),
-  })
 
   // 加载学生列表
   const fetchStudents = async (page: number = 1, size: number = pageSize) => {
@@ -90,27 +80,6 @@ export default function StudentsPage() {
     }
   }
 
-  // 加载字典数据
-  useEffect(() => {
-    const loadDictionaries = async () => {
-      try {
-        setIsLoadingDict(true)
-        const dicts = await DictionaryService.getAllDictionaries()
-
-        // 将字典数组转换为 Map 以便快速查找
-        setDictMaps({
-          grades: new Map((dicts.grade || []).map(item => [item.code, item.label])),
-          regions: new Map((dicts.province || []).map(item => [item.code, item.label])),
-        })
-      } catch (error) {
-        console.error("加载字典失败:", error)
-      } finally {
-        setIsLoadingDict(false)
-      }
-    }
-
-    loadDictionaries()
-  }, [])
 
   useEffect(() => {
     fetchStudents(1, pageSize)
@@ -151,13 +120,51 @@ export default function StudentsPage() {
     setStudentToDelete(null)
   }
 
-  // 获取标签的辅助函数
-  const getLabel = (code: string | undefined, map: Map<string, string>) => {
-    if (!code) return "-"
-    return map.get(code) || code
+  const handleConfirmEntry = async (student: Student) => {
+    const code = prompt(`为学生 ${student.student_name} 设置学生编号：`)
+    if (code === null || !code.trim()) return
+    const password = prompt(`为学生 ${student.student_name} 设置 ClassIn 初始密码：`, "123456")
+    if (password === null || !password.trim()) return
+    if (!student.parent_phone) {
+      toast({
+        variant: "destructive",
+        title: "无法入库",
+        description: "该学生没有填写手机号（家长电话）",
+      })
+      return
+    }
+    try {
+      const resp = await fetch("/api/student-entries/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          student_name: student.student_name,
+          student_code: code.trim(),
+          parent_phone: student.parent_phone,
+          initial_password: password.trim(),
+          status: student.status || "active",
+        }),
+      })
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: "学生入库失败" }))
+        throw new Error(err.error || "学生入库失败")
+      }
+      toast({
+        title: "入库成功",
+        description: "学生已注册 ClassIn 并写入 students",
+      })
+      fetchStudents(currentPage, pageSize)
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "入库失败",
+        description: error.message || "无法入库该学生",
+      })
+    }
   }
 
-  if (isLoading || isLoadingDict) {
+
+  if (isLoading) {
     return (
       <div className="flex flex-col h-full">
         <Header title="学生管理" description="管理和查看所有学生信息" />
@@ -205,17 +212,17 @@ export default function StudentsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>学生编号</TableHead>
                     <TableHead>学生姓名</TableHead>
-                    <TableHead>学号</TableHead>
-                    <TableHead>年级</TableHead>
-                    <TableHead>地域</TableHead>
-                    <TableHead>学校</TableHead>
+                    <TableHead>手机号</TableHead>
+                    <TableHead>ClassIn初始密码</TableHead>
+                    <TableHead>ClassIn UID</TableHead>
                     <TableHead>状态</TableHead>
                     <TableHead className="text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {students.length === 0 ? (
+                    {students.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         暂无数据，点击"新增学生"开始添加
@@ -224,11 +231,11 @@ export default function StudentsPage() {
                   ) : (
                     students.map((student) => (
                       <TableRow key={student.id}>
-                        <TableCell className="font-medium">{student.student_name || "-"}</TableCell>
-                        <TableCell>{student.student_number || "-"}</TableCell>
-                        <TableCell>{getLabel(student.grade_code, dictMaps.grades)}</TableCell>
-                        <TableCell>{getLabel(student.region, dictMaps.regions)}</TableCell>
-                        <TableCell>{student.school || "-"}</TableCell>
+                        <TableCell className="font-medium">{student.student_code || "-"}</TableCell>
+                        <TableCell>{student.student_name || "-"}</TableCell>
+                        <TableCell>{student.parent_phone || "-"}</TableCell>
+                        <TableCell>{student.classin_initial_password || "-"}</TableCell>
+                        <TableCell>{student.classin_uid ?? "-"}</TableCell>
                         <TableCell>
                           {student.status === 'active' ? (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -242,6 +249,16 @@ export default function StudentsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            {!student.classin_uid && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => handleConfirmEntry(student)}
+                                className="bg-blue-600 hover:bg-blue-700"
+                              >
+                                入库
+                              </Button>
+                            )}
                             <Link href={`/dashboard/students/${student.id}/edit`}>
                               <Button variant="ghost" size="icon">
                                 <Edit className="h-4 w-4" />
@@ -284,10 +301,11 @@ export default function StudentsPage() {
                   <Pagination>
                     <PaginationContent>
                       <PaginationItem>
-                        <PaginationPrevious
-                          onClick={goToPreviousPage}
-                          className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                        />
+                <PaginationPrevious
+                  onClick={goToPreviousPage}
+                  className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  disabled={!canGoPrevious}
+                />
                       </PaginationItem>
                       {getPageRange().map((page, index) => {
                         if (page === -1) {
@@ -299,21 +317,23 @@ export default function StudentsPage() {
                         }
                         return (
                           <PaginationItem key={page}>
-                            <PaginationLink
-                              onClick={() => goToPage(page)}
-                              isActive={page === currentPage}
-                              className="cursor-pointer"
-                            >
-                              {page}
-                            </PaginationLink>
+                <PaginationLink
+                  onClick={() => goToPage(page)}
+                  isActive={page === currentPage}
+                  className="cursor-pointer"
+                  disabled={false}
+                >
+                  {page}
+                </PaginationLink>
                           </PaginationItem>
                         )
                       })}
                       <PaginationItem>
-                        <PaginationNext
-                          onClick={goToNextPage}
-                          className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                        />
+                <PaginationNext
+                  onClick={goToNextPage}
+                  className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  disabled={!canGoNext}
+                />
                       </PaginationItem>
                     </PaginationContent>
                   </Pagination>
