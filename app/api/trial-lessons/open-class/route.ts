@@ -127,8 +127,8 @@ export async function POST(request: NextRequest) {
       teacherUid: teacherData.uid,
       startTime: trialTime,
       endTime: endTime,
-      liveState: 0,
-      openState: 0,
+      liveState: 1,
+      openState: 1,
       recordState: 1,
       recordType: 0
     })
@@ -171,6 +171,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const shareUrl = `https://share.eeo.cn/s/a/?cid=${courseId}`
     const { error: updateError } = await supabaseServer
       .from('trial_lessons')
       .update({
@@ -178,6 +179,7 @@ export async function POST(request: NextRequest) {
         classin_unit_id: unitId || null,
         classin_class_id: classId,
         classin_activity_id: activityId,
+        class_link: shareUrl,
         course_status: '已排课',
         status: 'confirmed',
         updated_at: new Date().toISOString(),
@@ -190,7 +192,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: { courseId, unitId, classId, activityId, studentUid }
+      data: { courseId, unitId, classId, activityId, studentUid, shareUrl }
     })
   } catch (error: any) {
     return NextResponse.json(
