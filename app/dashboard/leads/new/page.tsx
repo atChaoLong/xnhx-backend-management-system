@@ -70,6 +70,7 @@ export default function NewLeadPage() {
     region_ip: "",
     parent_wechat: "",
     grab_wechat: "",
+    grab_user_id: "",
   })
 
   // 设置默认运营人员为当前用户
@@ -211,6 +212,7 @@ export default function NewLeadPage() {
         region_ip: formData.region_ip || undefined,
         parent_wechat: formData.parent_wechat || undefined,
         grab_wechat: formData.grab_wechat || undefined,
+        grab_user_id: formData.grab_user_id || undefined,
         chat_screenshots: chatScreenshotPreviews.length > 0 ? chatScreenshotPreviews.join(',') : undefined,
       }
 
@@ -410,13 +412,23 @@ export default function NewLeadPage() {
 
                     <div className="space-y-2">
                       <Label htmlFor="grab_wechat">抢单微信</Label>
-                      <Select value={formData.grab_wechat} onValueChange={(value) => handleInputChange("grab_wechat", value)}>
+                      <Select
+                        value={formData.grab_user_id}
+                        onValueChange={(value) => {
+                          const selected = sales.find(s => s.id === value)
+                          setFormData(prev => ({
+                            ...prev,
+                            grab_user_id: value,
+                            grab_wechat: selected ? (selected.name || selected.email) : "",
+                          }))
+                        }}
+                      >
                         <SelectTrigger>
-                          <SelectValue placeholder="选择销售" />
+                          <SelectValue placeholder="选择销售顾问" />
                         </SelectTrigger>
                         <SelectContent>
                           {sales.map((salesPerson) => (
-                            <SelectItem key={salesPerson.id} value={salesPerson.name || salesPerson.email}>
+                            <SelectItem key={salesPerson.id} value={salesPerson.id}>
                               {salesPerson.name || salesPerson.email}
                             </SelectItem>
                           ))}

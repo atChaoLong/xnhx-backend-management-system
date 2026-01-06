@@ -73,6 +73,7 @@ export default function EditLeadPage() {
     region_ip: "",
     parent_wechat: "",
     grab_wechat: "",
+    grab_user_id: "",
   })
 
   // 加载字典数据
@@ -153,6 +154,7 @@ export default function EditLeadPage() {
           region_ip: data.region_ip || "",
           parent_wechat: data.parent_wechat || "",
           grab_wechat: data.grab_wechat || "",
+          grab_user_id: data.grab_user_id || "",
         })
         setSelectedSubjects(data.subject_codes || [])
         // Handle multiple screenshots from comma-separated string
@@ -234,6 +236,7 @@ export default function EditLeadPage() {
         region_ip: formData.region_ip,
         parent_wechat: formData.parent_wechat,
         grab_wechat: formData.grab_wechat,
+        grab_user_id: formData.grab_user_id,
         chat_screenshots: chatScreenshotPreviews.length > 0 ? chatScreenshotPreviews.join(',') : undefined,
         subject_codes: selectedSubjects,
       }
@@ -462,13 +465,23 @@ export default function EditLeadPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="grab_wechat">抢单微信</Label>
-                    <Select value={formData.grab_wechat} onValueChange={(value) => handleInputChange("grab_wechat", value)}>
+                    <Select
+                      value={formData.grab_user_id}
+                      onValueChange={(value) => {
+                        const selected = sales.find(s => s.id === value)
+                        setFormData(prev => ({
+                          ...prev,
+                          grab_user_id: value,
+                          grab_wechat: selected ? (selected.name || selected.email) : "",
+                        }))
+                      }}
+                    >
                       <SelectTrigger>
-                        <SelectValue placeholder="选择销售" />
+                        <SelectValue placeholder="选择销售顾问" />
                       </SelectTrigger>
                       <SelectContent>
                         {sales.map((salesPerson) => (
-                          <SelectItem key={salesPerson.id} value={salesPerson.name || salesPerson.email}>
+                          <SelectItem key={salesPerson.id} value={salesPerson.id}>
                             {salesPerson.name || salesPerson.email}
                           </SelectItem>
                         ))}
