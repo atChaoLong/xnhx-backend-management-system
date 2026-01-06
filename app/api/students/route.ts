@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
 
     logger.debug('创建学生 - 接收到的数据', { body, student_name: body?.student_name, student_name_type: typeof body?.student_name })
 
-    // 后端验证：学生姓名必填
+    // 后端验证：学生姓名与学生编号必填
     if (!body.student_name || typeof body.student_name !== 'string' || !body.student_name.trim()) {
       logger.error('创建学生失败 - 学生姓名为空', { body })
       return NextResponse.json(
@@ -86,8 +86,16 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+    if (!body.student_code || typeof body.student_code !== 'string' || !body.student_code.trim()) {
+      logger.error('创建学生失败 - 学号为空', { body })
+      return NextResponse.json(
+        { error: '学生编号（学号）不能为空' },
+        { status: 400 }
+      )
+    }
 
     const insertData = {
+      student_code: body.student_code.trim(),
       student_name: body.student_name.trim(),
       grade_code: body.grade_code || null,
       region: body.region || null,
@@ -148,6 +156,7 @@ export async function POST(request: NextRequest) {
       const { error: updateError } = await supabaseServer
         .from('students')
         .update({
+          classin_initial_password: initialPassword,
           classin_uid: uid,
           updated_at: new Date().toISOString(),
         })
@@ -161,7 +170,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const merged = { ...data, classin_uid: uid }
+      const merged = { ...data, classin_uid: uid, classin_initial_password: initialPassword }
       return NextResponse.json({ data: merged }, { status: 201 })
     } catch (err: any) {
       logger.error('注册学生到 ClassIn 异常', { message: err.message, stack: err.stack })

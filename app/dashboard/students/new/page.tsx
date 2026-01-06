@@ -37,6 +37,7 @@ export default function NewStudentPage() {
   })
 
   const [formData, setFormData] = useState({
+    student_code: "",
     student_name: "",
     grade_code: "",
     region: "",
@@ -73,6 +74,14 @@ export default function NewStudentPage() {
     e.preventDefault()
 
     // 验证必填字段
+    if (!formData.student_code.trim()) {
+      toast({
+        variant: "destructive",
+        title: "验证失败",
+        description: "请输入学生编号（学号）",
+      })
+      return
+    }
     if (!formData.student_name.trim()) {
       toast({
         variant: "destructive",
@@ -96,6 +105,7 @@ export default function NewStudentPage() {
 
     try {
       const payload: NewStudent = {
+        student_code: formData.student_code.trim(),
         student_name: formData.student_name.trim(),
         grade_code: formData.grade_code || undefined,
         region: formData.region || undefined,
@@ -145,6 +155,19 @@ export default function NewStudentPage() {
                 {/* 基本信息 */}
                 <div className="space-y-4">
                   <h3 className="text-sm font-semibold">基本信息</h3>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="student_code">
+                      学号 <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="student_code"
+                      placeholder="请输入学生编号（学号）"
+                      value={formData.student_code}
+                      onChange={(e) => handleInputChange("student_code", e.target.value)}
+                      required
+                    />
+                  </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="student_name">
