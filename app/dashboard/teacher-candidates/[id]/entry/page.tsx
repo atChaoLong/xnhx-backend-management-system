@@ -19,6 +19,7 @@ export default function EntryPreviewPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [teacherCode, setTeacherCode] = useState("")
+  const [initialPassword, setInitialPassword] = useState("123456")
 
   const candidateId = params.id as string
 
@@ -55,6 +56,29 @@ export default function EntryPreviewPage() {
 
     setIsSubmitting(true)
     try {
+      if (!candidate.wechat_id) {
+        throw new Error("缺少手机号，无法在 ClassIn 创建老师 UID")
+      }
+
+      const regResp = await fetch("/api/teacher-entries/register-classin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          telephone: candidate.wechat_id,
+          nickname: candidate.name,
+          password: initialPassword,
+        }),
+      })
+      if (!regResp.ok) {
+        const err = await regResp.json().catch(() => ({ error: "ClassIn 注册失败" }))
+        throw new Error(err.error || "ClassIn 注册失败")
+      }
+      const regData = await regResp.json()
+      const classin_uid = regData?.uid
+      if (!classin_uid) {
+        throw new Error("未获取到 ClassIn UID")
+      }
+
       // 先写入 teachers 简化信息
       const resp = await fetch("/api/teacher-entries", {
         method: "POST",
@@ -64,8 +88,8 @@ export default function EntryPreviewPage() {
           name: candidate.name,
           status: "active",
           mobile: candidate.wechat_id || null,
-          classin_initial_password: null,
-          classin_uid: candidate as any && (candidate as any).classin_uid ? (candidate as any).classin_uid : null,
+          classin_initial_password: initialPassword,
+          classin_uid,
           candidate_id: candidate.id,
           notes: candidate.hired_notes || null,
         }),
@@ -150,18 +174,28 @@ export default function EntryPreviewPage() {
                 <Label>老师级别</Label>
                 <Input value={candidate.teacher_level || ""} readOnly />
               </div>
-            </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>课时费（时薪）</Label>
-                <Input value={candidate.approved_hourly_rate?.toString() || ""} readOnly />
-              </div>
-              <div className="space-y-2">
-                <Label>手机号</Label>
-                <Input value={candidate.wechat_id || ""} readOnly />
-              </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>课时费（时薪）</Label>
+              <Input value={candidate.approved_hourly_rate?.toString() || ""} readOnly />
             </div>
+            <div className="space-y-2">
+              <Label>手机号</Label>
+              <Input value={candidate.wechat_id || ""} readOnly />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="classin_initial_password">ClassIn 初始密码</Label>
+            <Input
+              id="classin_initial_password"
+              placeholder="请输入初始密码"
+              value={initialPassword}
+              onChange={(e) => setInitialPassword(e.target.value)}
+            />
+          </div>
 
             <div className="flex justify-end gap-4 pt-4 border-t">
               <Button variant="outline" onClick={() => router.push("/dashboard/teacher-candidates")} disabled={isSubmitting}>
