@@ -66,16 +66,7 @@ export function BasicInfoTab({ formData, onInputChange, onFileUpload }: BasicInf
           )}
         </div>
 
-        <div className="space-y-2">
-          <Label>形象照</Label>
-          {formData.profile_photo_url && (
-            <div className="text-xs text-gray-600 p-2 bg-gray-50 rounded">
-              <a href={formData.profile_photo_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                查看形象照
-              </a>
-            </div>
-          )}
-        </div>
+        
       </div>
 
       {/* 约面信息（与创建保持一致） */}
