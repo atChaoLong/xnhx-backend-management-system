@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Loader2, X, Upload } from "lucide-react"
+import { Loader2, X } from "lucide-react"
 import { TeacherCandidatesService, NewTeacherCandidate } from "@/lib/services/teacherCandidates"
 import { getDictionaryItems, DictionaryItem } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
@@ -16,62 +16,40 @@ export default function NewTeacherCandidatePage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [gradeLevels, setGradeLevels] = useState<DictionaryItem[]>([])
   const [subjects, setSubjects] = useState<DictionaryItem[]>([])
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
+  const [selectedGradeGroups, setSelectedGradeGroups] = useState<string[]>([])
 
+  const today = new Date().toISOString().slice(0,10)
   const [formData, setFormData] = useState({
     // 基本信息
     name: "",
     wechat_id: "",
     resume_url: "",
-    profile_photo_url: "",
 
     // 岗位信息
     grade_level: "",
-    subjects_taught: "",
-    teacher_type: "",
-    trial_subject: "",
-    teaching_style: "",
 
     // 约面信息
-    interview_date: "",
-    interviewer_name: "",
+    interview_date: today,
     interview_time: "",
     interview_link: "",
-    interview_officer: "",
-    interview_exception: "",
+    interviewer_name: "",
 
     // 面试过程
-    initial_evaluation: "",
     video_recording_url: "",
 
-    // 复核状态
-    review_status: "待复核" as '待复核' | '已复核' | '不符合',
-    reviewed_by: "",
-    review_result: "",
-    review_evaluation_comment: "",
-
-    // 招聘决定
-    is_hired: false,
-    teacher_level: "",
-    can_teach_graduation_class: false,
+    // 其他字段在创建阶段不需要
   })
 
   const [resumeFile, setResumeFile] = useState<File | null>(null)
-  const [photoFile, setPhotoFile] = useState<File | null>(null)
-  const [videoFile, setVideoFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
 
   // 加载字典数据
   useEffect(() => {
     const loadDictionaries = async () => {
       try {
-        const [gradeData, subjectData] = await Promise.all([
-          getDictionaryItems('grade'),
-          getDictionaryItems('subject')
-        ])
-        setGradeLevels(gradeData)
+        const subjectData = await getDictionaryItems('subject')
         setSubjects(subjectData)
       } catch (error: any) {
         console.error("加载字典数据失败:", error)
@@ -92,6 +70,17 @@ export default function NewTeacherCandidatePage() {
         return prev.filter((s) => s !== subjectCode)
       } else {
         return [...prev, subjectCode]
+      }
+    })
+  }
+
+  // 年级段多选（小学/初中/高中）
+  const handleGradeGroupToggle = (code: string) => {
+    setSelectedGradeGroups((prev) => {
+      if (prev.includes(code)) {
+        return prev.filter((g) => g !== code)
+      } else {
+        return [...prev, code]
       }
     })
   }
@@ -124,7 +113,6 @@ export default function NewTeacherCandidatePage() {
 
     try {
        let resume_url: string | undefined = undefined
-       let profile_photo_url: string | undefined = undefined
        let video_recording_url: string | undefined = undefined
 
        // 上传简历
@@ -147,69 +135,19 @@ export default function NewTeacherCandidatePage() {
          }
        }
 
-       // 上传形象照
-       if (photoFile) {
-         try {
-           profile_photo_url = await uploadFile(photoFile, 'teacher-photos')
-           toast({
-             title: "上传成功",
-             description: "形象照已上传",
-           })
-         } catch (error: any) {
-           toast({
-             variant: "destructive",
-             title: "上传失败",
-             description: error.message || "无法上传形象照",
-           })
-           setIsUploading(false)
-           return
-         }
-       }
-
-       // 上传面试视频（可选）
-       if (videoFile) {
-         try {
-           video_recording_url = await uploadFile(videoFile, 'teacher-interview-videos')
-           toast({
-             title: "上传成功",
-             description: "面试视频已上传",
-           })
-         } catch (error: any) {
-           toast({
-             variant: "destructive",
-             title: "上传失败",
-             description: error.message || "无法上传面试视频",
-           })
-           setIsUploading(false)
-           return
-         }
-       }
+       // 录像链接可选直接填 URL，不上传文件
 
       const payload: NewTeacherCandidate = {
         name: formData.name.trim(),
         wechat_id: formData.wechat_id.trim() || undefined,
         resume_url: resume_url || formData.resume_url.trim() || undefined,
-        profile_photo_url: profile_photo_url || formData.profile_photo_url.trim() || undefined,
-        grade_level: formData.grade_level || undefined,
+        grade_level: (selectedGradeGroups.length > 0 ? selectedGradeGroups.join(',') : formData.grade_level) || undefined,
         subjects_taught: selectedSubjects.length > 0 ? selectedSubjects : undefined,
-        teacher_type: formData.teacher_type || undefined,
-        trial_subject: formData.trial_subject || undefined,
-        teaching_style: formData.teaching_style || undefined,
         interview_date: formData.interview_date || undefined,
-        interviewer_name: formData.interviewer_name || undefined,
         interview_time: formData.interview_time || undefined,
         interview_link: formData.interview_link || undefined,
-        interview_officer: formData.interview_officer || undefined,
-        interview_exception: formData.interview_exception || undefined,
-        initial_evaluation: formData.initial_evaluation || undefined,
         video_recording_url: video_recording_url || formData.video_recording_url || undefined,
-        review_status: formData.review_status,
-        reviewed_by: formData.reviewed_by || undefined,
-        review_result: formData.review_result || undefined,
-        review_evaluation_comment: formData.review_evaluation_comment || undefined,
-        is_hired: formData.is_hired,
-        teacher_level: formData.teacher_level || undefined,
-        can_teach_graduation_class: formData.can_teach_graduation_class,
+        interviewer_name: formData.interviewer_name || undefined,
       }
 
       await TeacherCandidatesService.createTeacherCandidate(payload)
@@ -307,46 +245,26 @@ export default function NewTeacherCandidatePage() {
                   </div>
                 </div>
 
-                {/* 形象照 */}
-                <div className="flex items-center gap-4">
-                  <Label htmlFor="photo_file" className="text-xs min-w-20">形象照</Label>
-                  <div className="flex-1 flex items-center gap-2">
-                    <Input
-                      id="photo_file"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        if (e.target.files?.[0]) {
-                          setPhotoFile(e.target.files[0])
-                        }
-                      }}
-                      className="h-9 text-sm flex-1"
-                      disabled={isUploading}
-                    />
-                    {photoFile && (
-                      <span className="text-xs text-gray-600 whitespace-nowrap">
-                        {photoFile.name}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
                 {/* 年级段 */}
                 <div className="flex items-center gap-4">
-                  <Label htmlFor="grade_level" className="text-xs min-w-20">年级段</Label>
-                  <select
-                    id="grade_level"
-                    value={formData.grade_level}
-                    onChange={(e) => handleInputChange("grade_level", e.target.value)}
-                    className="flex h-9 flex-1 rounded-md border border-input bg-background px-2 py-1 text-sm"
-                  >
-                    <option value="">请选择</option>
-                    {gradeLevels.map((grade) => (
-                      <option key={grade.id} value={grade.code}>
-                        {grade.label}
-                      </option>
+                  <Label className="text-xs min-w-20">年级段（多选）</Label>
+                  <div className="flex-1 flex items-center gap-4">
+                    {[
+                      { code: 'primary', label: '小学' },
+                      { code: 'middle', label: '初中' },
+                      { code: 'high', label: '高中' },
+                    ].map((g) => (
+                      <label key={g.code} className="flex items-center gap-2 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={selectedGradeGroups.includes(g.code)}
+                          onChange={() => handleGradeGroupToggle(g.code)}
+                          className="h-4 w-4 rounded border-gray-300"
+                        />
+                        {g.label}
+                      </label>
                     ))}
-                  </select>
+                  </div>
                 </div>
 
                 {/* 教授学科 */}
@@ -385,24 +303,12 @@ export default function NewTeacherCandidatePage() {
                   <Input
                     id="interview_datetime"
                     type="datetime-local"
-                    value={formData.interview_date && formData.interview_time ? `${formData.interview_date}T${formData.interview_time}` : ''}
+                    value={`${formData.interview_date}T${formData.interview_time || ''}`}
                     onChange={(e) => {
                       const [date, time] = e.target.value.split('T')
                       handleInputChange("interview_date", date)
                       handleInputChange("interview_time", time || '')
                     }}
-                    className="h-9 text-sm flex-1"
-                  />
-                </div>
-
-                {/* 约面人 */}
-                <div className="flex items-center gap-4">
-                  <Label htmlFor="interview_officer" className="text-xs min-w-20">约面人</Label>
-                  <Input
-                    id="interview_officer"
-                    placeholder="约面人姓名"
-                    value={formData.interview_officer}
-                    onChange={(e) => handleInputChange("interview_officer", e.target.value)}
                     className="h-9 text-sm flex-1"
                   />
                 </div>
@@ -431,64 +337,13 @@ export default function NewTeacherCandidatePage() {
                     className="h-9 text-sm flex-1"
                   />
                 </div>
-                
-                {/* 面试异常 */}
-                <div className="flex items-start gap-4">
-                  <Label htmlFor="interview_exception" className="text-xs min-w-20">面试异常</Label>
-                  <Textarea
-                    id="interview_exception"
-                    placeholder="如迟到、中途退出、音视频问题等"
-                    value={formData.interview_exception}
-                    onChange={(e) => handleInputChange("interview_exception", e.target.value)}
-                    className="text-sm flex-1"
-                    rows={3}
-                  />
-                </div>
               </div>
             </div>
 
-            {/* 面试过程 */}
+            {/* 面试录像（可选） */}
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-blue-500">面试过程</h3>
+              <h3 className="text-sm font-semibold text-blue-500">面试录像</h3>
               <div className="border-b pb-4 space-y-3">
-                {/* 初试评价 */}
-                <div className="flex items-start gap-4">
-                  <Label htmlFor="initial_evaluation" className="text-xs min-w-20">初试评价</Label>
-                  <Textarea
-                    id="initial_evaluation"
-                    placeholder="第一印象与初步评价"
-                    value={formData.initial_evaluation}
-                    onChange={(e) => handleInputChange("initial_evaluation", e.target.value)}
-                    className="text-sm flex-1"
-                    rows={3}
-                  />
-                </div>
-
-                {/* 面试视频上传 */}
-                <div className="flex items-center gap-4">
-                  <Label htmlFor="video_file" className="text-xs min-w-20">面试视频</Label>
-                  <div className="flex-1 flex items-center gap-2">
-                    <Input
-                      id="video_file"
-                      type="file"
-                      accept="video/*"
-                      onChange={(e) => {
-                        if (e.target.files?.[0]) {
-                          setVideoFile(e.target.files[0])
-                        }
-                      }}
-                      className="h-9 text-sm flex-1"
-                      disabled={isUploading}
-                    />
-                    {videoFile && (
-                      <span className="text-xs text-gray-600 whitespace-nowrap">
-                        {videoFile.name}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* 面试录像链接（可选直接填URL） */}
                 <div className="flex items-center gap-4">
                   <Label htmlFor="video_recording_url" className="text-xs min-w-20">录像链接</Label>
                   <Input
