@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -168,10 +169,18 @@ export default function LeadsPage() {
     setLeadToDelete(null)
   }
 
-  // 标记为已反馈
-  const handleMarkAsFeedback = async (lead: Lead) => {
+  const openFeedbackDialog = (lead: Lead) => {
+    setFeedbackLead(lead)
+    setFeedbackStatus('')
+    setFeedbackDialogOpen(true)
+  }
+
+  const submitFeedback = async () => {
+    if (!feedbackLead || !feedbackStatus) {
+      toast({ variant: "destructive", title: "验证失败", description: "请选择反馈结果（已添加或未添加）" })
+      return
+    }
     try {
-      // 使用专门的反馈API
       const response = await fetch('/api/leads/feedback', {
         method: 'POST',
         headers: {
@@ -179,33 +188,24 @@ export default function LeadsPage() {
           'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token')}`,
         },
         body: JSON.stringify({
-          id: lead.id,
-          add_status: 'added'
+          id: feedbackLead.id,
+          add_status: feedbackStatus,
         })
       })
-
       if (!response.ok) {
-        const error = await response.json()
+        const error = await response.json().catch(() => ({ error: '反馈失败' }))
         throw new Error(error.error || '反馈失败')
       }
-
-      // 更新本地状态
       setLeads(prev => prev.map(l =>
-        l.id === lead.id
-          ? { ...l, add_status: 'added' }
+        l.id === feedbackLead.id
+          ? { ...l, add_status: feedbackStatus }
           : l
       ))
-
-      toast({
-        title: "标记成功",
-        description: "线索已标记为已反馈",
-      })
+      setFeedbackDialogOpen(false)
+      setFeedbackLead(null)
+      toast({ title: "反馈成功", description: `已标记为${feedbackStatus === 'added' ? '已添加' : '未添加'}` })
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "标记失败",
-        description: error.message || "无法标记线索",
-      })
+      toast({ variant: "destructive", title: "反馈失败", description: error.message || "无法反馈线索" })
     }
   }
 
@@ -217,6 +217,9 @@ export default function LeadsPage() {
 
   const [isGrabbing, setIsGrabbing] = useState<string | null>(null)
   const [isReleasing, setIsReleasing] = useState<string | null>(null)
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false)
+  const [feedbackLead, setFeedbackLead] = useState<Lead | null>(null)
+  const [feedbackStatus, setFeedbackStatus] = useState<'added' | 'not_added' | ''>('')
 
   const handleGrabLead = async (lead: Lead) => {
     try {
@@ -403,7 +406,7 @@ export default function LeadsPage() {
                         <TableCell>{lead.parent_wechat || "-"}</TableCell>
                         <TableCell>{lead.grab_wechat || "-"}</TableCell>
                         <TableCell>{getStatusBadge(lead.add_status || "")}</TableCell>
-                        <TableCell>{getConvertStatusBadge(lead.convert_status || "")}</TableCell>
+                        <TableCell>{getConvertStatusBadge((lead as any).convert_status || (lead as any).conversion_status || "")}</TableCell>
                         <TableCell>{lead.operator_name || lead.operator_id || "-"}</TableCell>
                         <TableCell>
                           <div className="flex flex-col">
@@ -458,17 +461,17 @@ export default function LeadsPage() {
                               </Button>
                             )}
                             {/* 销售反馈按钮 - 只在未反馈时显示 */}
-                            {/* 显示条件：有反馈权限 + 派给自己 + 未反馈（add_status不为'added'） */}
+                            {/* 显示条件：有反馈权限 + 派给自己 + 未反馈（add_status为空） */}
                             {leadsPerm.feedback() &&
                               (lead.grab_user_id === user?.id ||
                                (lead.grab_wechat && user?.name && lead.grab_wechat.includes(user?.name))
                               ) &&
-                              lead.add_status !== 'added' && (
+                              !lead.add_status && (
                               <Button
                                 variant="outline"
                                 size="sm"
                                 title="标记为已反馈"
-                                onClick={() => handleMarkAsFeedback(lead)}
+                                onClick={() => openFeedbackDialog(lead)}
                               >
                                 <MessageCircle className="mr-2 h-4 w-4" />
                                 反馈
@@ -538,6 +541,7 @@ export default function LeadsPage() {
                       <PaginationPrevious
                         onClick={goToPreviousPage}
                         className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        disabled={!canGoPrevious}
                       />
                     </PaginationItem>
                     {getPageRange().map((page, index) => {
@@ -554,6 +558,7 @@ export default function LeadsPage() {
                             onClick={() => goToPage(page)}
                             isActive={page === currentPage}
                             className="cursor-pointer"
+                            disabled={false}
                           >
                             {page}
                           </PaginationLink>
@@ -564,6 +569,7 @@ export default function LeadsPage() {
                       <PaginationNext
                         onClick={goToNextPage}
                         className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        disabled={!canGoNext}
                       />
                     </PaginationItem>
                   </PaginationContent>
@@ -601,6 +607,33 @@ export default function LeadsPage() {
                 "确认删除"
               )}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* 反馈对话框 */}
+      <Dialog open={feedbackDialogOpen} onOpenChange={setFeedbackDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>线索反馈</DialogTitle>
+            <DialogDescription>请选择该线索的添加结果</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>反馈结果</Label>
+              <select
+                value={feedbackStatus}
+                onChange={(e) => setFeedbackStatus(e.target.value as any)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">请选择</option>
+                <option value="added">已添加</option>
+                <option value="not_added">未添加</option>
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFeedbackDialogOpen(false)}>取消</Button>
+            <Button onClick={submitFeedback}>提交反馈</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
