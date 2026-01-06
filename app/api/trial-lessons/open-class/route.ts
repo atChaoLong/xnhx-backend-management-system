@@ -36,6 +36,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '缺少试听时间或时长' }, { status: 400 })
     }
 
+    if (!lesson.phone) {
+      return NextResponse.json({ error: '缺少学生手机号（用于注册 ClassIn 学生账号）' }, { status: 400 })
+    }
+
     const { data: teacherData, error: teacherError } = await supabaseServer
       .from('teacher_classin')
       .select('*')
@@ -48,6 +52,49 @@ export async function POST(request: NextRequest) {
     }
 
     const sdk = getClassInSDKService()
+
+    try {
+      const { data: existingStudent } = await supabaseServer
+        .from('students_classin')
+        .select('*')
+        .eq('mobile', lesson.phone)
+        .single()
+      if (!existingStudent) {
+        const studentPassword = process.env.CLASSIN_STUDENT_DEFAULT_PASSWORD || '123456'
+        const studentUid = await sdk.registerStudent({
+          telephone: lesson.phone,
+          nickname: lesson.child_name || '学生',
+          password: studentPassword,
+        })
+        try {
+          await sdk.addSchoolStudent({
+            studentAccount: lesson.phone,
+            studentName: lesson.child_name || '学生',
+          })
+        } catch (e: any) {
+          logger.warn('添加学生到机构失败（非致命）', { message: e?.message })
+        }
+        try {
+          await supabaseServer
+            .from('students_classin')
+            .upsert(
+              {
+                uid: studentUid,
+                name: lesson.child_name || '学生',
+                mobile: lesson.phone,
+                account_status: 1,
+                isdel: 0,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: 'uid' }
+            )
+        } catch (e: any) {
+          logger.warn('写入 students_classin 失败（非致命）', { message: e?.message })
+        }
+      }
+    } catch (e: any) {
+      logger.warn('学生注册或同步失败（非致命）', { message: e?.message })
+    }
 
     const trialTime = new Date(lesson.trial_time)
     const durationMs = (lesson.trial_duration as number) * 60 * 1000
