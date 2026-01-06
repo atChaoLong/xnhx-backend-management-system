@@ -15,6 +15,9 @@ interface ReviewTabProps {
     reviewed_by?: string
     review_date?: string
     trial_video_url?: string
+    teacher_level?: string
+    scheduling_preference?: string
+    hired_notes?: string
   }
   onInputChange: (field: string, value: string | boolean) => void
   currentUser?: {
@@ -89,31 +92,44 @@ export function ReviewTab({ formData, onInputChange, currentUser }: ReviewTabPro
         </div>
       </div>
 
-      {/* 试讲视频 */}
+      {/* 复核补充：老师级别、排课偏好、入库备注 */}
       <div className="space-y-4 border-t pt-4">
-        <h3 className="text-sm font-semibold text-blue-600">补充资料</h3>
-
+        <h3 className="text-sm font-semibold text-blue-600">补充信息</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="teacher_level">老师级别</Label>
+            <select
+              id="teacher_level"
+              value={formData.teacher_level || ""}
+              onChange={(e) => onInputChange("teacher_level", e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+            >
+              <option value="">请选择</option>
+              <option value="初级">初级</option>
+              <option value="中级">中级</option>
+              <option value="高级">高级</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="scheduling_preference">排课偏好</Label>
+            <Textarea
+              id="scheduling_preference"
+              placeholder="如：只能工作日晚上、周末可排、一周最多几节课等"
+              value={formData.scheduling_preference || ""}
+              onChange={(e) => onInputChange("scheduling_preference", e.target.value)}
+              rows={2}
+            />
+          </div>
+        </div>
         <div className="space-y-2">
-          <Label htmlFor="trial_video_url">试讲视频链接（可选）</Label>
-          <Input
-            id="trial_video_url"
-            type="url"
-            placeholder="试讲视频URL"
-            value={formData.trial_video_url || ""}
-            onChange={(e) => onInputChange("trial_video_url", e.target.value)}
+          <Label htmlFor="hired_notes">入库备注</Label>
+          <Textarea
+            id="hired_notes"
+            placeholder="入库前的备注说明（如特殊要求、合同信息等）"
+            value={formData.hired_notes || ""}
+            onChange={(e) => onInputChange("hired_notes", e.target.value)}
+            rows={3}
           />
-          {formData.trial_video_url && (
-            <div className="text-xs text-gray-600 p-2 bg-gray-50 rounded">
-              <a
-                href={formData.trial_video_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
-              >
-                查看试讲视频
-              </a>
-            </div>
-          )}
         </div>
       </div>
     </div>

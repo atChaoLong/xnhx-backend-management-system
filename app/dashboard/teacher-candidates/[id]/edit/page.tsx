@@ -399,6 +399,9 @@ export default function EditTeacherCandidatePage() {
                           reviewed_by: formData.reviewed_by,
                           review_date: formData.review_date,
                           trial_video_url: formData.trial_video_url,
+                          teacher_level: formData.teacher_level,
+                          scheduling_preference: formData.scheduling_preference,
+                          hired_notes: formData.hired_notes,
                         }}
                         onInputChange={handleInputChange}
                         currentUser={{
@@ -415,11 +418,6 @@ export default function EditTeacherCandidatePage() {
                       <SalaryHiringTab
                         formData={{
                           approved_hourly_rate: formData.approved_hourly_rate,
-                          teacher_level: formData.teacher_level,
-                          can_teach_graduation_class: formData.can_teach_graduation_class,
-                          hired_notes: formData.hired_notes,
-                          is_hired: formData.is_hired,
-                          review_status: formData.review_status,
                         }}
                         onInputChange={handleInputChange}
                       />
