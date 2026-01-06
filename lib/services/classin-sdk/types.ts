@@ -53,6 +53,13 @@ export interface CreateClassroomParams {
   recordType?: number
 }
 
+export interface AddCourseStudentParams {
+  courseId: number
+  studentUid: number
+  identity?: number
+  studentName?: string
+}
+
 export interface CompleteClassroomOptions {
   teacher: RegisterTeacherParams
   course: CreateCourseParams

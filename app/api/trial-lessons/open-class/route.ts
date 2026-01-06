@@ -157,6 +157,20 @@ export async function POST(request: NextRequest) {
       logger.warn('写入 classroom_classin 失败', { message: e?.message })
     }
 
+    // 将学生加入课程（课程下所有课节均可上）
+    if (studentUid) {
+      try {
+        await sdk.addCourseStudent({
+          courseId,
+          studentUid,
+          identity: 1,
+          studentName: lesson.child_name || undefined,
+        })
+      } catch (e: any) {
+        logger.warn('添加课程学生失败（非致命）', { message: e?.message })
+      }
+    }
+
     const { error: updateError } = await supabaseServer
       .from('trial_lessons')
       .update({

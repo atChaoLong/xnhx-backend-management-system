@@ -11,6 +11,7 @@ import {
   CreateCourseParams,
   CreateUnitParams,
   CreateClassroomParams,
+  AddCourseStudentParams,
   CompleteClassroomOptions,
   CompleteClassroomResult,
   APIError,
@@ -101,6 +102,39 @@ export class ClassInSDKService {
     } catch (error: any) {
       throw this.handleError(error)
     }
+  }
+
+  /**
+   * 课程下添加学生/旁听（单个）
+   */
+  async addCourseStudent(params: AddCourseStudentParams): Promise<any> {
+    const SID = (this.sdk?.config?.SID) as string
+    const SECRET = (this.sdk?.config?.SECRET) as string
+    const BASE = (this.sdk?.config?.BASE_URL) as string || 'api.eeo.cn'
+    const timeStamp = Math.floor(Date.now() / 1000)
+    const safeKey = require('crypto').createHash('md5').update(String(SECRET) + String(timeStamp)).digest('hex')
+    const url = `https://${BASE}/partner/api/course.api.php?action=addCourseStudent`
+    const form = new URLSearchParams()
+    form.append('SID', String(SID))
+    form.append('safeKey', safeKey)
+    form.append('timeStamp', String(timeStamp))
+    form.append('courseId', String(params.courseId))
+    form.append('identity', String(params.identity ?? 1))
+    form.append('studentUid', String(params.studentUid))
+    if (params.studentName) {
+      form.append('studentName', params.studentName)
+    }
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString(),
+    })
+    const result = await resp.json()
+    const errno = result?.error_info?.errno
+    if (errno !== 1) {
+      throw new Error(result?.error_info?.error || '添加课程学生失败')
+    }
+    return result
   }
 
   // ==================== 完整流程（推荐）====================
