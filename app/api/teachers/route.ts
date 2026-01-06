@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     if (id) {
       const { data, error } = await supabaseServer
-        .from('teachers')
+        .from('teacher_profiles')
         .select('*')
         .eq('id', id)
         .single()
@@ -36,12 +36,12 @@ export async function GET(request: NextRequest) {
     }
 
     const { count: totalCount } = await supabaseServer
-      .from('teachers')
+      .from('teacher_profiles')
       .select('*', { count: 'exact', head: true })
 
     const { data, error } = await supabaseServer
-      .from('teachers')
-      .select('id, created_at, updated_at, teacher_code, name, status, mobile, classin_initial_password, classin_uid, candidate_id')
+      .from('teacher_profiles')
+      .select('id, created_at, updated_at, teacher_name, wechat, classin_phone, subjects, grade_levels, used_classin, classin_uid, location')
       .order('created_at', { ascending: false })
       .range(from, to)
 

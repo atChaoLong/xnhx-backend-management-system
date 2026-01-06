@@ -12,13 +12,14 @@ export interface Teacher {
   id: string
   created_at: string
   updated_at: string
-  teacher_code: string | null
-  name: string | null
-  status: string | null
-  mobile: string | null
-  classin_initial_password: string | null
-  classin_uid: number | null
-  candidate_id: string | null
+  teacher_name: string
+  wechat: string
+  classin_phone: string
+  subjects: string[]
+  grade_levels: string[]
+  used_classin?: boolean
+  classin_uid?: number | null
+  location?: string
 }
 
 /**

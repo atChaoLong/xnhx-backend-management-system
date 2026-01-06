@@ -332,8 +332,8 @@ export default function NewFormalOrderPage() {
                   >
                     <option value="">请选择老师</option>
                     {teachers.map((teacher) => (
-                      <option key={teacher.id} value={teacher.name || ""}>
-                        {teacher.teacher_code ? `${teacher.teacher_code} - ` : ""}{teacher.name || "-"}
+                      <option key={teacher.id} value={(teacher as any).teacher_name || ""}>
+                        {(teacher as any).teacher_name || "-"}
                       </option>
                     ))}
                   </select>
