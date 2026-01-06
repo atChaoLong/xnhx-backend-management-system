@@ -97,6 +97,27 @@ export async function POST(request: NextRequest) {
           recordType: 0,
         })
 
+        try {
+          await supabaseServer
+            .from("classroom_classin")
+            .upsert(
+              {
+                class_id: classroomRes.classId,
+                name: classroomName,
+                start_time: Math.floor(startTime.getTime() / 1000),
+                end_time: Math.floor(endTime.getTime() / 1000),
+                course_id: courseId,
+                course_name: courseName,
+                activity_id: classroomRes.activityId,
+                created_at_timestamp: Math.floor(Date.now() / 1000),
+                sync_time: new Date().toISOString(),
+              },
+              { onConflict: "class_id" }
+            )
+        } catch (e: any) {
+          logger.warn("写入 classroom_classin 失败（非致命）", { message: e?.message })
+        }
+
         success++
         results.push({
           courseId,
