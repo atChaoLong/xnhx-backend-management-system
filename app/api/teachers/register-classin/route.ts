@@ -17,10 +17,10 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // 1. 获取老师信息
+    // 1. 获取老师信息（teacher_profiles）
     const { data: teacher, error: teacherError } = await supabaseServer
-      .from('teachers')
-      .select('*')
+      .from('teacher_profiles')
+      .select('id, teacher_name, classin_phone, used_classin, classin_uid')
       .eq('id', teacherId)
       .single()
 
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. 检查是否已经入库
-    if (teacher.used_classin) {
+    if (teacher.used_classin || teacher.classin_uid) {
       return NextResponse.json({
         error: '该老师已入库到 ClassIn 系统'
       }, { status: 400 })
@@ -64,9 +64,10 @@ export async function POST(request: NextRequest) {
 
     // 4. 更新老师记录，标记已入库并保存 UID
     const { error: updateError } = await supabaseServer
-      .from('teachers')
+      .from('teacher_profiles')
       .update({
         used_classin: true,
+        classin_uid: uid,
         updated_at: new Date().toISOString(),
       })
       .eq('id', teacherId)
