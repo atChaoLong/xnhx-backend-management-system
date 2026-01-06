@@ -6,7 +6,7 @@ import { batchCalculateLeadStatus } from '@/lib/status-calculator'
 
 const logger = createLogger('API:Leads')
 
-// 获取当前用户信息
+// 获取当前用户姓名（用于记录）
 async function getCurrentUser(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')
@@ -37,6 +37,27 @@ async function getCurrentUser(request: NextRequest) {
   }
 }
 
+// 获取当前用户档案（包含 id/name/role）
+async function getCurrentProfile(request: NextRequest): Promise<{ id: string; name: string; role: string } | null> {
+  try {
+    const authHeader = request.headers.get('authorization')
+    const token = authHeader?.replace('Bearer ', '')
+    if (!token) return null
+    const { data: { user }, error } = await supabaseServer.auth.getUser(token)
+    if (error || !user) return null
+    const { data: profile } = await supabaseServer
+      .from('user_profiles')
+      .select('id, name, role')
+      .eq('id', user.id)
+      .single()
+    if (!profile) return null
+    return profile as any
+  } catch (e) {
+    logger.error('获取当前用户档案失败', { error: e })
+    return null
+  }
+}
+
 // GET: 获取所有线索
 export async function GET(request: NextRequest) {
   try {
@@ -47,15 +68,36 @@ export async function GET(request: NextRequest) {
     const from = parseInt(searchParams.get('from') || '0')
     const to = parseInt(searchParams.get('to') || '19')
 
-    // 先获取总数
-    const { count: totalCount } = await supabaseServer
+    // 当前用户档案（用于销售角色筛选）
+    const profile = await getCurrentProfile(request)
+
+    // 基础查询与总数
+    const baseCountQuery = supabaseServer
       .from('leads')
       .select('*', { count: 'exact', head: true })
-
-    // 分页查询数据
-    const { data, error } = await supabaseServer
+    const baseDataQuery = supabaseServer
       .from('leads')
       .select('*')
+
+    // 销售仅可查看未分配或分配给自己的线索
+    if (profile?.role === 'sales') {
+      const meId = profile.id
+      const meName = profile.name || ''
+      const orFilter = [
+        'grab_wechat.is.null',
+        "grab_wechat.eq.''",
+        `grab_user_id.eq.${meId}`,
+        meName ? `grab_wechat.ilike.%${meName}%` : '',
+      ].filter(Boolean).join(',')
+      baseCountQuery.or(orFilter)
+      baseDataQuery.or(orFilter)
+    }
+
+    // 先获取总数
+    const { count: totalCount } = await baseCountQuery
+
+    // 分页查询数据
+    const { data, error } = await baseDataQuery
       .order('created_at', { ascending: false })
       .range(from, to)
 
