@@ -121,7 +121,7 @@ export default function TeachersPage() {
 
   // 入库到 ClassIn（基于简化字段）
   const handleRegisterToClassIn = async (teacher: Teacher) => {
-    if (!teacher.mobile) {
+    if (!teacher.classin_phone) {
       toast({
         variant: "destructive",
         title: "无法入库",
@@ -139,7 +139,7 @@ export default function TeachersPage() {
       return
     }
 
-    const password = prompt(`正在将老师 ${teacher.name || '-'} 入库到 ClassIn 系统\n\n手机号: ${teacher.mobile}\n\n请输入 ClassIn 登录密码：`)
+    const password = prompt(`正在将老师 ${teacher.teacher_name || '-'} 入库到 ClassIn 系统\n\n手机号: ${teacher.classin_phone}\n\n请输入 ClassIn 登录密码：`)
     if (password === null) {
       return
     }
@@ -155,12 +155,13 @@ export default function TeachersPage() {
     try {
       setIsRegistering(teacher.id)
 
-      const response = await fetch('/api/teacher-entries/register-classin', {
+      const response = await fetch('/api/teachers/register-classin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          telephone: teacher.mobile,
-          nickname: teacher.name,
+          teacherId: teacher.id,
+          telephone: teacher.classin_phone,
+          nickname: teacher.teacher_name,
           password: password.trim(),
         }),
       })
@@ -237,13 +238,14 @@ export default function TeachersPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>老师编号</TableHead>
                     <TableHead>姓名</TableHead>
-                    <TableHead>状态</TableHead>
-                    <TableHead>手机号</TableHead>
-                    <TableHead>ClassIn初始密码</TableHead>
+                    <TableHead>微信</TableHead>
+                    <TableHead>ClassIn手机号</TableHead>
+                    <TableHead>学科</TableHead>
+                    <TableHead>年级段</TableHead>
+                    <TableHead>是否用过ClassIn</TableHead>
                     <TableHead>ClassIn UID</TableHead>
-                    <TableHead>面试记录ID</TableHead>
+                    <TableHead>所在地</TableHead>
                     <TableHead>创建时间</TableHead>
                     <TableHead>更新时间</TableHead>
                     <TableHead className="text-right">操作</TableHead>
@@ -259,13 +261,14 @@ export default function TeachersPage() {
                   ) : (
                     teachers.map((teacher) => (
                       <TableRow key={teacher.id}>
-                        <TableCell className="font-medium">{teacher.teacher_code || "-"}</TableCell>
-                        <TableCell>{teacher.name || "-"}</TableCell>
-                        <TableCell>{teacher.status || "-"}</TableCell>
-                        <TableCell>{teacher.mobile || "-"}</TableCell>
-                        <TableCell>{teacher.classin_initial_password || "-"}</TableCell>
+                        <TableCell className="font-medium">{teacher.teacher_name || "-"}</TableCell>
+                        <TableCell>{teacher.wechat || "-"}</TableCell>
+                        <TableCell>{teacher.classin_phone || "-"}</TableCell>
+                        <TableCell>{Array.isArray(teacher.subjects) ? teacher.subjects.join(', ') : '-'}</TableCell>
+                        <TableCell>{Array.isArray(teacher.grade_levels) ? teacher.grade_levels.join(', ') : '-'}</TableCell>
+                        <TableCell>{teacher.used_classin ? '是' : '否'}</TableCell>
                         <TableCell>{teacher.classin_uid ?? "-"}</TableCell>
-                        <TableCell>{teacher.candidate_id || "-"}</TableCell>
+                        <TableCell>{teacher.location || "-"}</TableCell>
                         <TableCell>{teacher.created_at ? format(new Date(teacher.created_at), "yyyy-MM-dd HH:mm") : "-"}</TableCell>
                         <TableCell>{teacher.updated_at ? format(new Date(teacher.updated_at), "yyyy-MM-dd HH:mm") : "-"}</TableCell>
                         <TableCell className="text-right">
@@ -337,6 +340,7 @@ export default function TeachersPage() {
                         <PaginationPrevious
                           onClick={goToPreviousPage}
                           className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                          disabled={!canGoPrevious}
                         />
                       </PaginationItem>
                       {getPageRange().map((page, index) => {
@@ -353,6 +357,7 @@ export default function TeachersPage() {
                               onClick={() => goToPage(page)}
                               isActive={page === currentPage}
                               className="cursor-pointer"
+                              disabled={false}
                             >
                               {page}
                             </PaginationLink>
@@ -363,6 +368,7 @@ export default function TeachersPage() {
                         <PaginationNext
                           onClick={goToNextPage}
                           className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                          disabled={!canGoNext}
                         />
                       </PaginationItem>
                     </PaginationContent>
