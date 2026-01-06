@@ -15,6 +15,7 @@ interface InterviewScoreTabProps {
     exam_score?: string
     initial_evaluation?: string
     video_recording_url?: string
+    current_rate?: number | string
   }
   onInputChange: (field: string, value: string | number) => void
 }
@@ -128,6 +129,23 @@ export function InterviewScoreTab({ formData, onInputChange }: InterviewScoreTab
             />
           </div>
           <p className="text-xs text-gray-500">例如：150/150 (高考)/100(中考)</p>
+        </div>
+
+        {/* 目前课时费 */}
+        <div className="space-y-2">
+          <Label htmlFor="current_rate">目前课时费</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              id="current_rate"
+              type="number"
+              min="0"
+              step="0.5"
+              placeholder="元/小时"
+              value={formData.current_rate || ""}
+              onChange={(e) => onInputChange("current_rate", e.target.value ? parseFloat(e.target.value) : "")}
+            />
+            <span className="text-gray-500 text-sm">元/小时</span>
+          </div>
         </div>
       </div>
 

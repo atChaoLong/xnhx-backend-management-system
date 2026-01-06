@@ -9,7 +9,6 @@ import { AlertCircle } from "lucide-react"
 
 interface SalaryHiringTabProps {
   formData: {
-    current_rate?: number | string
     approved_hourly_rate?: number | string
     teacher_level?: string
     can_teach_graduation_class?: boolean
@@ -31,22 +30,6 @@ export function SalaryHiringTab({ formData, onInputChange }: SalaryHiringTabProp
         <h3 className="text-sm font-semibold text-blue-600">薪资信息</h3>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="current_rate">目前课时费</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="current_rate"
-                type="number"
-                min="0"
-                step="0.5"
-                placeholder="元/小时"
-                value={formData.current_rate || ""}
-                onChange={(e) => onInputChange("current_rate", e.target.value ? parseFloat(e.target.value) : "")}
-              />
-              <span className="text-gray-500 text-sm">元/小时</span>
-            </div>
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="approved_hourly_rate">谈定时薪</Label>
             <div className="flex items-center gap-2">
