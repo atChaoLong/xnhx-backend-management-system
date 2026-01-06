@@ -215,6 +215,59 @@ export default function LeadsPage() {
     router.push(`/dashboard/trial-lessons/new?lead_id=${lead.id}`)
   }
 
+  const [isGrabbing, setIsGrabbing] = useState<string | null>(null)
+  const [isReleasing, setIsReleasing] = useState<string | null>(null)
+
+  const handleGrabLead = async (lead: Lead) => {
+    try {
+      setIsGrabbing(lead.id)
+      const token = localStorage.getItem('supabase.auth.token')
+      const resp = await fetch('/api/leads/grab', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ id: lead.id }),
+      })
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: '抢单失败' }))
+        throw new Error(err.error || '抢单失败')
+      }
+      toast({ title: '抢单成功', description: '该线索已分配给你' })
+      fetchLeads(currentPage, pageSize)
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: '抢单失败', description: error.message || '无法抢单' })
+    } finally {
+      setIsGrabbing(null)
+    }
+  }
+
+  const handleReleaseLead = async (lead: Lead) => {
+    try {
+      setIsReleasing(lead.id)
+      const token = localStorage.getItem('supabase.auth.token')
+      const resp = await fetch('/api/leads/release', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ id: lead.id }),
+      })
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: '释放失败' }))
+        throw new Error(err.error || '释放失败')
+      }
+      toast({ title: '释放成功', description: '线索已放回线索池' })
+      fetchLeads(currentPage, pageSize)
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: '释放失败', description: error.message || '无法释放线索' })
+    } finally {
+      setIsReleasing(null)
+    }
+  }
+
   const formatSubjects = (subjects: string[]) => {
     if (!subjects || subjects.length === 0) return "-"
     // 将代码转换为标签
@@ -366,6 +419,44 @@ export default function LeadsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            {/* 销售抢单：仅未分配时显示 */}
+                            {user?.role === 'sales' && (!lead.grab_wechat || lead.grab_wechat.trim() === '') && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => handleGrabLead(lead)}
+                                disabled={isGrabbing === lead.id}
+                              >
+                                {isGrabbing === lead.id ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    抢单中...
+                                  </>
+                                ) : (
+                                  '抢单'
+                                )}
+                              </Button>
+                            )}
+                            {/* 销售释放：仅分配给自己时显示 */}
+                            {user?.role === 'sales' &&
+                              (lead.grab_user_id === user?.id ||
+                                (lead.grab_wechat && user?.name && lead.grab_wechat.includes(user?.name))) && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleReleaseLead(lead)}
+                                disabled={isReleasing === lead.id}
+                              >
+                                {isReleasing === lead.id ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    释放中...
+                                  </>
+                                ) : (
+                                  '放回线索池'
+                                )}
+                              </Button>
+                            )}
                             {/* 销售反馈按钮 - 只在未反馈时显示 */}
                             {/* 显示条件：有反馈权限 + 派给自己 + 未反馈（add_status不为'added'） */}
                             {leadsPerm.feedback() &&
