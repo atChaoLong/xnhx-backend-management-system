@@ -383,7 +383,7 @@ export default function EditLeadPage() {
                       <SelectContent>
                         <SelectItem value="added">已添加</SelectItem>
                         <SelectItem value="not_added">未添加</SelectItem>
-                        <SelectItem value="waiting_feedback">等待反馈</SelectItem>
+                        <SelectItem value="pending_feedback">等待反馈</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

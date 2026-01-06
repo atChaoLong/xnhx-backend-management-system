@@ -12,7 +12,7 @@ import { TrialLessonsService, NewTrialLesson } from "@/lib/services/trialLessons
 import { LeadsService } from "@/lib/services/leads"
 import { getDictionaryItems } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
-import { uploadFile } from "@/lib/supabase-client"
+import { uploadPaymentProof } from "@/lib/services/upload"
 import Link from "next/link"
 
 export default function NewTrialLessonPage() {
@@ -168,7 +168,7 @@ export default function NewTrialLessonPage() {
       if (uploadedFile) {
         try {
           setIsUploading(true)
-          paymentProofUrl = await uploadFile(uploadedFile, 'payment-proofs')
+          paymentProofUrl = await uploadPaymentProof(uploadedFile)
           toast({
             title: "上传成功",
             description: "付款凭证已上传",

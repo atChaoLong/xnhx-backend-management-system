@@ -466,7 +466,7 @@ export default function LeadsPage() {
                               (lead.grab_user_id === user?.id ||
                                (lead.grab_wechat && user?.name && lead.grab_wechat.includes(user?.name))
                               ) &&
-                              !lead.add_status && (
+                              (lead.add_status != 'added' && lead.add_status != 'not_added') && (
                               <Button
                                 variant="outline"
                                 size="sm"

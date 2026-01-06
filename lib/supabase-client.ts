@@ -7,7 +7,12 @@ import { supabase } from './supabase'
 export async function getAccessToken(): Promise<string | null> {
   try {
     const { data } = await supabase.auth.getSession()
-    return data.session?.access_token || null
+    if (data.session?.access_token) return data.session.access_token
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('supabase.auth.token')
+      if (token && token.trim()) return token
+    }
+    return null
   } catch (error) {
     console.error('获取 access token 失败:', error)
     return null
