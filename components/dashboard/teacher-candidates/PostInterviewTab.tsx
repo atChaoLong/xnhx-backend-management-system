@@ -35,13 +35,7 @@ const DEFAULT_TEACHER_TYPES = [
 const levelOptions = ["强", "较强", "一般", "较弱", "未评"]
 
 export function PostInterviewTab({ formData, onInputChange }: PostInterviewTabProps) {
-  const parseExamScore = (score?: string) => {
-    if (!score) return { earned: "", total: "" }
-    const [earned, total] = score.split("/")
-    return { earned: earned || "", total: total || "" }
-  }
-
-  const exam = parseExamScore(formData.exam_score)
+  const examScore = formData.exam_score || ""
 
   return (
     <div className="space-y-6">
@@ -201,30 +195,13 @@ export function PostInterviewTab({ formData, onInputChange }: PostInterviewTabPr
       <div className="space-y-4 border-t pt-4">
         <h3 className="text-sm font-semibold text-blue-600">成绩与面试评价</h3>
         <div className="space-y-2">
-          <Label>中高考分数（得分/满分）</Label>
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              placeholder="得分"
-              value={exam.earned}
-              onChange={(e) => {
-                const newScore = exam.total ? `${e.target.value}/${exam.total}` : e.target.value
-                onInputChange("exam_score", newScore)
-              }}
-              className="flex-1"
-            />
-            <span className="text-gray-400">/</span>
-            <Input
-              type="number"
-              placeholder="满分"
-              value={exam.total}
-              onChange={(e) => {
-                const newScore = exam.earned ? `${exam.earned}/${e.target.value}` : e.target.value
-                onInputChange("exam_score", newScore)
-              }}
-              className="flex-1"
-            />
-          </div>
+          <Label htmlFor="exam_score">中高考分数（得分/满分）</Label>
+          <Input
+            id="exam_score"
+            placeholder="示例：100/120"
+            value={examScore}
+            onChange={(e) => onInputChange("exam_score", e.target.value)}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="interview_score">面试评价（评分）</Label>
@@ -258,4 +235,3 @@ export function PostInterviewTab({ formData, onInputChange }: PostInterviewTabPr
     </div>
   )
 }
-

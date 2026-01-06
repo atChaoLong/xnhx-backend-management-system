@@ -21,14 +21,6 @@ interface InterviewScoreTabProps {
 }
 
 export function InterviewScoreTab({ formData, onInputChange }: InterviewScoreTabProps) {
-  const parseExamScore = (score?: string) => {
-    if (!score) return { earned: "", total: "" }
-    const [earned, total] = score.split("/")
-    return { earned: earned || "", total: total || "" }
-  }
-
-  const exam = parseExamScore(formData.exam_score)
-
   return (
     <div className="space-y-6">
       {/* 面试评分 */}
@@ -104,31 +96,13 @@ export function InterviewScoreTab({ formData, onInputChange }: InterviewScoreTab
 
         {/* 中高考分数 */}
         <div className="space-y-2">
-          <Label>中高考分数</Label>
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              placeholder="得分"
-              value={exam.earned}
-              onChange={(e) => {
-                const newScore = exam.total ? `${e.target.value}/${exam.total}` : e.target.value
-                onInputChange("exam_score", newScore)
-              }}
-              className="flex-1"
-            />
-            <span className="text-gray-400">/</span>
-            <Input
-              type="number"
-              placeholder="满分"
-              value={exam.total}
-              onChange={(e) => {
-                const newScore = exam.earned ? `${exam.earned}/${e.target.value}` : e.target.value
-                onInputChange("exam_score", newScore)
-              }}
-              className="flex-1"
-            />
-          </div>
-          <p className="text-xs text-gray-500">例如：150/150 (高考)/100(中考)</p>
+          <Label htmlFor="exam_score">中高考分数（得分/满分）</Label>
+          <Input
+            id="exam_score"
+            placeholder="示例：150/150 或 100/120"
+            value={formData.exam_score || ""}
+            onChange={(e) => onInputChange("exam_score", e.target.value)}
+          />
         </div>
 
         {/* 目前课时费 */}
