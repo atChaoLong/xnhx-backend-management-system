@@ -178,7 +178,7 @@ export default function NewFormalOrderPage() {
     }
 
     const isRenew = String(formData.order_type).includes('续费')
-    const isNewOrExpand = String(formData.order_type).includes('新签') || String(formData.order_type).includes('扩课') || String(formData.order_type).includes('阔课')
+    const isNewOrExpand = String(formData.order_type).includes('新签') || String(formData.order_type).includes('扩课') || String(formData.order_type).includes('阔课') || String(formData.order_type).includes('扩科')
     if (isNewOrExpand && !formData.lead_id) {
       toast({
         variant: "destructive",
@@ -331,6 +331,52 @@ export default function NewFormalOrderPage() {
                       ))}
                     </select>
                   </div>
+                </div>
+
+                {/* 关联信息（紧贴订单类型下方） */}
+                <div className="space-y-4">
+                {(String(formData.order_type).includes('新签') || String(formData.order_type).includes('扩课') || String(formData.order_type).includes('阔课') || String(formData.order_type).includes('扩科')) && (
+                    <div className="space-y-2">
+                      <Label htmlFor="lead_id">
+                        关联线索 <span className="text-destructive">*</span>
+                      </Label>
+                      <select
+                        id="lead_id"
+                        value={formData.lead_id}
+                        onChange={(e) => handleInputChange("lead_id", e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                        required
+                      >
+                        <option value="">请选择线索</option>
+                        {leads.map((lead) => (
+                          <option key={lead.id} value={lead.id}>
+                            {lead.report_number || lead.parent_wechat || lead.id}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {String(formData.order_type).includes('续费') && (
+                    <div className="space-y-2">
+                      <Label htmlFor="previous_order_id">
+                        关联之前订单 <span className="text-destructive">*</span>
+                      </Label>
+                      <select
+                        id="previous_order_id"
+                        value={formData.previous_order_id}
+                        onChange={(e) => handleInputChange("previous_order_id", e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                        required
+                      >
+                        <option value="">请选择之前订单</option>
+                        {previousOrders.map((order) => (
+                          <option key={order.id} value={order.id}>
+                            {order.order_number}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -625,52 +671,7 @@ export default function NewFormalOrderPage() {
                 </div>
               </div>
 
-              {/* 关联信息 */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold">关联信息</h3>
-                {(String(formData.order_type).includes('新签') || String(formData.order_type).includes('扩课') || String(formData.order_type).includes('阔课')) && (
-                  <div className="space-y-2">
-                    <Label htmlFor="lead_id">
-                      关联线索 <span className="text-destructive">*</span>
-                    </Label>
-                    <select
-                      id="lead_id"
-                      value={formData.lead_id}
-                      onChange={(e) => handleInputChange("lead_id", e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                      required
-                    >
-                      <option value="">请选择线索</option>
-                      {leads.map((lead) => (
-                        <option key={lead.id} value={lead.id}>
-                          {lead.report_number || lead.parent_wechat || lead.id}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                {String(formData.order_type).includes('续费') && (
-                  <div className="space-y-2">
-                    <Label htmlFor="previous_order_id">
-                      关联之前订单 <span className="text-destructive">*</span>
-                    </Label>
-                    <select
-                      id="previous_order_id"
-                      value={formData.previous_order_id}
-                      onChange={(e) => handleInputChange("previous_order_id", e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                      required
-                    >
-                      <option value="">请选择之前订单</option>
-                      {previousOrders.map((order) => (
-                        <option key={order.id} value={order.id}>
-                          {order.order_number}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </div>
+              
 
               {/* 操作按钮 */}
               <div className="flex justify-end gap-4 pt-4 border-t">
