@@ -55,6 +55,7 @@ export const ACTIONS = {
   uploadVideo: 'uploadVideo',        // 录像上传
   reviewVideo: 'reviewVideo',        // 录像复核
   notes: 'notes',                    // 备注
+  assign: 'assign',                  // 分配（抢单/释放）
 } as const
 
 export type Action = typeof ACTIONS[keyof typeof ACTIONS]
@@ -89,7 +90,7 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
 
   // 销售顾问：线索跟进、学生管理、订单录入
   sales: {
-    leads: ['view', 'feedback', 'convert'], // 移除 edit - 销售只能反馈状态，不能编辑基本信息
+    leads: ['view', 'feedback', 'convert', 'assign'], // 授予分配权限（抢单/释放），不授予 edit
     trialLessons: ['view', 'create', 'edit', 'matchTeacher', 'confirmTime', 'convert'], // 添加 matchTeacher - 销售可以匹配老师
     students: ['view', 'create', 'edit'],
     formalOrders: ['view', 'create', 'edit'],

@@ -22,6 +22,13 @@ export const ROUTE_PERMISSIONS = {
   '/api/leads/feedback': {
     POST: { resource: RESOURCES.leads, action: ACTIONS.feedback },
   },
+  // 线索分配（抢单/释放）
+  '/api/leads/grab': {
+    POST: { resource: RESOURCES.leads, action: ACTIONS.assign },
+  },
+  '/api/leads/release': {
+    POST: { resource: RESOURCES.leads, action: ACTIONS.assign },
+  },
 
   // 试听管理
   '/api/trial-lessons': {
