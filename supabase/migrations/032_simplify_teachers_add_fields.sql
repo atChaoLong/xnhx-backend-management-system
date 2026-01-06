@@ -17,11 +17,15 @@ BEGIN
   ALTER TABLE public.teachers
     ADD COLUMN IF NOT EXISTS candidate_id UUID;
 
-  -- 外键约束（若列存在且未绑定约束则添加）
-  ALTER TABLE public.teachers
-    ADD CONSTRAINT IF NOT EXISTS teachers_candidate_id_fkey
-    FOREIGN KEY (candidate_id) REFERENCES public.teacher_candidates(id)
-    ON UPDATE CASCADE ON DELETE SET NULL;
+  -- 外键约束（若列存在且未绑定约束则添加；ADD CONSTRAINT 不支持 IF NOT EXISTS，改用条件判断）
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'teachers_candidate_id_fkey'
+  ) THEN
+    ALTER TABLE public.teachers
+      ADD CONSTRAINT teachers_candidate_id_fkey
+      FOREIGN KEY (candidate_id) REFERENCES public.teacher_candidates(id)
+      ON UPDATE CASCADE ON DELETE SET NULL;
+  END IF;
 
   -- 索引与唯一约束
   CREATE UNIQUE INDEX IF NOT EXISTS idx_teachers_teacher_code
@@ -35,4 +39,3 @@ BEGIN
   COMMENT ON COLUMN public.teachers.classin_initial_password IS 'ClassIn 初始密码（可选）';
   COMMENT ON COLUMN public.teachers.candidate_id IS '关联的面试记录ID（teacher_candidates.id）';
 END $$;
-

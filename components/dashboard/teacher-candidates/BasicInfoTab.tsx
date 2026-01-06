@@ -30,7 +30,7 @@ export function BasicInfoTab({ formData, onInputChange, onFileUpload }: BasicInf
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="name">
-              候选人称呼 <span className="text-destructive">*</span>
+              老师名字 <span className="text-destructive">*</span>
             </Label>
             <Input
               id="name"
@@ -42,15 +42,12 @@ export function BasicInfoTab({ formData, onInputChange, onFileUpload }: BasicInf
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="wechat_id">
-              微信号 <span className="text-destructive">*</span>
-            </Label>
+            <Label htmlFor="wechat_id">微信号</Label>
             <Input
               id="wechat_id"
               placeholder="请输入微信号"
               value={formData.wechat_id}
               onChange={(e) => onInputChange("wechat_id", e.target.value)}
-              required
             />
           </div>
         </div>

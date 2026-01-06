@@ -12,43 +12,13 @@ export interface Teacher {
   id: string
   created_at: string
   updated_at: string
-
-  // 基本信息
-  teacher_name: string
-  gender: string
-  wechat: string
-  classin_phone: string
-  location: string
-
-  // 教学信息
-  subjects: string[]
-  grade_levels: string[]
-  used_classin?: boolean
-  has_certificate?: boolean
-  classin_uid?: number  // ClassIn 老师 UID
-
-  // 学历背景
-  education: string
-  university: string
-
-  // 教学能力
-  available_times?: string[]
-  textbook_versions?: string[]
-  student_regions?: string[]
-  student_levels?: string[]
-  teaching_years?: number
-
-  // 教学经历
-  teaching_style?: string
-  success_cases?: string
-
-  // 附件
-  photo_url?: string
-  review_screenshots?: string[]
-
-  // 其他
-  notes?: string
-  bank_card_info?: object
+  teacher_code: string | null
+  name: string | null
+  status: string | null
+  mobile: string | null
+  classin_initial_password: string | null
+  classin_uid: number | null
+  candidate_id: string | null
 }
 
 /**
@@ -76,12 +46,10 @@ export async function getTeachers(from: number = 0, to: number = 19): Promise<{ 
  */
 export async function getAllTeachers(): Promise<Teacher[]> {
   const response = await api.get("/api/teachers")
-
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: '获取老师列表失败' }))
     throw new Error(error.error || '获取老师列表失败')
   }
-
   const { data } = await response.json()
   return data as Teacher[]
 }
@@ -106,12 +74,10 @@ export async function getTeacherById(id: string): Promise<Teacher> {
  */
 export async function createTeacher(teacher: NewTeacher): Promise<Teacher> {
   const response = await api.post("/api/teachers", teacher)
-
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: '创建老师失败' }))
     throw new Error(error.error || '创建老师失败')
   }
-
   const { data } = await response.json()
   return data as Teacher
 }

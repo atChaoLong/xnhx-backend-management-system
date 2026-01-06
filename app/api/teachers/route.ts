@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabaseServer
       .from('teachers')
-      .select('*')
+      .select('id, created_at, updated_at, teacher_code, name, status, mobile, classin_initial_password, classin_uid, candidate_id')
       .order('created_at', { ascending: false })
       .range(from, to)
 

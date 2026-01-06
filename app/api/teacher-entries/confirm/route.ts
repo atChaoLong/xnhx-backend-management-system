@@ -80,7 +80,6 @@ export async function POST(request: NextRequest) {
       classin_initial_password: initial_password,
       classin_uid: uid,
       candidate_id,
-      notes: candidate.hired_notes || null,
       updated_at: new Date().toISOString(),
     }
 
@@ -102,7 +101,6 @@ export async function POST(request: NextRequest) {
 
     const updatePayload: any = {
       is_hired: true,
-      candidate_status: "pending_entry",
       hired_notes: mergedNotes,
       updated_at: new Date().toISOString(),
     }

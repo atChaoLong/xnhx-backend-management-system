@@ -119,20 +119,18 @@ export default function TeachersPage() {
     setTeacherToDelete(null)
   }
 
-  // 入库到 ClassIn
+  // 入库到 ClassIn（基于简化字段）
   const handleRegisterToClassIn = async (teacher: Teacher) => {
-    // 检查是否有手机号
-    if (!teacher.classin_phone) {
+    if (!teacher.mobile) {
       toast({
         variant: "destructive",
         title: "无法入库",
-        description: "该老师没有填写 ClassIn 手机号，请先编辑老师信息",
+        description: "该老师没有填写手机号，请先编辑老师信息",
       })
       return
     }
 
-    // 检查是否已经入库（同时检查两个字段）
-    if (teacher.used_classin || teacher.classin_uid) {
+    if (teacher.classin_uid) {
       toast({
         variant: "destructive",
         title: "已经入库",
@@ -141,10 +139,8 @@ export default function TeachersPage() {
       return
     }
 
-    // 打开确认对话框
-    const password = prompt(`正在将老师 ${teacher.teacher_name} 入库到 ClassIn 系统\n\n手机号: ${teacher.classin_phone}\n\n请输入 ClassIn 登录密码：`)
+    const password = prompt(`正在将老师 ${teacher.name || '-'} 入库到 ClassIn 系统\n\n手机号: ${teacher.mobile}\n\n请输入 ClassIn 登录密码：`)
     if (password === null) {
-      // 用户点击取消
       return
     }
     if (password.trim() === "") {
@@ -159,13 +155,12 @@ export default function TeachersPage() {
     try {
       setIsRegistering(teacher.id)
 
-      const response = await fetch('/api/teachers/register-classin', {
+      const response = await fetch('/api/teacher-entries/register-classin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          teacherId: teacher.id,
-          telephone: teacher.classin_phone,
-          nickname: teacher.teacher_name,
+          telephone: teacher.mobile,
+          nickname: teacher.name,
           password: password.trim(),
         }),
       })
@@ -182,7 +177,6 @@ export default function TeachersPage() {
         description: `老师已入库到 ClassIn 系统，UID: ${result.data.uid}`,
       })
 
-      // 刷新列表
       fetchTeachers(currentPage, pageSize)
     } catch (error: any) {
       toast({
@@ -243,15 +237,15 @@ export default function TeachersPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>老师编号</TableHead>
                     <TableHead>姓名</TableHead>
-                    <TableHead>性别</TableHead>
-                    <TableHead>所在地</TableHead>
-                    <TableHead>学科</TableHead>
-                    <TableHead>年级段</TableHead>
-                    <TableHead>学历</TableHead>
-                    <TableHead>毕业院校</TableHead>
-                    <TableHead>教学年限</TableHead>
-                    <TableHead>ClassIn状态</TableHead>
+                    <TableHead>状态</TableHead>
+                    <TableHead>手机号</TableHead>
+                    <TableHead>ClassIn初始密码</TableHead>
+                    <TableHead>ClassIn UID</TableHead>
+                    <TableHead>面试记录ID</TableHead>
+                    <TableHead>创建时间</TableHead>
+                    <TableHead>更新时间</TableHead>
                     <TableHead className="text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -265,37 +259,18 @@ export default function TeachersPage() {
                   ) : (
                     teachers.map((teacher) => (
                       <TableRow key={teacher.id}>
-                        <TableCell className="font-medium">{teacher.teacher_name || "-"}</TableCell>
-                        <TableCell>{teacher.gender || "-"}</TableCell>
-                        <TableCell>{teacher.location || "-"}</TableCell>
-                        <TableCell>
-                          {teacher.subjects && teacher.subjects.length > 0
-                            ? teacher.subjects.join(", ")
-                            : "-"}
-                        </TableCell>
-                        <TableCell>
-                          {teacher.grade_levels && teacher.grade_levels.length > 0
-                            ? teacher.grade_levels.join(", ")
-                            : "-"}
-                        </TableCell>
-                        <TableCell>{teacher.education || "-"}</TableCell>
-                        <TableCell>{teacher.university || "-"}</TableCell>
-                        <TableCell>{teacher.teaching_years ? `${teacher.teaching_years}年` : "-"}</TableCell>
-                        <TableCell>
-                          {teacher.used_classin || teacher.classin_uid ? (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              已入库
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                              未入库
-                            </span>
-                          )}
-                        </TableCell>
+                        <TableCell className="font-medium">{teacher.teacher_code || "-"}</TableCell>
+                        <TableCell>{teacher.name || "-"}</TableCell>
+                        <TableCell>{teacher.status || "-"}</TableCell>
+                        <TableCell>{teacher.mobile || "-"}</TableCell>
+                        <TableCell>{teacher.classin_initial_password || "-"}</TableCell>
+                        <TableCell>{teacher.classin_uid ?? "-"}</TableCell>
+                        <TableCell>{teacher.candidate_id || "-"}</TableCell>
+                        <TableCell>{teacher.created_at ? format(new Date(teacher.created_at), "yyyy-MM-dd HH:mm") : "-"}</TableCell>
+                        <TableCell>{teacher.updated_at ? format(new Date(teacher.updated_at), "yyyy-MM-dd HH:mm") : "-"}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            {/* 入库按钮 - 仅未入库的老师显示 */}
-                            {!teacher.used_classin && !teacher.classin_uid && (
+                            {!teacher.classin_uid && (
                               <Button
                                 variant="default"
                                 size="sm"
