@@ -56,42 +56,14 @@ export default function EntryPreviewPage() {
 
     setIsSubmitting(true)
     try {
-      if (!candidate.wechat_id) {
-        throw new Error("缺少手机号，无法在 ClassIn 创建老师 UID")
-      }
-
-      const regResp = await fetch("/api/teacher-entries/register-classin", {
+      const resp = await fetch("/api/teacher-entries/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          telephone: candidate.wechat_id,
-          nickname: candidate.name,
-          password: initialPassword,
-        }),
-      })
-      if (!regResp.ok) {
-        const err = await regResp.json().catch(() => ({ error: "ClassIn 注册失败" }))
-        throw new Error(err.error || "ClassIn 注册失败")
-      }
-      const regData = await regResp.json()
-      const classin_uid = regData?.uid
-      if (!classin_uid) {
-        throw new Error("未获取到 ClassIn UID")
-      }
-
-      // 先写入 teachers 简化信息
-      const resp = await fetch("/api/teacher-entries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          teacher_code: teacherCode.trim(),
-          name: candidate.name,
-          status: "active",
-          mobile: candidate.wechat_id || null,
-          classin_initial_password: initialPassword,
-          classin_uid,
           candidate_id: candidate.id,
-          notes: candidate.hired_notes || null,
+          teacher_code: teacherCode.trim(),
+          initial_password: initialPassword,
+          status: "active",
         }),
       })
 
@@ -99,17 +71,6 @@ export default function EntryPreviewPage() {
         const err = await resp.json().catch(() => ({ error: "老师入库失败" }))
         throw new Error(err.error || "老师入库失败")
       }
-
-      const mergedNotes = [candidate.hired_notes || "", `老师编号: ${teacherCode.trim()}`]
-        .filter(Boolean)
-        .join("；")
-
-      await TeacherCandidatesService.updateTeacherCandidate({
-        id: candidate.id,
-        is_hired: true,
-        candidate_status: "pending_entry",
-        hired_notes: mergedNotes,
-      } as any)
 
       toast({
         title: "入库成功",
