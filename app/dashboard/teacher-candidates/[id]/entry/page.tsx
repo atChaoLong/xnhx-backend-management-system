@@ -55,6 +55,27 @@ export default function EntryPreviewPage() {
 
     setIsSubmitting(true)
     try {
+      // 先写入 teachers 简化信息
+      const resp = await fetch("/api/teacher-entries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          teacher_code: teacherCode.trim(),
+          name: candidate.name,
+          status: "active",
+          mobile: candidate.wechat_id || null,
+          classin_initial_password: null,
+          classin_uid: candidate as any && (candidate as any).classin_uid ? (candidate as any).classin_uid : null,
+          candidate_id: candidate.id,
+          notes: candidate.hired_notes || null,
+        }),
+      })
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: "老师入库失败" }))
+        throw new Error(err.error || "老师入库失败")
+      }
+
       const mergedNotes = [candidate.hired_notes || "", `老师编号: ${teacherCode.trim()}`]
         .filter(Boolean)
         .join("；")
@@ -163,4 +184,3 @@ export default function EntryPreviewPage() {
     </div>
   )
 }
-
