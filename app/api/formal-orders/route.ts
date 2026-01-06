@@ -96,6 +96,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const orderType = String(body.order_type).trim()
+    const isRenew = orderType.includes('续费')
+    const isNewOrExpand = orderType.includes('新签') || orderType.includes('扩课') || orderType.includes('阔课')
+
+    if (isNewOrExpand && (!body.lead_id || typeof body.lead_id !== 'string')) {
+      logger.error('创建正式订单失败 - 新签/扩课需要关联线索', { body })
+      return NextResponse.json(
+        { error: '新签/扩课必须选择关联线索' },
+        { status: 400 }
+      )
+    }
+
+    if (isRenew && (!body.previous_order_id || typeof body.previous_order_id !== 'string')) {
+      logger.error('创建正式订单失败 - 续费需要关联之前订单', { body })
+      return NextResponse.json(
+        { error: '续费必须选择关联之前的订单' },
+        { status: 400 }
+      )
+    }
+
     if (!body.consultant_teacher || typeof body.consultant_teacher !== 'string' || !body.consultant_teacher.trim()) {
       logger.error('创建正式订单失败 - 签约顾问为空', { body })
       return NextResponse.json(
@@ -222,6 +242,8 @@ export async function POST(request: NextRequest) {
       order_type: body.order_type.trim(),
       consultant_teacher: body.consultant_teacher.trim(),
       order_notes: body.order_notes?.trim() || null,
+      lead_id: body.lead_id || null,
+      previous_order_id: body.previous_order_id || null,
       teacher_names: body.teacher_names,
       subjects: body.subjects,
       total_sessions: parseInt(body.total_sessions),

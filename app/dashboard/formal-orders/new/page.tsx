@@ -12,6 +12,7 @@ import { FormalOrdersService, NewFormalOrder, generateOrderNumber } from "@/lib/
 import { TeachersService } from "@/lib/services/teachers"
 import { StudentsService } from "@/lib/services/students"
 import { getDictionaryItems } from "@/lib/services/dictionary"
+import { LeadsService } from "@/lib/services/leads"
 import { UserProfilesService } from "@/lib/services/userProfiles"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
@@ -34,6 +35,8 @@ export default function NewFormalOrderPage() {
   // 列表数据
   const [teachers, setTeachers] = useState<any[]>([])
   const [students, setStudents] = useState<any[]>([])
+  const [leads, setLeads] = useState<any[]>([])
+  const [previousOrders, setPreviousOrders] = useState<any[]>([])
 
   // 多选
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
@@ -44,6 +47,8 @@ export default function NewFormalOrderPage() {
   const [formData, setFormData] = useState({
     // 关联字段
     student_id: "",
+    lead_id: "",
+    previous_order_id: "",
     teacher_name: "", // 单选老师
 
     // 订单基本信息
@@ -75,7 +80,7 @@ export default function NewFormalOrderPage() {
   // 加载字典数据
   useEffect(() => {
     const loadData = async () => {
-      const [orderTypeData, paymentChannelData, sessionDurationData, fixedModeData, frequencyData, subjectData, teachersData, studentsData, salesData, headTeachersData] = await Promise.all([
+      const [orderTypeData, paymentChannelData, sessionDurationData, fixedModeData, frequencyData, subjectData, teachersData, studentsData, salesData, headTeachersData, leadsResult, ordersResult] = await Promise.all([
         getDictionaryItems('payment_type'),
         getDictionaryItems('payment_channel'),
         getDictionaryItems('class_duration'),
@@ -86,6 +91,8 @@ export default function NewFormalOrderPage() {
         StudentsService.getAllStudents(),
         UserProfilesService.getUsers('sales'),
         UserProfilesService.getUsers('head_teacher'),
+        LeadsService.getLeads(),
+        FormalOrdersService.getAllFormalOrders(),
       ])
       setOrderTypes(orderTypeData)
       setPaymentChannels(paymentChannelData)
@@ -100,6 +107,8 @@ export default function NewFormalOrderPage() {
         ...(headTeachersData || []).map(u => ({ id: u.id, name: u.name })),
       ]
       setConsultants(mergedConsultants)
+      setLeads(leadsResult.data || [])
+      setPreviousOrders(ordersResult || [])
     }
     loadData()
   }, [])
@@ -168,6 +177,25 @@ export default function NewFormalOrderPage() {
       return
     }
 
+    const isRenew = String(formData.order_type).includes('续费')
+    const isNewOrExpand = String(formData.order_type).includes('新签') || String(formData.order_type).includes('扩课') || String(formData.order_type).includes('阔课')
+    if (isNewOrExpand && !formData.lead_id) {
+      toast({
+        variant: "destructive",
+        title: "验证失败",
+        description: "新签/扩课必须选择关联线索",
+      })
+      return
+    }
+    if (isRenew && !formData.previous_order_id) {
+      toast({
+        variant: "destructive",
+        title: "验证失败",
+        description: "续费必须选择之前的订单",
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -177,6 +205,8 @@ export default function NewFormalOrderPage() {
         order_type: formData.order_type,
         consultant_teacher: formData.consultant_teacher,
         order_notes: formData.order_notes.trim() || undefined,
+        lead_id: formData.lead_id || undefined,
+        previous_order_id: formData.previous_order_id || undefined,
         teacher_names: [formData.teacher_name], // 单选老师转为数组
         subjects: selectedSubjects,
         total_sessions: parseInt(formData.total_sessions),
@@ -593,6 +623,53 @@ export default function NewFormalOrderPage() {
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* 关联信息 */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">关联信息</h3>
+                {(String(formData.order_type).includes('新签') || String(formData.order_type).includes('扩课') || String(formData.order_type).includes('阔课')) && (
+                  <div className="space-y-2">
+                    <Label htmlFor="lead_id">
+                      关联线索 <span className="text-destructive">*</span>
+                    </Label>
+                    <select
+                      id="lead_id"
+                      value={formData.lead_id}
+                      onChange={(e) => handleInputChange("lead_id", e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                      required
+                    >
+                      <option value="">请选择线索</option>
+                      {leads.map((lead) => (
+                        <option key={lead.id} value={lead.id}>
+                          {lead.report_number || lead.parent_wechat || lead.id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {String(formData.order_type).includes('续费') && (
+                  <div className="space-y-2">
+                    <Label htmlFor="previous_order_id">
+                      关联之前订单 <span className="text-destructive">*</span>
+                    </Label>
+                    <select
+                      id="previous_order_id"
+                      value={formData.previous_order_id}
+                      onChange={(e) => handleInputChange("previous_order_id", e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                      required
+                    >
+                      <option value="">请选择之前订单</option>
+                      {previousOrders.map((order) => (
+                        <option key={order.id} value={order.id}>
+                          {order.order_number}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* 操作按钮 */}
