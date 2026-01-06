@@ -338,8 +338,8 @@ export default function EditTeacherCandidatePage() {
                   }, minmax(0, 1fr))`
                 }}>
                   {canViewBasic && <TabsTrigger value="basic" className="text-xs">基本信息</TabsTrigger>}
-                  {canViewPostInterview && <TabsTrigger value="postInterview" className="text-xs">初试后填写</TabsTrigger>}
-                  {canViewReview && <TabsTrigger value="review" className="text-xs">复核填写</TabsTrigger>}
+                  {canViewPostInterview && <TabsTrigger value="postInterview" className="text-xs">初试结果</TabsTrigger>}
+                  {canViewReview && <TabsTrigger value="review" className="text-xs">复核结果</TabsTrigger>}
                   {canViewSalary && <TabsTrigger value="salary" className="text-xs">谈薪入库</TabsTrigger>}
                 </TabsList>
 

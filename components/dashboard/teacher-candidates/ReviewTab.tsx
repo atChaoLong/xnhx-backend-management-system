@@ -43,7 +43,7 @@ export function ReviewTab({ formData, onInputChange, currentUser }: ReviewTabPro
 
       {/* 复核状态 */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold text-blue-600">复核流程</h3>
+        <h3 className="text-sm font-semibold text-blue-600">复核结果</h3>
 
         <div className="space-y-2">
           <Label htmlFor="review_status">复核状态</Label>

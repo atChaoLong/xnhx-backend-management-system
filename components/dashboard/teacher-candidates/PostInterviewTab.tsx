@@ -41,7 +41,7 @@ export function PostInterviewTab({ formData, onInputChange }: PostInterviewTabPr
     <div className="space-y-6">
       {/* 面试录像与初试评价 */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold text-blue-600">初试后填写</h3>
+        <h3 className="text-sm font-semibold text-blue-600">初试结果</h3>
 
         <div className="space-y-2">
           <Label htmlFor="video_recording_url">面试录像链接</Label>
