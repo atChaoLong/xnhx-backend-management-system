@@ -275,8 +275,7 @@ export default function BatchSchedulePage() {
         description: `已成功创建 ${result.success}/${result.total} 节课程`,
       })
 
-      // 跳转到排课列表
-      router.push("/dashboard/schedule")
+      router.push("/dashboard/classroom")
     } catch (error: any) {
       toast({
         variant: "destructive",
