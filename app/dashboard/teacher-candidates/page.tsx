@@ -39,6 +39,7 @@ export default function TeacherCandidatesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [candidateToDelete, setCandidateToDelete] = useState<string | null>(null)
   const { toast } = useToast()
+  const [isEntering, setIsEntering] = useState<string | null>(null)
 
   const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
 
@@ -116,6 +117,30 @@ export default function TeacherCandidatesPage() {
   const handleDeleteCancel = () => {
     setDeleteDialogOpen(false)
     setCandidateToDelete(null)
+  }
+
+  const handleEntryClick = async (id: string) => {
+    try {
+      setIsEntering(id)
+      await TeacherCandidatesService.updateTeacherCandidate({
+        id,
+        is_hired: true,
+        candidate_status: 'pending_entry',
+      } as any)
+      toast({
+        title: "入库成功",
+        description: "候选人已标记为入库",
+      })
+      fetchCandidates(currentPage, pageSize)
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "入库失败",
+        description: error.message || "无法入库该候选人",
+      })
+    } finally {
+      setIsEntering(null)
+    }
   }
 
   // 计算候选人的当前状态
@@ -269,13 +294,29 @@ export default function TeacherCandidatesPage() {
                               {status}
                             </span>
                           </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Link href={`/dashboard/teacher-candidates/${candidate.id}/edit`}>
-                                <Button variant="ghost" size="icon">
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </Link>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            {candidate.review_result === '通过' && !candidate.is_hired && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleEntryClick(candidate.id)}
+                                disabled={isEntering === candidate.id}
+                              >
+                                {isEntering === candidate.id ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    入库中...
+                                  </>
+                                ) : (
+                                  "入库"
+                                )}
+                              </Button>
+                            )}
+                            <Link href={`/dashboard/teacher-candidates/${candidate.id}/edit`}>
+                              <Button variant="ghost" size="icon">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </Link>
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -317,6 +358,7 @@ export default function TeacherCandidatesPage() {
                         <PaginationPrevious
                           onClick={goToPreviousPage}
                           className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                          disabled={!canGoPrevious}
                         />
                       </PaginationItem>
                       {getPageRange().map((page, index) => {
@@ -333,6 +375,7 @@ export default function TeacherCandidatesPage() {
                               onClick={() => goToPage(page)}
                               isActive={page === currentPage}
                               className="cursor-pointer"
+                              disabled={false}
                             >
                               {page}
                             </PaginationLink>
@@ -343,6 +386,7 @@ export default function TeacherCandidatesPage() {
                         <PaginationNext
                           onClick={goToNextPage}
                           className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                          disabled={!canGoNext}
                         />
                       </PaginationItem>
                     </PaginationContent>
