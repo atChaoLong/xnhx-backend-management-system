@@ -112,6 +112,27 @@ export async function POST(request: NextRequest) {
     classId = classroomResult.classId
     activityId = classroomResult.activityId
 
+    try {
+      await supabaseServer
+        .from('classroom_classin')
+        .upsert(
+          {
+            class_id: classId,
+            name: `【试听】${lesson.child_name} ${subjectLabel2}课`,
+            start_time: Math.floor(trialTime.getTime() / 1000),
+            end_time: Math.floor(endTime.getTime() / 1000),
+            course_id: courseId,
+            course_name: `【试听】${lesson.child_name} ${subjectLabel}课`,
+            activity_id: activityId,
+            created_at_timestamp: Math.floor(Date.now() / 1000),
+            sync_time: new Date().toISOString(),
+          },
+          { onConflict: 'class_id' }
+        )
+    } catch (e: any) {
+      logger.warn('写入 classroom_classin 失败', { message: e?.message })
+    }
+
     const { error: updateError } = await supabaseServer
       .from('trial_lessons')
       .update({
