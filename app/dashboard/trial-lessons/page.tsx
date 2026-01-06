@@ -29,6 +29,7 @@ import { format } from "date-fns"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { TrialLessonsService, TrialLesson } from "@/lib/services/trialLessons"
+import { TeachersService } from "@/lib/services/teachers"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
 import { usePermission } from "@/lib/hooks/usePermission"
@@ -138,39 +139,7 @@ export default function TrialLessonsPage() {
     const loadTeachers = async () => {
       try {
         setIsLoadingTeachers(true)
-
-        // 检查 localStorage 中的 token
-        const token = localStorage.getItem('supabase.auth.token')
-        if (!token) {
-          console.warn('未找到认证 token')
-          toast({
-            variant: "destructive",
-            title: "认证失败",
-            description: "请重新登录"
-          })
-          setIsLoadingTeachers(false)
-          return
-        }
-
-        // 从 user_profiles 表获取 role = 'teacher' 的用户
-        const response = await fetch('/api/user-profiles?role=teacher', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          console.error('API错误:', response.status, errorData)
-          throw new Error(errorData.error || `加载教师失败 (${response.status})`)
-        }
-
-        const result = await response.json()
-        const data = result.data || []
-
-        console.log('API返回结果:', result)
-        console.log('教师数据:', data)
-        console.log('教师数量:', data.length)
+        const data = await TeachersService.getAllTeachers()
 
         // 如果没有教师数据，显示提示
         if (data.length === 0) {
@@ -182,16 +151,13 @@ export default function TrialLessonsPage() {
           })
         }
 
-        // 映射 user_profiles 字段到 teachers 状态
-        const mappedTeachers = data.map((profile: any) => {
-          console.log('映射教师档案:', profile)
-          return {
-            id: profile.id,
-            name: profile.name || profile.username || '未知',
-            subject: profile.subject || profile.teacher_subject || '',
-            classin_uid: profile.classin_uid
-          }
-        })
+        // 映射 teacher_profiles 字段到 teachers 状态
+        const mappedTeachers = (data || []).map((t: any) => ({
+          id: t.id,
+          name: t.teacher_name || '未知',
+          subject: Array.isArray(t.subjects) && t.subjects.length > 0 ? t.subjects[0] : '',
+          classin_uid: t.classin_uid,
+        }))
 
         console.log('映射后的教师数据:', mappedTeachers)
         setTeachers(mappedTeachers)
