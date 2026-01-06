@@ -44,13 +44,16 @@ export function ReviewTab({ formData, onInputChange, currentUser }: ReviewTabPro
         </div>
         <div className="space-y-2">
           <Label htmlFor="review_result">复核结果</Label>
-          <Textarea
+          <select
             id="review_result"
-            placeholder="复核意见和建议"
             value={formData.review_result || ""}
             onChange={(e) => onInputChange("review_result", e.target.value)}
-            rows={3}
-          />
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+          >
+            <option value="">请选择</option>
+            <option value="通过">通过</option>
+            <option value="不通过">不通过</option>
+          </select>
         </div>
 
         <div className="space-y-2">
