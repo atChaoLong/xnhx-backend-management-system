@@ -249,12 +249,30 @@ export default function BatchSchedulePage() {
     setIsSubmitting(true)
 
     try {
-      // TODO: 调用批量排课API
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const payload = {
+        items: scheduleList.map(item => ({
+          studentName: item.studentName,
+          teacherName: item.teacherName,
+          subject: item.subject,
+          date: item.date,
+          startTime: item.startTime,
+          endTime: item.endTime,
+        }))
+      }
+      const resp = await fetch("/api/schedule/batch/create-classin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: "批量排课失败" }))
+        throw new Error(err.error || "批量排课失败")
+      }
+      const result = await resp.json()
 
       toast({
         title: "排课成功",
-        description: `已成功创建 ${scheduleList.length} 节课程`,
+        description: `已成功创建 ${result.success}/${result.total} 节课程`,
       })
 
       // 跳转到排课列表
