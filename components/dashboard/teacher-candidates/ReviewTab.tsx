@@ -34,27 +34,6 @@ export function ReviewTab({ formData, onInputChange, currentUser }: ReviewTabPro
         <h3 className="text-sm font-semibold text-blue-600">复核结果</h3>
 
         <div className="space-y-2">
-          <Label htmlFor="review_status">复核状态</Label>
-          <select
-            id="review_status"
-            value={formData.review_status}
-            onChange={(e) => {
-              onInputChange("review_status", e.target.value)
-              // 自动填充复核日期和复核人
-              onInputChange("review_date", new Date().toISOString().split("T")[0])
-              if (currentUser?.id) {
-                onInputChange("reviewed_by", currentUser.id)
-              }
-            }}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-          >
-            <option value="待复核">待复核</option>
-            <option value="已复核">已复核</option>
-            <option value="不符合">不符合</option>
-          </select>
-        </div>
-
-        <div className="space-y-2">
           <Label htmlFor="review_result">复核结果</Label>
           <Textarea
             id="review_result"
