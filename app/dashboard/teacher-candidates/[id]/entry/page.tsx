@@ -20,6 +20,10 @@ export default function EntryPreviewPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [teacherCode, setTeacherCode] = useState("")
   const [initialPassword, setInitialPassword] = useState("123456")
+  const [entryName, setEntryName] = useState("")
+  const [entryMobile, setEntryMobile] = useState("")
+  const [entryTeacherLevel, setEntryTeacherLevel] = useState("")
+  const [entryHourlyRate, setEntryHourlyRate] = useState("")
 
   const candidateId = params.id as string
 
@@ -29,6 +33,10 @@ export default function EntryPreviewPage() {
         setIsLoading(true)
         const data = await TeacherCandidatesService.getTeacherCandidateById(candidateId)
         setCandidate(data)
+        setEntryName(data.name || "")
+        setEntryMobile(data.wechat_id || "")
+        setEntryTeacherLevel(data.teacher_level || "")
+        setEntryHourlyRate(data.approved_hourly_rate?.toString() || "")
       } catch (error: any) {
         toast({
           variant: "destructive",
@@ -64,6 +72,10 @@ export default function EntryPreviewPage() {
           teacher_code: teacherCode.trim(),
           initial_password: initialPassword,
           status: "active",
+          name: entryName.trim(),
+          mobile: entryMobile.trim(),
+          teacher_level: entryTeacherLevel.trim(),
+          approved_hourly_rate: entryHourlyRate ? parseFloat(entryHourlyRate) : null,
         }),
       })
 
@@ -129,24 +141,39 @@ export default function EntryPreviewPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>老师名字</Label>
-                <Input value={candidate.name || ""} readOnly />
+                <Input
+                  value={entryName}
+                  onChange={(e) => setEntryName(e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label>老师级别</Label>
-                <Input value={candidate.teacher_level || ""} readOnly />
+                <Input
+                  value={entryTeacherLevel}
+                  onChange={(e) => setEntryTeacherLevel(e.target.value)}
+                />
               </div>
-          </div>
+            </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>课时费（时薪）</Label>
-              <Input value={candidate.approved_hourly_rate?.toString() || ""} readOnly />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>课时费（时薪）</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={entryHourlyRate}
+                  onChange={(e) => setEntryHourlyRate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>手机号</Label>
+                <Input
+                  value={entryMobile}
+                  onChange={(e) => setEntryMobile(e.target.value)}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>手机号</Label>
-              <Input value={candidate.wechat_id || ""} readOnly />
-            </div>
-          </div>
           
           <div className="space-y-2">
             <Label htmlFor="classin_initial_password">ClassIn 初始密码</Label>

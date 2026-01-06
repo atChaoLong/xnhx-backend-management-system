@@ -14,6 +14,10 @@ export async function POST(request: NextRequest) {
       teacher_code,
       initial_password,
       status = "active",
+      name,
+      mobile,
+      teacher_level,
+      approved_hourly_rate,
     } = body || {}
 
     if (!candidate_id || !teacher_code || !initial_password) {
@@ -35,15 +39,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: message }, { status })
     }
 
-    if (!candidate?.wechat_id) {
-      return NextResponse.json({ error: "候选人缺少手机号（wechat_id）" }, { status: 400 })
+    const effectiveName: string = (name && String(name).trim()) || candidate.name
+    const effectiveMobile: string | null = (mobile && String(mobile).trim()) || candidate.wechat_id || null
+    if (!effectiveMobile) {
+      return NextResponse.json({ error: "缺少手机号，无法在 ClassIn 创建老师 UID" }, { status: 400 })
     }
 
     // 注册 ClassIn
     const sdk = getClassInSDKService()
     const uid = await sdk.registerTeacher({
-      telephone: candidate.wechat_id,
-      nickname: candidate.name,
+      telephone: effectiveMobile,
+      nickname: effectiveName,
       password: initial_password,
     })
 
@@ -54,8 +60,8 @@ export async function POST(request: NextRequest) {
         .upsert(
           {
             uid,
-            name: candidate.name,
-            mobile: candidate.wechat_id,
+            name: effectiveName,
+            mobile: effectiveMobile,
             is_del: 0,
             updated_at: new Date().toISOString(),
           },
@@ -68,9 +74,9 @@ export async function POST(request: NextRequest) {
     // 写入 teachers 简化信息
     const teacherPayload: any = {
       teacher_code,
-      name: candidate.name,
+      name: effectiveName,
       status,
-      mobile: candidate.wechat_id,
+      mobile: effectiveMobile,
       classin_initial_password: initial_password,
       classin_uid: uid,
       candidate_id,
@@ -94,14 +100,28 @@ export async function POST(request: NextRequest) {
       .filter(Boolean)
       .join("；")
 
+    const updatePayload: any = {
+      is_hired: true,
+      candidate_status: "pending_entry",
+      hired_notes: mergedNotes,
+      updated_at: new Date().toISOString(),
+    }
+    if (effectiveName && effectiveName !== candidate.name) {
+      updatePayload.name = effectiveName
+    }
+    if (effectiveMobile && effectiveMobile !== candidate.wechat_id) {
+      updatePayload.wechat_id = effectiveMobile
+    }
+    if (teacher_level !== undefined) {
+      updatePayload.teacher_level = teacher_level
+    }
+    if (approved_hourly_rate !== undefined && approved_hourly_rate !== null) {
+      updatePayload.approved_hourly_rate = approved_hourly_rate
+    }
+
     const { error: updateCandidateError } = await supabaseServer
       .from("teacher_candidates")
-      .update({
-        is_hired: true,
-        candidate_status: "pending_entry",
-        hired_notes: mergedNotes,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq("id", candidate_id)
 
     if (updateCandidateError) {
@@ -115,4 +135,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message || "老师入库失败" }, { status: 500 })
   }
 }
-
