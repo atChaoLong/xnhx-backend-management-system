@@ -50,7 +50,7 @@ interface MenuGroup {
   roles?: string[]  // 允许访问的角色列表，空数组表示所有角色都可访问
 }
 
-// 导航组配置 - 根据角色和业务流程组织
+// 导航组配置 - 重新规划
 const navigationGroups: MenuGroup[] = [
   {
     title: "控制台",
@@ -59,89 +59,56 @@ const navigationGroups: MenuGroup[] = [
     ]
   },
   {
-    title: "线索报单",
-    roles: ['admin', 'operator', 'sales'],
+    title: "客户管理",
+    roles: ['admin', 'operator', 'sales', 'head_teacher'],
     items: [
-      { name: "线索登记表", href: "/dashboard/leads", icon: Target, permission: { resource: 'leads', action: 'create' } },
-      { name: "线索管理", href: "/dashboard/leads", icon: Eye, permission: { resource: 'leads', action: 'view' } },
-    ]
-  },
-  {
-    title: "试听管理",
-    roles: ['admin', 'sales', 'head_teacher', 'academic_affairs'],
-    items: [
-      { name: "试听课程", href: "/dashboard/trial-lessons", icon: BookOpen, permission: { resource: 'trialLessons', action: 'view' } },
-      { name: "学生管理", href: "/dashboard/students", icon: Users, permission: { resource: 'students', action: 'view' } },
+      { name: "线索跟进", href: "/dashboard/leads", icon: Target, permission: { resource: 'leads', action: 'view' } },
+      { name: "回访管理", href: "/dashboard/feedback", icon: Phone, permission: { resource: 'leads', action: 'view' } },
     ]
   },
   {
     title: "订单管理",
-    roles: ['admin', 'sales', 'head_teacher'],
+    roles: ['admin', 'sales', 'head_teacher', 'academic_affairs'],
     items: [
-      { name: "正式订单", href: "/dashboard/formal-orders", icon: FileText, permission: { resource: 'formalOrders', action: 'view' } },
-    ]
-  },
-  {
-    title: "课程异动",
-    roles: ['admin', 'head_teacher', 'academic_affairs', 'finance', 'hr'],
-    items: [
-      { name: "异动记录", href: "/dashboard/transactions", icon: RefreshCw, permission: { resource: 'transactions', action: 'view' } },
-    ]
-  },
-  {
-    title: "老师面试",
-    roles: ['admin', 'hr', 'academic_affairs'],
-    items: [
-      { name: "面试管理", href: "/dashboard/teacher-candidates", icon: ClipboardList, permission: { resource: 'teacherCandidates', action: 'view' } },
-    ]
-  },
-  {
-    title: "老师库",
-    roles: ['admin', 'hr', 'academic_affairs', 'sales', 'head_teacher'],
-    items: [
-      { name: "待入库", href: "/dashboard/teachers", icon: GraduationCap, permission: { resource: 'teachers', action: 'create' } },
-      { name: "储备", href: "/dashboard/teachers", icon: Users, permission: { resource: 'teachers', action: 'view' } },
-    ]
-  },
-  {
-    title: "班主任工作台",
-    roles: ['admin', 'head_teacher'],
-    items: [
-      { name: "学生管理", href: "/dashboard/students", icon: Users, permission: { resource: 'students', action: 'view' } },
-      { name: "批量排课", href: "/dashboard/schedule/batch", icon: Calendar },
-      { name: "正式订单", href: "/dashboard/formal-orders", icon: FileText, permission: { resource: 'formalOrders', action: 'view' } },
+      { name: "试听课", href: "/dashboard/trial-lessons", icon: BookOpen, permission: { resource: 'trialLessons', action: 'view' } },
+      { name: "正式课", href: "/dashboard/formal-orders", icon: FileText, permission: { resource: 'formalOrders', action: 'view' } },
     ]
   },
   {
     title: "教务管理",
-    roles: ['admin', 'academic_affairs'],
+    roles: ['admin', 'academic_affairs', 'head_teacher', 'hr'],
     items: [
-      { name: "学生库", href: "/dashboard/students", icon: Users, permission: { resource: 'students', action: 'view' } },
-      { name: "待试听匹配", href: "/dashboard/trial-lessons", icon: Calendar, permission: { resource: 'trialLessons', action: 'matchTeacher' } },
-      { name: "批量排课", href: "/dashboard/schedule/batch", icon: Calendar },
+      { name: "面试管理", href: "/dashboard/teacher-candidates", icon: ClipboardList, permission: { resource: 'teacherCandidates', action: 'view' } },
+      { name: "老师库存管理", href: "/dashboard/teachers", icon: GraduationCap, permission: { resource: 'teachers', action: 'view' } },
+      { name: "排课管理", href: "/dashboard/schedule/batch", icon: Calendar },
+      { name: "课堂管理", href: "/dashboard/classroom", icon: Video },
+      { name: "课程日历", href: "/dashboard/calendar", icon: Calendar },
+    ]
+  },
+  {
+    title: "待办事项",
+    roles: ['admin', 'operator', 'sales', 'head_teacher', 'academic_affairs'],
+    items: [
+      { name: "任务列表", href: "/dashboard/todos", icon: ClipboardList },
     ]
   },
   {
     title: "系统管理",
     roles: ['admin'],
     items: [
-      { name: "字典管理", href: "/dashboard/dictionaries", icon: List },
+      { name: "字典", href: "/dashboard/dictionaries", icon: List },
       { name: "用户管理", href: "/dashboard/accounts", icon: Shield },
       { name: "角色管理", href: "/dashboard/roles", icon: UserPlus },
-      { name: "销售人员", href: "/dashboard/wechat-accounts", icon: MessageCircle },
-      { name: "数据同步", href: "/dashboard/sync", icon: Database },
-      { name: "ClassIn SDK", href: "/dashboard/classin-sdk", icon: Settings },
     ]
   },
   {
-    title: "ClassIn管理",
-    roles: ['admin', 'academic_affairs'],
+    title: "其他",
+    roles: ['admin'],
     items: [
-      { name: "学生", href: "/dashboard/classin/students", icon: Users },
-      { name: "老师", href: "/dashboard/classin/teachers", icon: GraduationCap },
-      { name: "班级", href: "/dashboard/classin/classes", icon: Monitor },
+      { name: "销售人员", href: "/dashboard/wechat-accounts", icon: MessageCircle },
+      { name: "数据同步", href: "/dashboard/sync", icon: Database },
+      { name: "ClassIn SDK", href: "/dashboard/classin-sdk", icon: Settings },
       { name: "从订单创建班级", href: "/dashboard/classin/classes/from-order", icon: Users },
-      { name: "课堂", href: "/dashboard/classin", icon: Video },
     ]
   }
 ]

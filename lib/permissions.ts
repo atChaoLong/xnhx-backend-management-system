@@ -129,7 +129,7 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
   // 教务：试听老师匹配、课时核对
   academic_affairs: {
     leads: ['view'],
-    trialLessons: ['view', 'edit', 'confirmTeacher', 'confirmTime', 'addLink'], // 移除 matchTeacher - 教务只确认老师，不匹配
+    trialLessons: ['view', 'edit', 'matchTeacher', 'confirmTeacher', 'confirmTime', 'addLink'],
     students: ['view', 'manageHours'],
     formalOrders: ['view', 'addLink'], // 添加 addLink - 教务可以为正式订单开课
     transactions: ['view', 'verifyHours'],
