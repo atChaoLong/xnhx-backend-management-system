@@ -172,6 +172,10 @@ export async function POST(request: NextRequest) {
     }
 
     const shareUrl = `https://share.eeo.cn/s/a/?cid=${courseId}`
+    const schoolId = process.env.CLASSIN_SID
+    const invokeUrl = schoolId
+      ? `https://www.eeo.cn/client/invoke/index.html?telephone=${encodeURIComponent(lesson.phone)}&classId=${classId}&courseId=${courseId}&schoolId=${schoolId}`
+      : shareUrl
     const { error: updateError } = await supabaseServer
       .from('trial_lessons')
       .update({
@@ -179,7 +183,7 @@ export async function POST(request: NextRequest) {
         classin_unit_id: unitId || null,
         classin_class_id: classId,
         classin_activity_id: activityId,
-        class_link: shareUrl,
+        class_link: invokeUrl,
         course_status: '已排课',
         status: 'confirmed',
         updated_at: new Date().toISOString(),
@@ -192,7 +196,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: { courseId, unitId, classId, activityId, studentUid, shareUrl }
+      data: { courseId, unitId, classId, activityId, studentUid, shareUrl, invokeUrl }
     })
   } catch (error: any) {
     return NextResponse.json(
