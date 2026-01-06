@@ -36,9 +36,6 @@ export default function NewTeacherCandidatePage() {
     interview_link: "",
     interviewer_name: "",
 
-    // 面试过程
-    video_recording_url: "",
-
     // 其他字段在创建阶段不需要
   })
 
@@ -113,7 +110,6 @@ export default function NewTeacherCandidatePage() {
 
     try {
        let resume_url: string | undefined = undefined
-       let video_recording_url: string | undefined = undefined
 
        // 上传简历
        if (resumeFile) {
@@ -135,7 +131,7 @@ export default function NewTeacherCandidatePage() {
          }
        }
 
-       // 录像链接可选直接填 URL，不上传文件
+       // 仅上传简历
 
       const payload: NewTeacherCandidate = {
         name: formData.name.trim(),
@@ -146,7 +142,6 @@ export default function NewTeacherCandidatePage() {
         interview_date: formData.interview_date || undefined,
         interview_time: formData.interview_time || undefined,
         interview_link: formData.interview_link || undefined,
-        video_recording_url: video_recording_url || formData.video_recording_url || undefined,
         interviewer_name: formData.interviewer_name || undefined,
       }
 
@@ -194,7 +189,7 @@ export default function NewTeacherCandidatePage() {
                 {/* 老师名字 */}
                 <div className="flex items-center gap-4">
                   <Label htmlFor="name" className="text-xs w-28">
-                    老师名字
+                    老师名字 <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="name"
@@ -221,7 +216,7 @@ export default function NewTeacherCandidatePage() {
                 {/* 老师简历 */}
                 <div className="flex items-center gap-4">
                   <Label htmlFor="resume_file" className="text-xs w-28">
-                    老师简历
+                    老师简历 <span className="text-red-500">*</span>
                   </Label>
                   <div className="flex-1 flex items-center gap-2">
                     <Input
@@ -296,7 +291,7 @@ export default function NewTeacherCandidatePage() {
             {/* 约面信息 */}
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-blue-500">约面信息</h3>
-              <div className="border-b pb-4 space-y-3">
+              <div className="pb-4 space-y-3">
                 <div className="flex items-center gap-4">
                   <Label htmlFor="interview_date" className="text-xs w-28">约面日期</Label>
                   <Input
@@ -308,12 +303,16 @@ export default function NewTeacherCandidatePage() {
                   />
                 </div>
                 <div className="flex items-center gap-4">
-                  <Label htmlFor="interview_time" className="text-xs w-28">面试时间</Label>
+                  <Label htmlFor="interview_datetime" className="text-xs w-28">面试时间</Label>
                   <Input
-                    id="interview_time"
-                    type="time"
-                    value={formData.interview_time}
-                    onChange={(e) => handleInputChange("interview_time", e.target.value)}
+                    id="interview_datetime"
+                    type="datetime-local"
+                    value={`${formData.interview_date}T${formData.interview_time || ''}`}
+                    onChange={(e) => {
+                      const [date, time] = e.target.value.split('T')
+                      handleInputChange("interview_date", date)
+                      handleInputChange("interview_time", time || '')
+                    }}
                     className="h-9 text-sm flex-1"
                   />
                 </div>
@@ -345,23 +344,6 @@ export default function NewTeacherCandidatePage() {
               </div>
             </div>
 
-            {/* 面试录像（可选） */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-blue-500">面试录像</h3>
-              <div className="border-b pb-4 space-y-3">
-                <div className="flex items-center gap-4">
-                  <Label htmlFor="video_recording_url" className="text-xs w-28">录像链接</Label>
-                  <Input
-                    id="video_recording_url"
-                    type="url"
-                    placeholder="如已上传至外部，请填写URL"
-                    value={formData.video_recording_url}
-                    onChange={(e) => handleInputChange("video_recording_url", e.target.value)}
-                    className="h-9 text-sm flex-1"
-                  />
-                </div>
-              </div>
-            </div>
 
           </form>
         </div>
