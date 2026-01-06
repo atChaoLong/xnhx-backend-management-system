@@ -25,7 +25,7 @@ export default function NewFormalOrderPage() {
   // 字典数据
   const [orderTypes, setOrderTypes] = useState<any[]>([])
   const [paymentChannels, setPaymentChannels] = useState<any[]>([])
-  const [headTeachers, setHeadTeachers] = useState<{ id: string; name: string }[]>([])
+  const [consultants, setConsultants] = useState<{ id: string; name: string }[]>([])
   const [sessionDurations, setSessionDurations] = useState<any[]>([])
   const [fixedModes, setFixedModes] = useState<any[]>([])
   const [frequencies, setFrequencies] = useState<any[]>([])
@@ -75,7 +75,7 @@ export default function NewFormalOrderPage() {
   // 加载字典数据
   useEffect(() => {
     const loadData = async () => {
-      const [orderTypeData, paymentChannelData, sessionDurationData, fixedModeData, frequencyData, subjectData, teachersData, studentsData, headTeachersData] = await Promise.all([
+      const [orderTypeData, paymentChannelData, sessionDurationData, fixedModeData, frequencyData, subjectData, teachersData, studentsData, salesData, headTeachersData] = await Promise.all([
         getDictionaryItems('payment_type'),
         getDictionaryItems('payment_channel'),
         getDictionaryItems('class_duration'),
@@ -84,6 +84,7 @@ export default function NewFormalOrderPage() {
         getDictionaryItems('subject'),
         TeachersService.getAllTeachers(),
         StudentsService.getAllStudents(),
+        UserProfilesService.getUsers('sales'),
         UserProfilesService.getUsers('head_teacher'),
       ])
       setOrderTypes(orderTypeData)
@@ -94,7 +95,11 @@ export default function NewFormalOrderPage() {
       setSubjects(subjectData)
       setTeachers(teachersData)
       setStudents(studentsData)
-      setHeadTeachers((headTeachersData || []).map(u => ({ id: u.id, name: u.name })))
+      const mergedConsultants = [
+        ...(salesData || []).map(u => ({ id: u.id, name: u.name })),
+        ...(headTeachersData || []).map(u => ({ id: u.id, name: u.name })),
+      ]
+      setConsultants(mergedConsultants)
     }
     loadData()
   }, [])
@@ -279,7 +284,7 @@ export default function NewFormalOrderPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="consultant_teacher">
-                      签约顾问/班主任 <span className="text-destructive">*</span>
+                      销售/班主任 <span className="text-destructive">*</span>
                     </Label>
                     <select
                       id="consultant_teacher"
@@ -288,10 +293,10 @@ export default function NewFormalOrderPage() {
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                       required
                     >
-                      <option value="">请选择签约顾问/班主任</option>
-                      {headTeachers.map((ht) => (
-                        <option key={ht.id} value={ht.name}>
-                          {ht.name}
+                      <option value="">请选择销售或班主任</option>
+                      {consultants.map((c) => (
+                        <option key={c.id} value={c.name}>
+                          {c.name}
                         </option>
                       ))}
                     </select>
