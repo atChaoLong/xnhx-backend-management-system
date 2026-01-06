@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const today = new Date().toISOString().slice(0, 10)
     const insertData = {
       name: body.name.trim(),
       wechat_id: body.wechat_id && typeof body.wechat_id === 'string' ? body.wechat_id.trim() : null,
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
       teacher_type: body.teacher_type || null,
       trial_subject: body.trial_subject || null,
       teaching_style: body.teaching_style || null,
-      interview_date: body.interview_date || null,
+      interview_date: body.interview_date || today,
       interviewer_name: body.interviewer_name || null,
       interview_time: body.interview_time || null,
       interview_link: body.interview_link || null,

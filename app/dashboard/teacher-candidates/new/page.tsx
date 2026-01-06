@@ -297,18 +297,23 @@ export default function NewTeacherCandidatePage() {
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-blue-500">约面信息</h3>
               <div className="border-b pb-4 space-y-3">
-                {/* 面试时间 */}
                 <div className="flex items-center gap-4">
-                  <Label htmlFor="interview_datetime" className="text-xs min-w-20">面试时间</Label>
+                  <Label htmlFor="interview_date" className="text-xs min-w-20">约面日期</Label>
                   <Input
-                    id="interview_datetime"
-                    type="datetime-local"
-                    value={`${formData.interview_date}T${formData.interview_time || ''}`}
-                    onChange={(e) => {
-                      const [date, time] = e.target.value.split('T')
-                      handleInputChange("interview_date", date)
-                      handleInputChange("interview_time", time || '')
-                    }}
+                    id="interview_date"
+                    type="date"
+                    value={formData.interview_date}
+                    onChange={(e) => handleInputChange("interview_date", e.target.value)}
+                    className="h-9 text-sm flex-1"
+                  />
+                </div>
+                <div className="flex items-center gap-4">
+                  <Label htmlFor="interview_time" className="text-xs min-w-20">面试时间</Label>
+                  <Input
+                    id="interview_time"
+                    type="time"
+                    value={formData.interview_time}
+                    onChange={(e) => handleInputChange("interview_time", e.target.value)}
                     className="h-9 text-sm flex-1"
                   />
                 </div>
