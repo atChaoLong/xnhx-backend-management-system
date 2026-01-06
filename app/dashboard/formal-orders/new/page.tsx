@@ -12,6 +12,7 @@ import { FormalOrdersService, NewFormalOrder, generateOrderNumber } from "@/lib/
 import { TeachersService } from "@/lib/services/teachers"
 import { StudentsService } from "@/lib/services/students"
 import { getDictionaryItems } from "@/lib/services/dictionary"
+import { UserProfilesService } from "@/lib/services/userProfiles"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { Textarea } from "@/components/ui/textarea"
@@ -24,7 +25,7 @@ export default function NewFormalOrderPage() {
   // 字典数据
   const [orderTypes, setOrderTypes] = useState<any[]>([])
   const [paymentChannels, setPaymentChannels] = useState<any[]>([])
-  const [consultants, setConsultants] = useState<any[]>([])
+  const [headTeachers, setHeadTeachers] = useState<{ id: string; name: string }[]>([])
   const [sessionDurations, setSessionDurations] = useState<any[]>([])
   const [fixedModes, setFixedModes] = useState<any[]>([])
   const [frequencies, setFrequencies] = useState<any[]>([])
@@ -74,26 +75,26 @@ export default function NewFormalOrderPage() {
   // 加载字典数据
   useEffect(() => {
     const loadData = async () => {
-      const [orderTypeData, paymentChannelData, consultantData, sessionDurationData, fixedModeData, frequencyData, subjectData, teachersData, studentsData] = await Promise.all([
+      const [orderTypeData, paymentChannelData, sessionDurationData, fixedModeData, frequencyData, subjectData, teachersData, studentsData, headTeachersData] = await Promise.all([
         getDictionaryItems('payment_type'),
         getDictionaryItems('payment_channel'),
-        getDictionaryItems('consultant'),
         getDictionaryItems('class_duration'),
         getDictionaryItems('fixed_mode'),
         getDictionaryItems('class_frequency'),
         getDictionaryItems('subject'),
         TeachersService.getAllTeachers(),
         StudentsService.getAllStudents(),
+        UserProfilesService.getUsers('head_teacher'),
       ])
       setOrderTypes(orderTypeData)
       setPaymentChannels(paymentChannelData)
-      setConsultants(consultantData)
       setSessionDurations(sessionDurationData)
       setFixedModes(fixedModeData)
       setFrequencies(frequencyData)
       setSubjects(subjectData)
       setTeachers(teachersData)
       setStudents(studentsData)
+      setHeadTeachers((headTeachersData || []).map(u => ({ id: u.id, name: u.name })))
     }
     loadData()
   }, [])
@@ -288,9 +289,9 @@ export default function NewFormalOrderPage() {
                       required
                     >
                       <option value="">请选择签约顾问/班主任</option>
-                      {consultants.map((consultant) => (
-                        <option key={consultant.id} value={consultant.label}>
-                          {consultant.label}
+                      {headTeachers.map((ht) => (
+                        <option key={ht.id} value={ht.name}>
+                          {ht.name}
                         </option>
                       ))}
                     </select>
