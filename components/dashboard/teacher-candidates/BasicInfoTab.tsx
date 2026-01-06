@@ -2,9 +2,6 @@
 
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { FileUpload } from "@/components/ui/file-upload"
-import { useState, useEffect } from "react"
 
 interface BasicInfoTabProps {
   formData: {
@@ -14,46 +11,16 @@ interface BasicInfoTabProps {
     profile_photo_url?: string
     grade_level: string
     subjects_taught: string
-    teacher_type: string
-    trial_subject: string
-    teaching_style: string
+    interview_date: string
+    interview_time: string
+    interview_link: string
+    interviewer_name: string
   }
   onInputChange: (field: string, value: string | boolean) => void
   onFileUpload?: (field: string, url: string) => void
 }
 
-// 老师类型选项（如果字典系统不可用，使用这个默认列表）
-const DEFAULT_TEACHER_TYPES = [
-  "机构老师（k12）",
-  "机构老师（非k12）",
-  "学校老师",
-  "研究生",
-  "大学生",
-  "其他",
-]
-
 export function BasicInfoTab({ formData, onInputChange, onFileUpload }: BasicInfoTabProps) {
-  const [teacherTypes] = useState(DEFAULT_TEACHER_TYPES)
-  const [customTeacherType, setCustomTeacherType] = useState("")
-
-  // 当选择"其他"时，清空自定义输入
-  const isCustom = formData.teacher_type && !DEFAULT_TEACHER_TYPES.includes(formData.teacher_type)
-
-  const handleTeacherTypeChange = (value: string) => {
-    if (value === "其他") {
-      onInputChange("teacher_type", "")
-      setCustomTeacherType("")
-    } else {
-      onInputChange("teacher_type", value)
-      setCustomTeacherType("")
-    }
-  }
-
-  const handleCustomTypeChange = (value: string) => {
-    setCustomTeacherType(value)
-    onInputChange("teacher_type", value)
-  }
-
   return (
     <div className="space-y-6">
       {/* 基本信息 */}
@@ -111,9 +78,9 @@ export function BasicInfoTab({ formData, onInputChange, onFileUpload }: BasicInf
         </div>
       </div>
 
-      {/* 岗位信息 */}
+      {/* 约面信息（与创建保持一致） */}
       <div className="space-y-4 border-t pt-4">
-        <h3 className="text-sm font-semibold text-blue-600">岗位信息</h3>
+        <h3 className="text-sm font-semibold text-blue-600">约面信息</h3>
 
         <div className="grid grid-cols-2 gap-4">
           {/* 年级段（可多选）- 左列 */}
@@ -189,67 +156,53 @@ export function BasicInfoTab({ formData, onInputChange, onFileUpload }: BasicInf
           </div>
         </div>
 
+        {/* 约面日期与时间 */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="teacher_type">老师类型</Label>
-            <select
-              id="teacher_type"
-              value={isCustom ? "custom" : formData.teacher_type}
-              onChange={(e) => {
-                if (e.target.value === "custom") {
-                  setCustomTeacherType(formData.teacher_type || "")
-                } else {
-                  handleTeacherTypeChange(e.target.value)
-                }
-              }}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-            >
-              <option value="">请选择</option>
-              {teacherTypes.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-              {isCustom && <option value="custom">✓ 自定义: {formData.teacher_type}</option>}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="trial_subject">试讲科目</Label>
+            <Label htmlFor="interview_date">约面日期</Label>
             <Input
-              id="trial_subject"
-              placeholder="试讲指定科目"
-              value={formData.trial_subject}
-              onChange={(e) => onInputChange("trial_subject", e.target.value)}
+              id="interview_date"
+              type="date"
+              value={formData.interview_date}
+              onChange={(e) => onInputChange("interview_date", e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="interview_datetime">面试时间</Label>
+            <Input
+              id="interview_datetime"
+              type="datetime-local"
+              value={`${formData.interview_date}T${formData.interview_time || ''}`}
+              onChange={(e) => {
+                const [date, time] = e.target.value.split('T')
+                onInputChange("interview_date", date)
+                onInputChange("interview_time", time || '')
+              }}
             />
           </div>
         </div>
 
-        {/* 自定义老师类型输入 */}
-        {isCustom && (
+        {/* 面试链接与面试官 */}
+        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="teacher_type_custom">自定义老师类型</Label>
+            <Label htmlFor="interview_link">面试链接</Label>
             <Input
-              id="teacher_type_custom"
-              placeholder="输入自定义类型（如：全职、兼职、实习等）"
-              value={customTeacherType}
-              onChange={(e) => handleCustomTypeChange(e.target.value)}
+              id="interview_link"
+              type="url"
+              placeholder="在线面试链接"
+              value={formData.interview_link}
+              onChange={(e) => onInputChange("interview_link", e.target.value)}
             />
-            <p className="text-xs text-gray-500">
-              选择"其他"选项可切回标准选项
-            </p>
           </div>
-        )}
-
-        <div className="space-y-2">
-          <Label htmlFor="teaching_style">授课风格</Label>
-          <Textarea
-            id="teaching_style"
-            placeholder="请描述教学风格"
-            value={formData.teaching_style}
-            onChange={(e) => onInputChange("teaching_style", e.target.value)}
-            rows={3}
-          />
+          <div className="space-y-2">
+            <Label htmlFor="interviewer_name">面试官</Label>
+            <Input
+              id="interviewer_name"
+              placeholder="面试官名字"
+              value={formData.interviewer_name}
+              onChange={(e) => onInputChange("interviewer_name", e.target.value)}
+            />
+          </div>
         </div>
       </div>
     </div>

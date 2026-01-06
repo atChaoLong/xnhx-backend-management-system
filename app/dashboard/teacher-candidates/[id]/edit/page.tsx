@@ -27,9 +27,7 @@ import Link from "next/link"
 
 // 导入Tab组件
 import { BasicInfoTab } from "@/components/dashboard/teacher-candidates/BasicInfoTab"
-import { InterviewInfoTab } from "@/components/dashboard/teacher-candidates/InterviewInfoTab"
-import { InterviewScoreTab } from "@/components/dashboard/teacher-candidates/InterviewScoreTab"
-import { QualityEvaluationTab } from "@/components/dashboard/teacher-candidates/QualityEvaluationTab"
+import { PostInterviewTab } from "@/components/dashboard/teacher-candidates/PostInterviewTab"
 import { ReviewTab } from "@/components/dashboard/teacher-candidates/ReviewTab"
 import { SalaryHiringTab } from "@/components/dashboard/teacher-candidates/SalaryHiringTab"
 
@@ -49,14 +47,11 @@ export default function EditTeacherCandidatePage() {
   const isHR = role === 'hr' || role === 'admin'
   const isAcademic = role === 'academic_affairs' || role === 'admin'
 
-  // HR可以看到：基本信息、约面、评分、素质评价、录像上传
-  // 教学可以看到：基本信息、复核流程、谈薪入库
-  const canViewBasic = true // 都可以看
-  const canViewInterview = isHR // 只有HR
-  const canViewScore = isHR // 只有HR
-  const canViewQuality = isHR // 只有HR
-  const canViewReview = isAcademic // 只有教学
-  const canViewSalary = isAcademic // 只有教学
+  // 分阶段：基本信息（所有人），初试后填写（HR），复核填写（教务），谈薪入库（教务）
+  const canViewBasic = true
+  const canViewPostInterview = isHR
+  const canViewReview = isAcademic
+  const canViewSalary = isAcademic
 
   const [formData, setFormData] = useState({
     // 基本信息
@@ -337,16 +332,14 @@ export default function EditTeacherCandidatePage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Tab 导航 */}
               <Tabs defaultValue="basic" className="w-full">
-                <TabsList className={`grid w-full gap-1 bg-gray-100 p-1 rounded-lg`} style={{
+          <TabsList className={`grid w-full gap-1 bg-gray-100 p-1 rounded-lg`} style={{
                   gridTemplateColumns: `repeat(${
-                    [canViewBasic, canViewInterview, canViewScore, canViewQuality, canViewReview, canViewSalary].filter(Boolean).length
+                    [canViewBasic, canViewPostInterview, canViewReview, canViewSalary].filter(Boolean).length
                   }, minmax(0, 1fr))`
                 }}>
                   {canViewBasic && <TabsTrigger value="basic" className="text-xs">基本信息</TabsTrigger>}
-                  {canViewInterview && <TabsTrigger value="interview" className="text-xs">约面信息</TabsTrigger>}
-                  {canViewScore && <TabsTrigger value="score" className="text-xs">面试评分</TabsTrigger>}
-                  {canViewQuality && <TabsTrigger value="quality" className="text-xs">素质评价</TabsTrigger>}
-                  {canViewReview && <TabsTrigger value="review" className="text-xs">复核流程</TabsTrigger>}
+                  {canViewPostInterview && <TabsTrigger value="postInterview" className="text-xs">初试后填写</TabsTrigger>}
+                  {canViewReview && <TabsTrigger value="review" className="text-xs">复核填写</TabsTrigger>}
                   {canViewSalary && <TabsTrigger value="salary" className="text-xs">谈薪入库</TabsTrigger>}
                 </TabsList>
 
@@ -361,63 +354,34 @@ export default function EditTeacherCandidatePage() {
                         profile_photo_url: formData.profile_photo_url,
                         grade_level: formData.grade_level,
                         subjects_taught: formData.subjects_taught,
+                        interview_date: formData.interview_date,
+                        interview_time: formData.interview_time,
+                        interview_link: formData.interview_link,
+                        interviewer_name: formData.interviewer_name,
+                      }}
+                      onInputChange={handleInputChange}
+                    />
+                  </TabsContent>
+                )}
+
+                {/* Tab 2: 初试后填写 */}
+                {canViewPostInterview && (
+                  <TabsContent value="postInterview" className="mt-6">
+                    <PostInterviewTab
+                      formData={{
+                        video_recording_url: formData.video_recording_url,
+                        initial_evaluation: formData.initial_evaluation,
                         teacher_type: formData.teacher_type,
                         trial_subject: formData.trial_subject,
                         teaching_style: formData.teaching_style,
-                      }}
-                      onInputChange={handleInputChange}
-                    />
-                  </TabsContent>
-                )}
-
-                {/* Tab 2: 约面信息 */}
-                {canViewInterview && (
-                  <TabsContent value="interview" className="mt-6">
-                    <InterviewInfoTab
-                      formData={{
-                        interview_date: formData.interview_date,
-                        interview_time: formData.interview_time,
-                        interview_officer: formData.interview_officer,
-                        interviewer_name: formData.interviewer_name,
-                        interview_link: formData.interview_link,
-                        interview_exception: formData.interview_exception,
-                      }}
-                      onInputChange={handleInputChange}
-                    />
-                  </TabsContent>
-                )}
-
-                {/* Tab 3: 面试评分 */}
-                {canViewScore && (
-                  <TabsContent value="score" className="mt-6">
-                    <InterviewScoreTab
-                      formData={{
-                        interview_score: formData.interview_score,
-                        logical_expression_score: formData.logical_expression_score,
-                        dress_appearance_score: formData.dress_appearance_score,
-                        material_preparation_score: formData.material_preparation_score,
-                        exam_score: formData.exam_score,
-                        initial_evaluation: formData.initial_evaluation,
-                        video_recording_url: formData.video_recording_url,
-                      }}
-                      onInputChange={handleInputChange}
-                    />
-                  </TabsContent>
-                )}
-
-                {/* Tab 4: 素质评价 */}
-                {canViewQuality && (
-                  <TabsContent value="quality" className="mt-6">
-                    <QualityEvaluationTab
-                      formData={{
+                        teacher_characteristics: formData.teacher_characteristics,
                         mandarin_level: formData.mandarin_level,
                         research_ability: formData.research_ability,
                         service_awareness: formData.service_awareness,
                         affinity: formData.affinity,
-                        teacher_characteristics: formData.teacher_characteristics,
-                        teacher_feeling: formData.teacher_feeling,
-                        suitable_for_students: formData.suitable_for_students,
-                        scheduling_preference: formData.scheduling_preference,
+                        exam_score: formData.exam_score,
+                        current_rate: formData.current_rate,
+                        interview_score: formData.interview_score,
                       }}
                       onInputChange={handleInputChange}
                     />
@@ -450,7 +414,6 @@ export default function EditTeacherCandidatePage() {
                     <TabsContent value="salary" className="mt-6">
                       <SalaryHiringTab
                         formData={{
-                          current_rate: formData.current_rate,
                           approved_hourly_rate: formData.approved_hourly_rate,
                           teacher_level: formData.teacher_level,
                           can_teach_graduation_class: formData.can_teach_graduation_class,
