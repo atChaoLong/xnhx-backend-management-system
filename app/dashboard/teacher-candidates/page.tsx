@@ -127,22 +127,26 @@ export default function TeacherCandidatesPage() {
     if (candidate.candidate_status === 'disabled') return '停用'
 
     // 自动计算状态
-    // 1. 有面试录像或试讲视频 -> 待复核
+    // 1. 复核结果非空 -> 已复核
+    if (candidate.review_result && candidate.review_result.trim().length > 0) {
+      return '已复核'
+    }
+    // 2. 有面试录像或试讲视频 -> 待复核
     if (candidate.video_recording_url || candidate.trial_video_url) {
       return '待复核'
     }
 
-    // 2. 有确切的面试时间 -> 面试中
+    // 3. 有确切的面试时间 -> 面试中
     if (candidate.interview_date) {
       return '面试中'
     }
 
-    // 3. 有微信号 -> 已联系
+    // 4. 有微信号 -> 已联系
     if (candidate.wechat_id) {
       return '已联系'
     }
 
-    // 4. 默认状态 -> 待联系
+    // 5. 默认状态 -> 待联系
     return '待联系'
   }
 
@@ -157,6 +161,8 @@ export default function TeacherCandidatesPage() {
         return 'bg-purple-100 text-purple-800'
       case '待复核':
         return 'bg-yellow-100 text-yellow-800'
+      case '已复核':
+        return 'bg-green-100 text-green-800'
       case '待入库':
         return 'bg-cyan-100 text-cyan-800'
       case '复核拒绝':
