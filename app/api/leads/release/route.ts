@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       .from('leads')
       .update({
         grab_user_id: null,
-        grab_wechat: '',
+        grab_wechat: null,
         updated_at: new Date().toISOString(),
         updated_by: profile.name,
       })
@@ -81,4 +81,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message || '释放线索失败' }, { status: 500 })
   }
 }
-

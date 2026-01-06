@@ -85,7 +85,6 @@ export async function GET(request: NextRequest) {
       const meName = profile.name || ''
       const orFilter = [
         'grab_wechat.is.null',
-        "grab_wechat.eq.''",
         `grab_user_id.eq.${meId}`,
         meName ? `grab_wechat.ilike.%${meName}%` : '',
       ].filter(Boolean).join(',')
