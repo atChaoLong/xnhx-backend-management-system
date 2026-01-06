@@ -15,8 +15,12 @@ export interface Student {
   updated_at: string
   student_code?: string
   student_name: string
+  grade_code?: string
+  region?: string
+  school?: string
   status?: string
   parent_phone?: string
+  head_teacher_id?: string
   classin_initial_password?: string
   classin_uid?: number
 }
@@ -30,6 +34,10 @@ export interface NewStudent {
   parent_phone?: string
   status?: string
   classin_initial_password?: string
+  grade_code?: string
+  region?: string
+  school?: string
+  head_teacher_id?: string
 }
 
 /**

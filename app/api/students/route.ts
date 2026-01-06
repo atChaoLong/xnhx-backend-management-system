@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     if (id) {
       const { data, error } = await supabaseServer
         .from('students')
-        .select('id, created_at, updated_at, student_code, student_name, status, parent_phone, classin_initial_password, classin_uid')
+        .select('id, created_at, updated_at, student_code, student_name, grade_code, region, school, parent_phone, head_teacher_id, status, classin_initial_password, classin_uid')
         .eq('id', id)
         .single()
 
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabaseServer
       .from('students')
-      .select('id, created_at, updated_at, student_code, student_name, status, parent_phone, classin_initial_password, classin_uid')
+      .select('id, created_at, updated_at, student_code, student_name, grade_code, region, school, parent_phone, head_teacher_id, status, classin_initial_password, classin_uid')
       .order('created_at', { ascending: false })
       .range(from, to)
 
@@ -88,7 +88,6 @@ export async function POST(request: NextRequest) {
     }
 
     const insertData = {
-      student_number: body.student_number?.trim() || null,
       student_name: body.student_name.trim(),
       grade_code: body.grade_code || null,
       region: body.region || null,
@@ -117,7 +116,7 @@ export async function POST(request: NextRequest) {
     // 自动注册到 ClassIn：需要家长电话作为账号、学生姓名作为昵称
     const telephone = insertData.parent_phone
     const nickname = insertData.student_name
-    const initialPassword = process.env.CLASSIN_DEFAULT_PASSWORD || "test123456"
+    const initialPassword = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10)).join("")
 
     if (!telephone) {
       return NextResponse.json(
@@ -126,12 +125,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!initialPassword) {
-      return NextResponse.json(
-        { error: '未配置 ClassIn 初始密码（环境变量 CLASSIN_DEFAULT_PASSWORD）' },
-        { status: 500 }
-      )
-    }
+    // 随机纯数字初始密码，无需环境变量
 
     const sdk = getClassInSDKService()
 
