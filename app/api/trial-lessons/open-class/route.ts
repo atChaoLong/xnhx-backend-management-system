@@ -53,47 +53,24 @@ export async function POST(request: NextRequest) {
 
     const sdk = getClassInSDKService()
 
+    let studentUid: number | undefined
     try {
-      const { data: existingStudent } = await supabaseServer
-        .from('students_classin')
-        .select('*')
-        .eq('mobile', lesson.phone)
-        .single()
-      if (!existingStudent) {
-        const studentPassword = process.env.CLASSIN_STUDENT_DEFAULT_PASSWORD || '123456'
-        const studentUid = await sdk.registerStudent({
-          telephone: lesson.phone,
-          nickname: lesson.child_name || '学生',
-          password: studentPassword,
-        })
-        try {
-          await sdk.addSchoolStudent({
-            studentAccount: lesson.phone,
-            studentName: lesson.child_name || '学生',
-          })
-        } catch (e: any) {
-          logger.warn('添加学生到机构失败（非致命）', { message: e?.message })
-        }
-        try {
-          await supabaseServer
-            .from('students_classin')
-            .upsert(
-              {
-                uid: studentUid,
-                name: lesson.child_name || '学生',
-                mobile: lesson.phone,
-                account_status: 1,
-                isdel: 0,
-                updated_at: new Date().toISOString(),
-              },
-              { onConflict: 'uid' }
-            )
-        } catch (e: any) {
-          logger.warn('写入 students_classin 失败（非致命）', { message: e?.message })
-        }
-      }
+      const studentPassword = process.env.CLASSIN_STUDENT_DEFAULT_PASSWORD || '123456'
+      studentUid = await sdk.registerStudent({
+        telephone: lesson.phone,
+        nickname: lesson.child_name || '学生',
+        password: studentPassword,
+      })
     } catch (e: any) {
-      logger.warn('学生注册或同步失败（非致命）', { message: e?.message })
+      logger.warn('注册学生失败（可能已存在，忽略继续）', { message: e?.message })
+    }
+    try {
+      await sdk.addSchoolStudent({
+        studentAccount: lesson.phone,
+        studentName: lesson.child_name || '学生',
+      })
+    } catch (e: any) {
+      logger.warn('添加学生到机构失败（非致命）', { message: e?.message })
     }
 
     const trialTime = new Date(lesson.trial_time)
@@ -199,7 +176,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: { courseId, unitId, classId, activityId }
+      data: { courseId, unitId, classId, activityId, studentUid }
     })
   } catch (error: any) {
     return NextResponse.json(
