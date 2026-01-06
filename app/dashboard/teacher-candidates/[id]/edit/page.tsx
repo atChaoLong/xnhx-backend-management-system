@@ -427,14 +427,6 @@ export default function EditTeacherCandidatePage() {
 
               {/* 操作按钮 */}
               <div className="flex justify-between items-center pt-4 border-t gap-4">
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={() => setDeleteDialogOpen(true)}
-                  disabled={isSubmitting}
-                >
-                  删除
-                </Button>
                 <div className="flex gap-4">
                   <Link href="/dashboard/teacher-candidates">
                     <Button type="button" variant="outline" disabled={isSubmitting}>

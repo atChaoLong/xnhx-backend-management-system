@@ -34,13 +34,12 @@ export function ReviewTab({ formData, onInputChange, currentUser }: ReviewTabPro
         <h3 className="text-sm font-semibold text-blue-600">复核结果</h3>
 
         <div className="space-y-2">
-          <Label htmlFor="review_result">复核结果</Label>
-          <Textarea
-            id="review_result"
-            placeholder="复核意见和建议"
-            value={formData.review_result || ""}
-            onChange={(e) => onInputChange("review_result", e.target.value)}
-            rows={3}
+          <Label htmlFor="reviewed_by">复核人</Label>
+          <Input
+            id="reviewed_by"
+            placeholder="请输入复核人"
+            value={formData.reviewed_by || ""}
+            onChange={(e) => onInputChange("reviewed_by", e.target.value)}
           />
         </div>
 
