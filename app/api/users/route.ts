@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
+import { getClassInSDKService } from '@/lib/services/classin-sdk/service'
 
 const logger = createLogger('API:Users')
 
@@ -207,6 +208,42 @@ export async function POST(request: NextRequest) {
         { error: `创建用户档案失败: ${profileError.message}` },
         { status: 500 }
       )
+    }
+
+    // 若角色为教师或班主任，自动注册到 ClassIn 并写回 uid
+    if (role === 'teacher' || role === 'head_teacher') {
+      try {
+        const telephone = phone || null
+        const nickname = (name && name.trim()) || finalEmail.split('@')[0]
+        const classinPassword = password
+
+        if (!telephone) {
+          logger.warn('教师/班主任缺少手机号，跳过 ClassIn 注册', { userId: user.id })
+        } else {
+          const sdk = getClassInSDKService()
+          const uid = await sdk.registerTeacher({
+            telephone,
+            nickname,
+            password: classinPassword,
+          })
+
+          const { error: uidUpdateError } = await supabaseAdmin
+            .from('user_profiles')
+            .update({
+              classin_uid: uid,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', user.id)
+
+          if (uidUpdateError) {
+            logger.warn('ClassIn UID 写回失败（非致命）', { userId: user.id, message: uidUpdateError.message })
+          } else {
+            logger.info('ClassIn 教师注册成功并写回 UID', { userId: user.id, uid })
+          }
+        }
+      } catch (e: any) {
+        logger.warn('ClassIn 教师注册失败（用户已创建）', { userId: user.id, message: e?.message })
+      }
     }
 
     // 记录操作日志
