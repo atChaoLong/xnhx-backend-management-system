@@ -182,7 +182,16 @@ export default function EditTeacherCandidatePage() {
   }, [candidateId])
 
   const handleInputChange = (field: string, value: string | boolean | number) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value }
+      if (field === "review_result") {
+        next.review_status = value ? "已复核" : "待复核"
+        if (value && !next.review_date) {
+          next.review_date = new Date().toISOString().split("T")[0]
+        }
+      }
+      return next
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
