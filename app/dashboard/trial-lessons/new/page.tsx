@@ -28,9 +28,6 @@ export default function NewTrialLessonPage() {
   const [subjects, setSubjects] = useState<any[]>([])
   const [trialDurations, setTrialDurations] = useState<any[]>([])
 
-  // 老师列表
-  const [teachers, setTeachers] = useState<any[]>([])
-
   // 图片预览
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string>("")
@@ -64,10 +61,6 @@ export default function NewTrialLessonPage() {
     assigned_consultant: "",
     course_status: "",
     student_type: "",
-
-    // 教务信息
-    matched_teacher: "",
-    confirmed_teacher: "",
   })
 
   const handleInputChange = (field: string, value: string | number) => {
@@ -77,19 +70,17 @@ export default function NewTrialLessonPage() {
   // 加载字典数据
   useEffect(() => {
     const loadData = async () => {
-      const [regionData, gradeData, subjectData, trialDurationData, classinTeachersData, leadsResult] = await Promise.all([
+      const [regionData, gradeData, subjectData, trialDurationData, leadsResult] = await Promise.all([
         getDictionaryItems('province'),
         getDictionaryItems('grade'),
         getDictionaryItems('subject'),
         getDictionaryItems('class_duration'),
-        fetch('/api/teachers/classin').then(res => res.json()).then(data => data.success ? data.data : []),
         LeadsService.getLeads(),
       ])
       setRegions(regionData)
       setGrades(gradeData)
       setSubjects(subjectData)
       setTrialDurations(trialDurationData)
-      setTeachers(classinTeachersData)
       setLeads(leadsResult.data || [])
     }
     loadData()
@@ -202,8 +193,6 @@ export default function NewTrialLessonPage() {
         assigned_consultant: formData.assigned_consultant.trim() || undefined,
         course_status: formData.course_status || undefined,
         student_type: formData.student_type || undefined,
-        matched_teacher: formData.matched_teacher.trim() || undefined,
-        confirmed_teacher: formData.confirmed_teacher || undefined,
       }
 
       await TrialLessonsService.createTrialLesson(payload)
@@ -525,16 +514,6 @@ export default function NewTrialLessonPage() {
                       <option value="转介绍">转介绍</option>
                     </select>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="matched_teacher">匹配老师</Label>
-                    <Input
-                      id="matched_teacher"
-                      placeholder="请输入匹配老师"
-                      value={formData.matched_teacher}
-                      onChange={(e) => handleInputChange("matched_teacher", e.target.value)}
-                    />
-                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -549,31 +528,7 @@ export default function NewTrialLessonPage() {
                 </div>
               </div>
 
-              {/* 教务信息 */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold">教务信息</h3>
-
-                <div className="space-y-2">
-                  <Label htmlFor="confirmed_teacher">确认老师（教务）</Label>
-                  <select
-                    id="confirmed_teacher"
-                    value={formData.confirmed_teacher}
-                    onChange={(e) => handleInputChange("confirmed_teacher", e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                  >
-                    <option value="">请选择确认老师（需已绑定ClassIn）</option>
-                    {teachers.map((teacher) => (
-                      <option key={teacher.id} value={teacher.teacher_name}>
-                        {teacher.teacher_name} {teacher.teacher_subject ? `(${teacher.teacher_subject})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-muted-foreground">
-                    仅显示已绑定 ClassIn 的教师
-                  </p>
-                </div>
-              </div>
-
+              
               {/* 操作按钮 */}
               <div className="flex justify-end gap-4 pt-4 border-t">
                 <Link href="/dashboard/trial-lessons">
