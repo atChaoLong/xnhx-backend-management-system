@@ -97,8 +97,8 @@ export async function POST(request: NextRequest) {
     }
 
     const orderType = String(body.order_type).trim()
-    const isRenew = orderType.includes('续费')
-    const isNewOrExpand = orderType.includes('新签') || orderType.includes('扩课') || orderType.includes('阔课') || orderType.includes('扩科')
+    const isRenew = orderType === 'renew'
+    const isNewOrExpand = orderType === 'new' || orderType === 'extend'
 
     if (isNewOrExpand && (!body.lead_id || typeof body.lead_id !== 'string')) {
       logger.error('创建正式订单失败 - 新签/扩课需要关联线索', { body })

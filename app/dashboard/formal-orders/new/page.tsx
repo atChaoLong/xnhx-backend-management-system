@@ -74,14 +74,14 @@ export default function NewFormalOrderPage() {
     payment_time: "",
 
     // 状态管理
-    status: "active" as 'active' | 'completed' | 'cancelled' | 'suspended',
+    status: "active",
   })
 
   // 加载字典数据
   useEffect(() => {
     const loadData = async () => {
       const [orderTypeData, paymentChannelData, sessionDurationData, fixedModeData, frequencyData, subjectData, teachersData, studentsData, salesData, headTeachersData, leadsResult, ordersResult] = await Promise.all([
-        getDictionaryItems('payment_type'),
+        getDictionaryItems('order_type'),
         getDictionaryItems('payment_channel'),
         getDictionaryItems('class_duration'),
         getDictionaryItems('fixed_mode'),
@@ -177,8 +177,8 @@ export default function NewFormalOrderPage() {
       return
     }
 
-    const isRenew = String(formData.order_type).includes('续费')
-    const isNewOrExpand = String(formData.order_type).includes('新签') || String(formData.order_type).includes('扩课') || String(formData.order_type).includes('阔课') || String(formData.order_type).includes('扩科')
+    const isRenew = String(formData.order_type) === 'renew'
+    const isNewOrExpand = String(formData.order_type) === 'new' || String(formData.order_type) === 'extend'
     if (isNewOrExpand && !formData.lead_id) {
       toast({
         variant: "destructive",
@@ -335,7 +335,7 @@ export default function NewFormalOrderPage() {
 
                 {/* 关联信息（紧贴订单类型下方） */}
                 <div className="space-y-4">
-                {(String(formData.order_type).includes('新签') || String(formData.order_type).includes('扩课') || String(formData.order_type).includes('阔课') || String(formData.order_type).includes('扩科')) && (
+                {(String(formData.order_type) === 'new' || String(formData.order_type) === 'extend') && (
                     <div className="space-y-2">
                       <Label htmlFor="lead_id">
                         关联线索 <span className="text-destructive">*</span>
@@ -356,7 +356,7 @@ export default function NewFormalOrderPage() {
                       </select>
                     </div>
                   )}
-                  {String(formData.order_type).includes('续费') && (
+                  {String(formData.order_type) === 'renew' && (
                     <div className="space-y-2">
                       <Label htmlFor="previous_order_id">
                         关联之前订单 <span className="text-destructive">*</span>
@@ -499,11 +499,7 @@ export default function NewFormalOrderPage() {
                           </option>
                         ))
                       ) : (
-                        <>
-                          <option value="固定">固定</option>
-                          <option value="半固定">半固定</option>
-                          <option value="每周约">每周约</option>
-                        </>
+                        <option value="">请先配置固定模式选项</option>
                       )}
                     </select>
                   </div>

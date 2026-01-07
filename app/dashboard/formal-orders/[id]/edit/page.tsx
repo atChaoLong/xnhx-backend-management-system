@@ -70,7 +70,7 @@ export default function EditFormalOrderPage() {
     payment_time: "",
 
     // 状态管理
-    status: "active" as 'active' | 'completed' | 'cancelled' | 'suspended',
+    status: "active",
   })
 
   // 加载正式订单数据
@@ -125,7 +125,7 @@ export default function EditFormalOrderPage() {
   useEffect(() => {
     const loadData = async () => {
       const [orderTypeData, paymentChannelData, consultantData, sessionDurationData, fixedModeData, frequencyData, subjectData, teachersData, studentsData] = await Promise.all([
-        getDictionaryItems('payment_type'),
+        getDictionaryItems('order_type'),
         getDictionaryItems('payment_channel'),
         getDictionaryItems('consultant'),
         getDictionaryItems('class_duration'),
@@ -507,11 +507,7 @@ export default function EditFormalOrderPage() {
                           </option>
                         ))
                       ) : (
-                        <>
-                          <option value="固定">固定</option>
-                          <option value="半固定">半固定</option>
-                          <option value="每周约">每周约</option>
-                        </>
+                        <option value="">请先配置固定模式选项</option>
                       )}
                     </select>
                   </div>

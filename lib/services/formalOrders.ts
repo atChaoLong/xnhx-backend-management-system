@@ -33,7 +33,7 @@ export interface FormalOrder {
   payment_time: string
 
   // 状态管理
-  status: 'active' | 'completed' | 'cancelled' | 'suspended'
+  status: string
 }
 
 export interface NewFormalOrder {
@@ -67,7 +67,7 @@ export interface NewFormalOrder {
   payment_time: string
 
   // 状态管理
-  status?: 'active' | 'completed' | 'cancelled' | 'suspended'
+  status?: string
 }
 
 /**
