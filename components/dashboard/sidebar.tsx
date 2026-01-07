@@ -102,16 +102,16 @@ const navigationGroups: MenuGroup[] = [
       { name: "角色管理", href: "/dashboard/roles", icon: UserPlus },
     ]
   },
-  {
-    title: "其他",
-    roles: ['admin'],
-    items: [
-      { name: "销售人员", href: "/dashboard/wechat-accounts", icon: MessageCircle },
-      { name: "数据同步", href: "/dashboard/sync", icon: Database },
-      { name: "ClassIn SDK", href: "/dashboard/classin-sdk", icon: Settings },
-      { name: "从订单创建班级", href: "/dashboard/classin/classes/from-order", icon: Users },
-    ]
-  }
+  // {
+  //   title: "其他",
+  //   roles: ['admin'],
+  //   items: [
+  //     { name: "销售人员", href: "/dashboard/wechat-accounts", icon: MessageCircle },
+  //     { name: "数据同步", href: "/dashboard/sync", icon: Database },
+  //     { name: "ClassIn SDK", href: "/dashboard/classin-sdk", icon: Settings },
+  //     { name: "从订单创建班级", href: "/dashboard/classin/classes/from-order", icon: Users },
+  //   ]
+  // }
 ]
 
 interface SidebarProps {

@@ -83,9 +83,9 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
-              <p className="text-xs text-muted-foreground">
-                提示：可以直接输入账号（如：admin），自动转换为 admin@xiaoniuhaoxue.com
-              </p>
+              {/* <p className="text-xs text-muted-foreground"> */}
+                {/* 提示：可以直接输入账号（如：admin），自动转换为 admin@xiaoniuhaoxue.com */}
+              {/* </p> */}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">密码</Label>
@@ -108,7 +108,7 @@ export default function LoginPage() {
               登录
             </Button>
           </form>
-          <div className="mt-6 text-center text-sm">
+          {/* <div className="mt-6 text-center text-sm">
             <span className="text-muted-foreground">还没有账户？</span>{" "}
             <Link href="/signup" className="text-primary hover:underline font-medium">
               立即注册
@@ -121,7 +121,7 @@ export default function LoginPage() {
                 创建账户
               </Link>
             </p>
-          </div>
+          </div> */}
         </CardContent>
       </Card>
     </div>
