@@ -52,6 +52,7 @@ export default function TrialLessonsPage() {
   const [lessonToDelete, setLessonToDelete] = useState<string | null>(null)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [lessonToConfirm, setLessonToConfirm] = useState<TrialLesson | null>(null)
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null)
   const { toast } = useToast()
 
   const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
@@ -223,25 +224,35 @@ export default function TrialLessonsPage() {
   // 快捷确认老师（教务操作）
   const handleQuickConfirmTeacher = (lesson: TrialLesson) => {
     setLessonToConfirm(lesson)
+    setSelectedTeacherId(null)
     setConfirmDialogOpen(true)
   }
 
+  // 选择老师（只更新选中状态）
+  const handleSelectTeacher = (teacherId: string) => {
+    setSelectedTeacherId(teacherId)
+  }
+
   // 确认老师对话框中的确认操作
-  const handleConfirmTeacherSelect = async (teacherName: string) => {
-    if (!lessonToConfirm) return
+  const handleConfirmTeacherSelect = async () => {
+    if (!lessonToConfirm || !selectedTeacherId) return
+
+    const selectedTeacher = teachers.find(t => t.id === selectedTeacherId)
+    if (!selectedTeacher) return
 
     try {
       setIsConfirming(lessonToConfirm.id)
       await TrialLessonsService.updateTrialLesson({
         ...lessonToConfirm,
-        confirmed_teacher: teacherName,
+        confirmed_teacher: selectedTeacher.name,
       })
       toast({
         title: "确认成功",
-        description: `已确认老师：${teacherName}`,
+        description: `已确认老师：${selectedTeacher.name}`,
       })
       setConfirmDialogOpen(false)
       setLessonToConfirm(null)
+      setSelectedTeacherId(null)
       fetchLessons()
     } catch (error: any) {
       toast({
@@ -812,9 +823,13 @@ export default function TrialLessonsPage() {
                 {teachers.map((teacher) => (
                   <button
                     key={teacher.id}
-                    onClick={() => handleConfirmTeacherSelect(teacher.name)}
+                    onClick={() => handleSelectTeacher(teacher.id)}
                     disabled={isConfirming !== null}
-                    className="w-full flex items-center justify-between p-3 rounded-lg border hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`w-full flex items-center justify-between p-3 rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                      selectedTeacherId === teacher.id
+                        ? 'bg-blue-50 border-blue-500'
+                        : 'hover:bg-accent'
+                    }`}
                   >
                     <div className="flex flex-col items-start">
                       <span className="font-medium">{teacher.name}</span>
@@ -831,12 +846,25 @@ export default function TrialLessonsPage() {
                 ))}
               </div>
             )}
-          </div>
-          <DialogFooter>
+            </div>
+            <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmDialogOpen(false)} disabled={isConfirming !== null}>
               取消
             </Button>
-          </DialogFooter>
+            <Button
+              onClick={() => handleConfirmTeacherSelect()}
+              disabled={isConfirming !== null || !selectedTeacherId}
+            >
+              {isConfirming ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  确认中...
+                </>
+              ) : (
+                "确认"
+              )}
+            </Button>
+            </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
