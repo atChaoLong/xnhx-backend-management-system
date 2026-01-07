@@ -121,9 +121,21 @@ export async function POST(request: NextRequest) {
     }
 
     const subjectLabel2 = SUBJECT_LABELS[subjectCode] || subjectCode
+    const baseClassName = `【试听】${lesson.child_name} ${subjectLabel2}课`
+    let seq = 1
+    try {
+      const { count: classCount } = await supabaseServer
+        .from('classroom_classin')
+        .select('*', { count: 'exact', head: true })
+        .eq('course_id', courseId)
+      seq = (classCount || 0) + 1
+    } catch (e: any) {
+      logger.warn('统计课程课节数量失败，默认序号为1', { message: e?.message })
+    }
+    const classNameWithSeq = `${baseClassName} - ${seq}`
     const classroomResult = await sdk.createClassroom({
       courseId,
-      name: `【试听】${lesson.child_name} ${subjectLabel2}课`,
+      name: classNameWithSeq,
       teacherUid: teacherData.uid,
       startTime: trialTime,
       endTime: endTime,
@@ -142,7 +154,7 @@ export async function POST(request: NextRequest) {
         .upsert(
           {
             class_id: classId,
-            name: `【试听】${lesson.child_name} ${subjectLabel2}课`,
+            name: classNameWithSeq,
             start_time: Math.floor(trialTime.getTime() / 1000),
             end_time: Math.floor(endTime.getTime() / 1000),
             course_id: courseId,
