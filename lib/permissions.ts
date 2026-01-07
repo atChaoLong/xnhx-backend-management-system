@@ -160,7 +160,7 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     students: ['view'],
     formalOrders: ['view'],
     transactions: ['view', 'verifyPerformance'],
-    teacherCandidates: ['view', 'interview', 'evaluate', 'uploadVideo', 'reviewVideo'],
+    teacherCandidates: ['view', 'create', 'edit', 'interview', 'evaluate', 'uploadVideo', 'reviewVideo'],
     teachers: ['view'],
     dictionaries: ['view'],
     users: ['view'],
