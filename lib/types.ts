@@ -602,50 +602,50 @@ export interface Activity {
 // ============================================
 // 表单相关类型
 // ============================================
-export type NewLead = Omit<Lead, "id" "createdAt" "updatedAt">
+export type NewLead = Omit<Lead, "id" | "createdAt" | "updatedAt">
 export type UpdateLead = Partial<NewLead> & { id: string }
 
-export type NewTeacherCandidate = Omit<TeacherCandidate, "id" "createdAt" "updatedAt">
+export type NewTeacherCandidate = Omit<TeacherCandidate, "id" | "createdAt" | "updatedAt">
 export type UpdateTeacherCandidate = Partial<NewTeacherCandidate> & { id: string }
 
-export type NewTeacherProfile = Omit<TeacherProfile, "id" "createdAt" "updatedAt">
+export type NewTeacherProfile = Omit<TeacherProfile, "id" | "createdAt" | "updatedAt">
 export type UpdateTeacherProfile = Partial<NewTeacherProfile> & { id: string }
 
-export type NewStudent = Omit<Student, "id" "createdAt" "updatedAt">
+export type NewStudent = Omit<Student, "id" | "createdAt" | "updatedAt">
 export type UpdateStudent = Partial<NewStudent> & { id: string }
 
-export type NewStudentClassin = Omit<StudentClassin, "uid" "createdAt" "updatedAt">
+export type NewStudentClassin = Omit<StudentClassin, "uid" | "createdAt" | "updatedAt">
 export type UpdateStudentClassin = Partial<NewStudentClassin> & { uid: number }
 
-export type NewClassClassin = Omit<ClassClassin, "course_id" "createdAt" "updatedAt">
+export type NewClassClassin = Omit<ClassClassin, "course_id" | "createdAt" | "updatedAt">
 export type UpdateClassClassin = Partial<NewClassClassin> & { course_id: number }
 
-export type NewClassroomClassin = Omit<ClassroomClassin, "class_id" "createdAt" "updatedAt">
+export type NewClassroomClassin = Omit<ClassroomClassin, "class_id" | "createdAt" | "updatedAt">
 export type UpdateClassroomClassin = Partial<NewClassroomClassin> & { class_id: number }
 
-export type NewTeacher = Omit<Teacher, "id" "createdAt" "updatedAt">
+export type NewTeacher = Omit<Teacher, "id" | "createdAt" | "updatedAt">
 export type UpdateTeacher = Partial<NewTeacher> & { id: string }
 
-export type NewTeacherClassin = Omit<TeacherClassin, "uid" "createdAt" "updatedAt">
+export type NewTeacherClassin = Omit<TeacherClassin, "uid" | "createdAt" | "updatedAt">
 export type UpdateTeacherClassin = Partial<NewTeacherClassin> & { uid: number }
 
-export type NewTrialLesson = Omit<TrialLesson, "id" "createdAt" "updatedAt">
+export type NewTrialLesson = Omit<TrialLesson, "id" | "createdAt" | "updatedAt">
 export type UpdateTrialLesson = Partial<NewTrialLesson> & { id: string }
 
-export type NewFormalOrder = Omit<FormalOrder, "id" "orderNumber" "createdAt" "updatedAt">
+export type NewFormalOrder = Omit<FormalOrder, "id" | "orderNumber" | "createdAt" | "updatedAt">
 export type UpdateFormalOrder = Partial<NewFormalOrder> & { id: string }
 
-export type NewDailyLead = Omit<DailyLead, "id" "createdAt" "updatedAt">
+export type NewDailyLead = Omit<DailyLead, "id" | "createdAt" | "updatedAt">
 export type UpdateDailyLead = Partial<NewDailyLead> & { id: string }
 
-export type NewWechatAccount = Omit<WechatAccount, "id" "createdAt" "updatedAt">
+export type NewWechatAccount = Omit<WechatAccount, "id" | "createdAt" | "updatedAt">
 export type UpdateWechatAccount = Partial<NewWechatAccount> & { id: string }
 
-export type NewSalesPersonnel = Omit<SalesPersonnel, "id" "createdAt" "updatedAt">
+export type NewSalesPersonnel = Omit<SalesPersonnel, "id" | "createdAt" | "updatedAt">
 export type UpdateSalesPersonnel = Partial<NewSalesPersonnel> & { id: string }
 
-export type NewTransactionRecord = Omit<TransactionRecord, "id" "createdAt">
+export type NewTransactionRecord = Omit<TransactionRecord, "id" | "createdAt">
 export type UpdateTransactionRecord = Partial<NewTransactionRecord> & { id: string }
 
-export type NewSysDictionary = Omit<SysDictionary, "id" "createdAt" "updatedAt">
+export type NewSysDictionary = Omit<SysDictionary, "id" | "createdAt" | "updatedAt">
 export type UpdateSysDictionary = Partial<NewSysDictionary> & { id: string }
