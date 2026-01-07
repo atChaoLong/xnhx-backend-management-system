@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import {
   Dialog,
   DialogContent,
@@ -32,6 +33,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { LeadsService, Lead } from "@/lib/services/leads"
 import { DictionaryService } from "@/lib/services/dictionary"
+import { uploadChatScreenshot } from "@/lib/services/upload"
 import { useToast } from "@/hooks/use-toast"
 import { usePermission } from "@/lib/hooks/usePermission"
 import { usePagination } from "@/lib/hooks/usePagination"
@@ -172,7 +174,40 @@ export default function LeadsPage() {
   const openFeedbackDialog = (lead: Lead) => {
     setFeedbackLead(lead)
     setFeedbackStatus('')
+    setFeedbackScreenshots(lead.chat_screenshots ? lead.chat_screenshots.split(',').filter(url => url.trim()) : [])
     setFeedbackDialogOpen(true)
+  }
+
+  const handleFeedbackScreenshotChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files)
+      
+      try {
+        setIsUploadingFeedback(true)
+        const uploadPromises = files.map(file => uploadChatScreenshot(file))
+        const urls = await Promise.all(uploadPromises)
+
+        setFeedbackScreenshots(prev => [...prev, ...urls])
+        toast({
+          title: "上传成功",
+          description: `已上传 ${files.length} 张聊天截图`,
+        })
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "上传失败",
+          description: error.message || "无法上传聊天截图",
+        })
+      } finally {
+        setIsUploadingFeedback(false)
+        // 清除文件选择
+        e.target.value = ''
+      }
+    }
+  }
+
+  const handleRemoveFeedbackScreenshot = (index: number) => {
+    setFeedbackScreenshots(prev => prev.filter((_, i) => i !== index))
   }
 
   const submitFeedback = async () => {
@@ -190,6 +225,7 @@ export default function LeadsPage() {
         body: JSON.stringify({
           id: feedbackLead.id,
           add_status: feedbackStatus,
+          chat_screenshots: feedbackScreenshots.length > 0 ? feedbackScreenshots.join(',') : undefined,
         })
       })
       if (!response.ok) {
@@ -198,7 +234,7 @@ export default function LeadsPage() {
       }
       setLeads(prev => prev.map(l =>
         l.id === feedbackLead.id
-          ? { ...l, add_status: feedbackStatus }
+          ? { ...l, add_status: feedbackStatus, chat_screenshots: feedbackScreenshots.length > 0 ? feedbackScreenshots.join(',') : undefined }
           : l
       ))
       setFeedbackDialogOpen(false)
@@ -220,6 +256,8 @@ export default function LeadsPage() {
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false)
   const [feedbackLead, setFeedbackLead] = useState<Lead | null>(null)
   const [feedbackStatus, setFeedbackStatus] = useState<'added' | 'not_added' | ''>('')
+  const [feedbackScreenshots, setFeedbackScreenshots] = useState<string[]>([])
+  const [isUploadingFeedback, setIsUploadingFeedback] = useState(false)
 
   const handleGrabLead = async (lead: Lead) => {
     try {
@@ -615,10 +653,10 @@ export default function LeadsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>线索反馈</DialogTitle>
-            <DialogDescription>请选择该线索的添加结果</DialogDescription>
+            <DialogDescription>请选择该线索的添加结果并上传相关截图</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1">
+          <div className="space-y-4">
+            <div className="space-y-2">
               <Label>反馈结果</Label>
               <select
                 value={feedbackStatus}
@@ -629,6 +667,48 @@ export default function LeadsPage() {
                 <option value="added">已添加</option>
                 <option value="not_added">未添加</option>
               </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>聊天截图</Label>
+              <Input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFeedbackScreenshotChange}
+                disabled={isUploadingFeedback}
+              />
+              {isUploadingFeedback && (
+                <p className="text-xs text-muted-foreground flex items-center">
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  上传中...
+                </p>
+              )}
+              {feedbackScreenshots.length > 0 && (
+                <div className="mt-2 space-y-2">
+                  <p className="text-xs text-muted-foreground">已上传 {feedbackScreenshots.length} 张截图</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {feedbackScreenshots.map((screenshot, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={screenshot}
+                          alt={`聊天截图 ${index + 1}`}
+                          className="w-full h-auto border rounded"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFeedbackScreenshot(index)}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>

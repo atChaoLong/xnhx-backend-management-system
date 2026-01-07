@@ -10,7 +10,7 @@ const logger = createLogger('API:Leads:Feedback')
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { id, add_status } = body
+    const { id, add_status, chat_screenshots } = body
 
     if (!id) {
       return NextResponse.json(
@@ -99,13 +99,20 @@ export async function POST(request: NextRequest) {
     }
 
     // 更新线索状态
+    const updateData: any = {
+      add_status,
+      updated_at: new Date().toISOString(),
+      updated_by: profile.name,
+    }
+
+    // 如果提供了截图，则更新截图字段
+    if (chat_screenshots !== undefined) {
+      updateData.chat_screenshots = chat_screenshots
+    }
+
     const { data: updatedLead, error } = await supabaseServer
       .from('leads')
-      .update({
-        add_status,
-        updated_at: new Date().toISOString(),
-        updated_by: profile.name,
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single()
@@ -114,6 +121,7 @@ export async function POST(request: NextRequest) {
       logger.error('反馈线索失败', {
         leadId: id,
         addStatus: add_status,
+        chatScreenshots: chat_screenshots,
         message: error.message,
         code: error.code,
       })
@@ -126,6 +134,7 @@ export async function POST(request: NextRequest) {
     logger.info('反馈线索成功', {
       leadId: id,
       addStatus: add_status,
+      chatScreenshots: chat_screenshots,
       updatedBy: profile.name,
     })
 
