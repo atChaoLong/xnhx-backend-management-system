@@ -52,7 +52,6 @@ export interface TrialLesson {
 export interface NewTrialLesson {
   // 基本信息
   child_name: string
-  status?: 'pending' | 'confirmed' | 'completed' | 'cancelled'
   lead_id?: string
 
   // 课程信息
@@ -64,24 +63,16 @@ export interface NewTrialLesson {
 
   // 联系信息
   phone: string
-  channel: string
 
   // 财务信息
   trial_amount?: number
   payment_proof: string
 
-  // 优先级
-  urgency_level?: 'low' | 'medium' | 'high' | 'urgent'
-
   // 业务信息
   notes?: string
-  assigned_consultant?: string
   course_status?: string
   student_type?: string
-
-  // 教务信息
   matched_teacher?: string
-  confirmed_teacher?: string
 }
 
 /**

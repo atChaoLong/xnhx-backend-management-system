@@ -27,6 +27,8 @@ export default function NewTrialLessonPage() {
   const [grades, setGrades] = useState<any[]>([])
   const [subjects, setSubjects] = useState<any[]>([])
   const [trialDurations, setTrialDurations] = useState<any[]>([])
+  const [courseStatuses, setCourseStatuses] = useState<any[]>([])
+  const [studentTypes, setStudentTypes] = useState<any[]>([])
 
   // 图片预览
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
@@ -37,8 +39,7 @@ export default function NewTrialLessonPage() {
 
   const [formData, setFormData] = useState({
     // 基本信息
-    child_name: "",
-    status: "pending" as 'pending' | 'confirmed' | 'completed' | 'cancelled',
+    student_name: "",
     lead_id: "",
 
     // 课程信息
@@ -50,7 +51,6 @@ export default function NewTrialLessonPage() {
 
     // 联系信息
     phone: "",
-    channel: "",
 
     // 财务信息
     trial_amount: "",
@@ -58,9 +58,9 @@ export default function NewTrialLessonPage() {
 
     // 业务信息
     notes: "",
-    assigned_consultant: "",
     course_status: "",
     student_type: "",
+    matched_teacher: "",
   })
 
   const handleInputChange = (field: string, value: string | number) => {
@@ -70,17 +70,21 @@ export default function NewTrialLessonPage() {
   // 加载字典数据
   useEffect(() => {
     const loadData = async () => {
-      const [regionData, gradeData, subjectData, trialDurationData, leadsResult] = await Promise.all([
+      const [regionData, gradeData, subjectData, trialDurationData, courseStatusData, studentTypeData, leadsResult] = await Promise.all([
         getDictionaryItems('province'),
         getDictionaryItems('grade'),
         getDictionaryItems('subject'),
         getDictionaryItems('class_duration'),
+        getDictionaryItems('trial_course_status'),
+        getDictionaryItems('student_type'),
         LeadsService.getLeads(),
       ])
       setRegions(regionData)
       setGrades(gradeData)
       setSubjects(subjectData)
       setTrialDurations(trialDurationData)
+      setCourseStatuses(courseStatusData)
+      setStudentTypes(studentTypeData)
       setLeads(leadsResult.data || [])
     }
     loadData()
@@ -99,12 +103,11 @@ export default function NewTrialLessonPage() {
         setFormData((prev) => ({
           ...prev,
           lead_id: lead.id,
-          child_name: lead.parent_wechat || "", // 使用家长微信作为孩子称呼
+          student_name: lead.parent_wechat || "", // 使用家长微信作为学生称呼
           phone: lead.parent_wechat || "",
           region: lead.region_ip || "",
           grade: lead.grade_code || "",
-          trial_subject: lead.subject_codes?.[0] || "", // 取第一个科目
-          channel: "", // channel 需要手动输入
+          trial_subject: lead.subject_codes?.[0] || "", // 取第一个学科
         }))
 
         toast({
@@ -129,14 +132,13 @@ export default function NewTrialLessonPage() {
 
     // 验证必填字段
     const requiredFields = [
-      { field: 'child_name', name: '孩子称呼' },
+      { field: 'student_name', name: '学生称呼' },
       { field: 'region', name: '地域' },
       { field: 'grade', name: '年级' },
-      { field: 'trial_subject', name: '试听科目' },
+      { field: 'trial_subject', name: '试听学科' },
       { field: 'trial_time', name: '试听时间' },
       { field: 'trial_duration', name: '试听时长' },
       { field: 'phone', name: '手机号' },
-      { field: 'channel', name: '渠道' },
       { field: 'payment_proof', name: '付款凭证' },
     ]
 
@@ -177,8 +179,7 @@ export default function NewTrialLessonPage() {
       }
 
       const payload: NewTrialLesson = {
-        child_name: formData.child_name.trim(),
-        status: formData.status,
+        child_name: formData.student_name.trim(),
         lead_id: formData.lead_id || undefined,
         region: formData.region.trim(),
         grade: formData.grade.trim(),
@@ -186,13 +187,12 @@ export default function NewTrialLessonPage() {
         trial_time: formData.trial_time,
         trial_duration: parseFloat(formData.trial_duration),
         phone: formData.phone.trim(),
-        channel: formData.channel.trim(),
         trial_amount: formData.trial_amount ? parseFloat(formData.trial_amount) : undefined,
         payment_proof: paymentProofUrl,
         notes: formData.notes.trim() || undefined,
-        assigned_consultant: formData.assigned_consultant.trim() || undefined,
         course_status: formData.course_status || undefined,
         student_type: formData.student_type || undefined,
+        matched_teacher: formData.matched_teacher || undefined,
       }
 
       await TrialLessonsService.createTrialLesson(payload)
@@ -231,14 +231,14 @@ export default function NewTrialLessonPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="child_name">
-                      孩子称呼 <span className="text-destructive">*</span>
+                    <Label htmlFor="student_name">
+                      学生称呼 <span className="text-destructive">*</span>
                     </Label>
                     <Input
-                      id="child_name"
-                      placeholder="请输入孩子称呼"
-                      value={formData.child_name}
-                      onChange={(e) => handleInputChange("child_name", e.target.value)}
+                      id="student_name"
+                      placeholder="请输入学生称呼"
+                      value={formData.student_name}
+                      onChange={(e) => handleInputChange("student_name", e.target.value)}
                       required
                     />
                   </div>
@@ -261,32 +261,17 @@ export default function NewTrialLessonPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">
-                      手机号 <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="phone"
-                      placeholder="请输入手机号"
-                      value={formData.phone}
-                      onChange={(e) => handleInputChange("phone", e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="channel">
-                      渠道 <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="channel"
-                      placeholder="请输入渠道"
-                      value={formData.channel}
-                      onChange={(e) => handleInputChange("channel", e.target.value)}
-                      required
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">
+                    手机号 <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="phone"
+                    placeholder="请输入手机号"
+                    value={formData.phone}
+                    onChange={(e) => handleInputChange("phone", e.target.value)}
+                    required
+                  />
                 </div>
               </div>
 
@@ -339,7 +324,7 @@ export default function NewTrialLessonPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="trial_subject">
-                      试听科目 <span className="text-destructive">*</span>
+                      试听学科 <span className="text-destructive">*</span>
                     </Label>
                     <select
                       id="trial_subject"
@@ -446,41 +431,11 @@ export default function NewTrialLessonPage() {
                 </div>
               </div>
 
-              {/* 状态 */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold">状态</h3>
-
-                <div className="space-y-2">
-                  <Label htmlFor="status">状态</Label>
-                  <select
-                    id="status"
-                    value={formData.status}
-                    onChange={(e) => handleInputChange("status", e.target.value as any)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                  >
-                    <option value="pending">待确认</option>
-                    <option value="confirmed">已确认</option>
-                    <option value="completed">已完成</option>
-                    <option value="cancelled">已取消</option>
-                  </select>
-                </div>
-              </div>
-
               {/* 业务信息 */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">业务信息</h3>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="assigned_consultant">对应顾问</Label>
-                    <Input
-                      id="assigned_consultant"
-                      placeholder="请输入对应顾问"
-                      value={formData.assigned_consultant}
-                      onChange={(e) => handleInputChange("assigned_consultant", e.target.value)}
-                    />
-                  </div>
-
                   <div className="space-y-2">
                     <Label htmlFor="course_status">课程状态</Label>
                     <select
@@ -490,16 +445,14 @@ export default function NewTrialLessonPage() {
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                     >
                       <option value="">请选择状态</option>
-                      <option value="待排课">待排课</option>
-                      <option value="已排课">已排课</option>
-                      <option value="进行中">进行中</option>
-                      <option value="已完成">已完成</option>
-                      <option value="已取消">已取消</option>
+                      {courseStatuses.map((status) => (
+                        <option key={status.id} value={status.code}>
+                          {status.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="student_type">学生类型</Label>
                     <select
@@ -509,11 +462,23 @@ export default function NewTrialLessonPage() {
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                     >
                       <option value="">请选择类型</option>
-                      <option value="新生">新生</option>
-                      <option value="老生">老生</option>
-                      <option value="转介绍">转介绍</option>
+                      {studentTypes.map((type) => (
+                        <option key={type.id} value={type.code}>
+                          {type.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="matched_teacher">匹配老师</Label>
+                  <Input
+                    id="matched_teacher"
+                    placeholder="请输入匹配老师"
+                    value={formData.matched_teacher}
+                    onChange={(e) => handleInputChange("matched_teacher", e.target.value)}
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -528,7 +493,6 @@ export default function NewTrialLessonPage() {
                 </div>
               </div>
 
-              
               {/* 操作按钮 */}
               <div className="flex justify-end gap-4 pt-4 border-t">
                 <Link href="/dashboard/trial-lessons">

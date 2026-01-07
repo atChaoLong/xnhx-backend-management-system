@@ -170,14 +170,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!body.channel || typeof body.channel !== 'string' || !body.channel.trim()) {
-      logger.error('创建试听课程失败 - 渠道为空', { body })
-      return NextResponse.json(
-        { error: '渠道不能为空' },
-        { status: 400 }
-      )
-    }
-
     if (!body.payment_proof || typeof body.payment_proof !== 'string' || !body.payment_proof.trim()) {
       logger.error('创建试听课程失败 - 付款凭证为空', { body })
       return NextResponse.json(
@@ -196,7 +188,6 @@ export async function POST(request: NextRequest) {
       trial_time: body.trial_time,
       trial_duration: parseFloat(body.trial_duration),
       phone: body.phone.trim(),
-      channel: body.channel.trim(),
       trial_amount: body.trial_amount !== undefined ? parseFloat(body.trial_amount) : null,
       payment_proof: body.payment_proof.trim(),
       urgency_level: body.urgency_level || null,
