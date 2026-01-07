@@ -135,7 +135,7 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     formalOrders: ['view', 'addLink'], // 添加 addLink - 教务可以为正式订单开课
     transactions: ['view', 'verifyHours'],
     teacherCandidates: ['view', 'evaluate', 'uploadVideo', 'reviewVideo'],
-    teachers: ['view', 'edit', 'notes', 'create'],
+    teachers: ['view', 'edit', 'notes'],
     dictionaries: ['view'],
     users: ['view'],
   },
@@ -160,7 +160,7 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     students: ['view'],
     formalOrders: ['view'],
     transactions: ['view', 'verifyPerformance'],
-    teacherCandidates: ['view', 'interview'],
+    teacherCandidates: ['view', 'interview', 'evaluate'],
     teachers: ['view'],
     dictionaries: ['view'],
     users: ['view'],
