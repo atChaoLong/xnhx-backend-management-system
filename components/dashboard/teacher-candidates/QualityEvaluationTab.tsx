@@ -1,8 +1,10 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { DictionaryService, DictionaryItem } from "@/lib/services/dictionary"
 
 interface QualityEvaluationTabProps {
   formData: {
@@ -18,9 +20,32 @@ interface QualityEvaluationTabProps {
   onInputChange: (field: string, value: string) => void
 }
 
-const levelOptions = ["强", "较强", "一般", "较弱", "未评"]
 
 export function QualityEvaluationTab({ formData, onInputChange }: QualityEvaluationTabProps) {
+  const [mandarinLevels, setMandarinLevels] = useState<DictionaryItem[]>([])
+  const [researchAbilityOptions, setResearchAbilityOptions] = useState<DictionaryItem[]>([])
+  const [serviceAwarenessOptions, setServiceAwarenessOptions] = useState<DictionaryItem[]>([])
+  const [affinityOptions, setAffinityOptions] = useState<DictionaryItem[]>([])
+
+  useEffect(() => {
+    const loadDictionaryData = async () => {
+      try {
+        const [mandarinData, researchData, serviceData, affinityData] = await Promise.all([
+          DictionaryService.getDictionaryItems('mandarin_level'),
+          DictionaryService.getDictionaryItems('research_ability'),
+          DictionaryService.getDictionaryItems('service_awareness'),
+          DictionaryService.getDictionaryItems('affinity_level')
+        ])
+        setMandarinLevels(mandarinData)
+        setResearchAbilityOptions(researchData)
+        setServiceAwarenessOptions(serviceData)
+        setAffinityOptions(affinityData)
+      } catch (error) {
+        console.error('Failed to load dictionary data:', error)
+      }
+    }
+    loadDictionaryData()
+  }, [])
   return (
     <div className="space-y-6">
       {/* 素质评价 */}
@@ -37,11 +62,11 @@ export function QualityEvaluationTab({ formData, onInputChange }: QualityEvaluat
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
             >
               <option value="">请选择</option>
-              <option value="一级甲等">一级甲等</option>
-              <option value="一级乙等">一级乙等</option>
-              <option value="二级甲等">二级甲等</option>
-              <option value="二级乙等">二级乙等</option>
-              <option value="三级">三级</option>
+              {mandarinLevels.map((level) => (
+                <option key={level.code} value={level.label}>
+                  {level.label}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -54,9 +79,9 @@ export function QualityEvaluationTab({ formData, onInputChange }: QualityEvaluat
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
             >
               <option value="">请选择</option>
-              {levelOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
+              {researchAbilityOptions.map((opt) => (
+                <option key={opt.code} value={opt.label}>
+                  {opt.label}
                 </option>
               ))}
             </select>
@@ -73,9 +98,9 @@ export function QualityEvaluationTab({ formData, onInputChange }: QualityEvaluat
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
             >
               <option value="">请选择</option>
-              {levelOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
+              {serviceAwarenessOptions.map((opt) => (
+                <option key={opt.code} value={opt.label}>
+                  {opt.label}
                 </option>
               ))}
             </select>
@@ -90,9 +115,9 @@ export function QualityEvaluationTab({ formData, onInputChange }: QualityEvaluat
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
             >
               <option value="">请选择</option>
-              {levelOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
+              {affinityOptions.map((opt) => (
+                <option key={opt.code} value={opt.label}>
+                  {opt.label}
                 </option>
               ))}
             </select>

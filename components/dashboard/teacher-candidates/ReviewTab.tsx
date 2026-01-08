@@ -1,8 +1,10 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { DictionaryService, DictionaryItem } from "@/lib/services/dictionary"
  
 
 interface ReviewTabProps {
@@ -25,6 +27,24 @@ interface ReviewTabProps {
 }
 
 export function ReviewTab({ formData, onInputChange, currentUser }: ReviewTabProps) {
+  const [reviewResults, setReviewResults] = useState<DictionaryItem[]>([])
+  const [teacherLevels, setTeacherLevels] = useState<DictionaryItem[]>([])
+
+  useEffect(() => {
+    const loadDictionaryData = async () => {
+      try {
+        const [reviewData, levelData] = await Promise.all([
+          DictionaryService.getDictionaryItems('review_result'),
+          DictionaryService.getDictionaryItems('teacher_level')
+        ])
+        setReviewResults(reviewData)
+        setTeacherLevels(levelData)
+      } catch (error) {
+        console.error('Failed to load dictionary data:', error)
+      }
+    }
+    loadDictionaryData()
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -33,27 +53,32 @@ export function ReviewTab({ formData, onInputChange, currentUser }: ReviewTabPro
       <div className="space-y-4">
         <h3 className="text-sm font-semibold text-blue-600">复核结果</h3>
 
-        <div className="space-y-2">
-          <Label htmlFor="reviewed_by">复核人</Label>
-          <Input
-            id="reviewed_by"
-            placeholder="请输入复核人"
-            value={formData.reviewed_by || ""}
-            onChange={(e) => onInputChange("reviewed_by", e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="review_result">复核结果</Label>
-          <select
-            id="review_result"
-            value={formData.review_result || ""}
-            onChange={(e) => onInputChange("review_result", e.target.value)}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-          >
-            <option value="">请选择</option>
-            <option value="通过">通过</option>
-            <option value="不通过">不通过</option>
-          </select>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="reviewed_by">复核人</Label>
+            <Input
+              id="reviewed_by"
+              placeholder="请输入复核人"
+              value={formData.reviewed_by || ""}
+              onChange={(e) => onInputChange("reviewed_by", e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="review_result">复核结果</Label>
+            <select
+              id="review_result"
+              value={formData.review_result || ""}
+              onChange={(e) => onInputChange("review_result", e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+            >
+              <option value="">请选择</option>
+              {reviewResults.map((result) => (
+                <option key={result.code} value={result.label}>
+                  {result.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -74,12 +99,19 @@ export function ReviewTab({ formData, onInputChange, currentUser }: ReviewTabPro
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="teacher_level">老师级别</Label>
-            <Input
+            <select
               id="teacher_level"
-              placeholder="请输入老师级别"
               value={formData.teacher_level || ""}
               onChange={(e) => onInputChange("teacher_level", e.target.value)}
-            />
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+            >
+              <option value="">请选择</option>
+              {teacherLevels.map((level) => (
+                <option key={level.code} value={level.label}>
+                  {level.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="scheduling_preference">排课偏好</Label>

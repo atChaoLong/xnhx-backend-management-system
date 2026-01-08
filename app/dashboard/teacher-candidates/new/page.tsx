@@ -186,33 +186,32 @@ export default function NewTeacherCandidatePage() {
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-blue-500">基本信息</h3>
               <div className="border-b pb-4 space-y-3">
-                {/* 老师名字 */}
-                <div className="flex items-center gap-4">
-                  <Label htmlFor="name" className="text-xs w-28">
-                    老师名字 <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="name"
-                    placeholder="请输入姓名"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange("name", e.target.value)}
-                    className="h-9 text-sm flex-1"
-                    required
-                  />
+                {/* 老师名字和微信号 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="text-xs w-28">
+                      老师名字 <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="name"
+                      placeholder="请输入姓名"
+                      value={formData.name}
+                      onChange={(e) => handleInputChange("name", e.target.value)}
+                      className="h-9 text-sm flex-1"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="wechat_id" className="text-xs w-28">微信号</Label>
+                    <Input
+                      id="wechat_id"
+                      placeholder="请输入微信号"
+                      value={formData.wechat_id}
+                      onChange={(e) => handleInputChange("wechat_id", e.target.value)}
+                      className="h-9 text-sm flex-1"
+                    />
+                  </div>
                 </div>
-
-                {/* 微信号 */}
-                <div className="flex items-center gap-4">
-                  <Label htmlFor="wechat_id" className="text-xs w-28">微信号</Label>
-                  <Input
-                    id="wechat_id"
-                    placeholder="请输入微信号"
-                    value={formData.wechat_id}
-                    onChange={(e) => handleInputChange("wechat_id", e.target.value)}
-                    className="h-9 text-sm flex-1"
-                  />
-                </div>
-
                 {/* 老师简历 */}
                 <div className="flex items-center gap-4">
                   <Label htmlFor="resume_file" className="text-xs w-28">
@@ -240,49 +239,52 @@ export default function NewTeacherCandidatePage() {
                   </div>
                 </div>
 
-                {/* 年级段 */}
-                <div className="flex items-center gap-4">
-                  <Label className="text-xs w-28">年级段</Label>
-                  <div className="flex-1 flex items-center gap-4">
-                    {[
-                      { code: 'primary', label: '小学' },
-                      { code: 'middle', label: '初中' },
-                      { code: 'high', label: '高中' },
-                    ].map((g) => (
-                      <label key={g.code} className="flex items-center gap-2 text-xs">
-                        <input
-                          type="checkbox"
-                          checked={selectedGradeGroups.includes(g.code)}
-                          onChange={() => handleGradeGroupToggle(g.code)}
-                          className="h-4 w-4 rounded border-gray-300"
-                        />
-                        {g.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 教授学科 */}
-                <div className="flex items-start gap-4">
-                  <Label className="text-xs w-28">教授学科</Label>
-                  <div className="border rounded-md p-2 space-y-2 max-h-28 overflow-y-auto bg-gray-50 flex-1">
-                    {subjects.map((subject) => (
-                      <div key={subject.id} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={`subject-${subject.code}`}
-                          checked={selectedSubjects.includes(subject.code)}
-                          onChange={() => handleSubjectToggle(subject.code)}
-                          className="h-4 w-4 rounded border-gray-300"
-                        />
-                        <label
-                          htmlFor={`subject-${subject.code}`}
-                          className="text-xs cursor-pointer"
-                        >
-                          {subject.label}
+                {/* 年级段和教授学科 */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* 年级段 */}
+                  <div className="space-y-2">
+                    <Label className="text-xs w-28">年级段</Label>
+                    <div className="border rounded-md p-2 space-y-2 max-h-28 overflow-y-auto bg-gray-50">
+                      {[
+                        { code: 'primary', label: '小学' },
+                        { code: 'middle', label: '初中' },
+                        { code: 'high', label: '高中' },
+                      ].map((g) => (
+                        <label key={g.code} className="flex items-center gap-2 text-xs">
+                          <input
+                            type="checkbox"
+                            checked={selectedGradeGroups.includes(g.code)}
+                            onChange={() => handleGradeGroupToggle(g.code)}
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                          {g.label}
                         </label>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 教授学科 */}
+                  <div className="space-y-2">
+                    <Label className="text-xs w-28">教授学科</Label>
+                    <div className="border rounded-md p-2 space-y-2 max-h-28 overflow-y-auto bg-gray-50">
+                      {subjects.map((subject) => (
+                        <div key={subject.id} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={`subject-${subject.code}`}
+                            checked={selectedSubjects.includes(subject.code)}
+                            onChange={() => handleSubjectToggle(subject.code)}
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                          <label
+                            htmlFor={`subject-${subject.code}`}
+                            className="text-xs cursor-pointer"
+                          >
+                            {subject.label}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -292,59 +294,60 @@ export default function NewTeacherCandidatePage() {
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-blue-500">约面信息</h3>
               <div className="pb-4 space-y-3">
-                <div className="flex items-center gap-4">
-                  <Label htmlFor="interview_date" className="text-xs w-28">约面日期</Label>
-                  <Input
-                    id="interview_date"
-                    type="date"
-                    value={formData.interview_date}
-                    onChange={(e) => handleInputChange("interview_date", e.target.value)}
-                    className="h-9 text-sm flex-1"
-                  />
-                </div>
-                <div className="flex items-center gap-4">
-                  <Label htmlFor="interview_datetime" className="text-xs w-28">面试时间</Label>
-                  <Input
-                    id="interview_datetime"
-                    type="datetime-local"
-                    value={`${formData.interview_date}T${formData.interview_time || ''}`}
-                    onChange={(e) => {
-                      const [date, time] = e.target.value.split('T')
-                      handleInputChange("interview_date", date)
-                      handleInputChange("interview_time", time || '')
-                    }}
-                    className="h-9 text-sm flex-1"
-                  />
-                </div>
-
-                {/* 面试链接 */}
-                <div className="flex items-center gap-4">
-                  <Label htmlFor="interview_link" className="text-xs w-28">面试链接</Label>
-                  <Input
-                    id="interview_link"
-                    type="url"
-                    placeholder="面试链接"
-                    value={formData.interview_link}
-                    onChange={(e) => handleInputChange("interview_link", e.target.value)}
-                    className="h-9 text-sm flex-1"
-                  />
+                {/* 约面日期和面试时间 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="interview_date" className="text-xs w-28">约面日期</Label>
+                    <Input
+                      id="interview_date"
+                      type="date"
+                      value={formData.interview_date}
+                      onChange={(e) => handleInputChange("interview_date", e.target.value)}
+                      className="h-9 text-sm flex-1"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="interview_datetime" className="text-xs w-28">面试时间</Label>
+                    <Input
+                      id="interview_datetime"
+                      type="datetime-local"
+                      value={`${formData.interview_date}T${formData.interview_time || ''}`}
+                      onChange={(e) => {
+                        const [date, time] = e.target.value.split('T')
+                        handleInputChange("interview_date", date)
+                        handleInputChange("interview_time", time || '')
+                      }}
+                      className="h-9 text-sm flex-1"
+                    />
+                  </div>
                 </div>
 
-                {/* 面试官 */}
-                <div className="flex items-center gap-4">
-                  <Label htmlFor="interviewer_name" className="text-xs w-28">面试官</Label>
-                  <Input
-                    id="interviewer_name"
-                    placeholder="面试官姓名"
-                    value={formData.interviewer_name}
-                    onChange={(e) => handleInputChange("interviewer_name", e.target.value)}
-                    className="h-9 text-sm flex-1"
-                  />
+                {/* 面试链接和面试官 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="interview_link" className="text-xs w-28">面试链接</Label>
+                    <Input
+                      id="interview_link"
+                      type="url"
+                      placeholder="面试链接"
+                      value={formData.interview_link}
+                      onChange={(e) => handleInputChange("interview_link", e.target.value)}
+                      className="h-9 text-sm flex-1"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="interviewer_name" className="text-xs w-28">面试官</Label>
+                    <Input
+                      id="interviewer_name"
+                      placeholder="面试官姓名"
+                      value={formData.interviewer_name}
+                      onChange={(e) => handleInputChange("interviewer_name", e.target.value)}
+                      className="h-9 text-sm flex-1"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-
-
           </form>
         </div>
 
