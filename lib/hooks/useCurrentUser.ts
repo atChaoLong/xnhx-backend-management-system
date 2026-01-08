@@ -18,13 +18,42 @@ interface CurrentUserState {
 }
 
 export function useCurrentUser() {
-  const [state, setState] = useState<CurrentUserState>({
-    user: null,
-    isLoading: true,
-    error: null,
+  const [state, setState] = useState<CurrentUserState>(() => {
+    // 初始化时检查缓存
+    if (typeof window !== 'undefined') {
+      const cachedUser = sessionStorage.getItem('currentUser')
+      if (cachedUser) {
+        try {
+          const parsed = JSON.parse(cachedUser)
+          const now = Date.now()
+          // 缓存5分钟有效
+          if (now - parsed.timestamp < 5 * 60 * 1000) {
+            return {
+              user: parsed.data,
+              isLoading: false,
+              error: null,
+            }
+          }
+        } catch (e) {
+          console.warn('缓存数据解析失败:', e)
+          sessionStorage.removeItem('currentUser')
+        }
+      }
+    }
+    
+    return {
+      user: null,
+      isLoading: true,
+      error: null,
+    }
   })
 
   useEffect(() => {
+    // 如果已经有缓存且未过期，跳过加载
+    if (state.user && !state.isLoading) {
+      return
+    }
+
     let mounted = true
 
     async function loadUser() {
@@ -48,16 +77,26 @@ export function useCurrentUser() {
 
         const { data } = await response.json()
 
+        const userData = {
+          id: data.id,
+          email: data.email,
+          name: data.name,
+          avatar: data.avatar_url,
+          role: (data.role || 'sales') as Role,
+          createdAt: data.created_at,
+        }
+
+        // 缓存用户信息（5分钟）
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('currentUser', JSON.stringify({
+            data: userData,
+            timestamp: Date.now()
+          }))
+        }
+
         if (mounted) {
           setState({
-            user: {
-              id: data.id,
-              email: data.email,
-              name: data.name,
-              avatar: data.avatar_url,
-              role: (data.role || 'sales') as Role,
-              createdAt: data.created_at,
-            },
+            user: userData,
             isLoading: false,
             error: null,
           })
@@ -79,12 +118,20 @@ export function useCurrentUser() {
     // 监听认证状态变化
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session?.user) {
+        // 清除缓存
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('currentUser')
+        }
         setState({
           user: null,
           isLoading: false,
           error: null,
         })
       } else {
+        // 认证状态变化时重新加载用户信息（清除缓存）
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('currentUser')
+        }
         loadUser()
       }
     })
@@ -93,7 +140,7 @@ export function useCurrentUser() {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [])
+  }, [state.user, state.isLoading])
 
   return state
 }
