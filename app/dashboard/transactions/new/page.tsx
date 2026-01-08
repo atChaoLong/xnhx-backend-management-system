@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Loader2 } from "lucide-react"
 import { TransactionsService } from "@/lib/services/transactions"
 import { StudentsService } from "@/lib/services/students"
-import { getDictionaryItems } from "@/lib/services/dictionary"
+import { useDictionary } from "@/lib/hooks/useDictionary"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 
@@ -21,7 +21,7 @@ export default function NewTransactionPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // 字典数据
-  const [orderTypes, setOrderTypes] = useState<any[]>([])
+  const { items: orderTypes, loading: orderTypesLoading } = useDictionary('payment_type')
 
   // 列表数据
   const [students, setStudents] = useState<any[]>([])
@@ -47,14 +47,10 @@ export default function NewTransactionPage() {
     status: "pending" as 'pending' | 'processing' | 'completed' | 'rejected',
   })
 
-  // 加载字典数据和列表数据
+  // 加载列表数据
   useEffect(() => {
     const loadData = async () => {
-      const [orderTypeData, studentsData] = await Promise.all([
-        getDictionaryItems('payment_type'),
-        StudentsService.getAllStudents(),
-      ])
-      setOrderTypes(orderTypeData)
+      const studentsData = await StudentsService.getAllStudents()
       setStudents(studentsData)
     }
     loadData()

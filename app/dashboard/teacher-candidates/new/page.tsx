@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2, X } from "lucide-react"
 import { TeacherCandidatesService, NewTeacherCandidate } from "@/lib/services/teacherCandidates"
-import { getDictionaryItems, DictionaryItem } from "@/lib/services/dictionary"
+import { useDictionary } from "@/lib/hooks/useDictionary"
+import type { DictionaryItem } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
 import { uploadFile } from "@/lib/supabase-client"
 
@@ -16,7 +17,7 @@ export default function NewTeacherCandidatePage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [subjects, setSubjects] = useState<DictionaryItem[]>([])
+  const { items: subjects, loading: subjectsLoading } = useDictionary('subject')
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
   const [selectedGradeGroups, setSelectedGradeGroups] = useState<string[]>([])
 
@@ -41,20 +42,6 @@ export default function NewTeacherCandidatePage() {
 
   const [resumeFile, setResumeFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
-
-  // 加载字典数据
-  useEffect(() => {
-    const loadDictionaries = async () => {
-      try {
-        const subjectData = await getDictionaryItems('subject')
-        setSubjects(subjectData)
-      } catch (error: any) {
-        console.error("加载字典数据失败:", error)
-      }
-    }
-
-    loadDictionaries()
-  }, [])
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))

@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
 import { TrialLessonsService, NewTrialLesson } from "@/lib/services/trialLessons"
 import { LeadsService } from "@/lib/services/leads"
-import { getDictionaryItems } from "@/lib/services/dictionary"
+import { useDictionary } from "@/lib/hooks/useDictionary"
 import { useToast } from "@/hooks/use-toast"
 import { uploadPaymentProof } from "@/lib/services/upload"
 import Link from "next/link"
@@ -23,12 +23,12 @@ export default function NewTrialLessonPage() {
   const [isUploading, setIsUploading] = useState(false)
 
   // 字典数据
-  const [regions, setRegions] = useState<any[]>([])
-  const [grades, setGrades] = useState<any[]>([])
-  const [subjects, setSubjects] = useState<any[]>([])
-  const [trialDurations, setTrialDurations] = useState<any[]>([])
-  const [courseStatuses, setCourseStatuses] = useState<any[]>([])
-  const [studentTypes, setStudentTypes] = useState<any[]>([])
+  const { items: regions, loading: regionsLoading } = useDictionary('province')
+  const { items: grades, loading: gradesLoading } = useDictionary('grade')
+  const { items: subjects, loading: subjectsLoading } = useDictionary('subject')
+  const { items: trialDurations, loading: trialDurationsLoading } = useDictionary('class_duration')
+  const { items: courseStatuses, loading: courseStatusesLoading } = useDictionary('trial_course_status')
+  const { items: studentTypes, loading: studentTypesLoading } = useDictionary('student_type')
 
   // 图片预览
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
@@ -67,27 +67,13 @@ export default function NewTrialLessonPage() {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  // 加载字典数据
+  // 加载线索数据
   useEffect(() => {
-    const loadData = async () => {
-      const [regionData, gradeData, subjectData, trialDurationData, courseStatusData, studentTypeData, leadsResult] = await Promise.all([
-        getDictionaryItems('province'),
-        getDictionaryItems('grade'),
-        getDictionaryItems('subject'),
-        getDictionaryItems('class_duration'),
-        getDictionaryItems('trial_course_status'),
-        getDictionaryItems('student_type'),
-        LeadsService.getLeads(),
-      ])
-      setRegions(regionData)
-      setGrades(gradeData)
-      setSubjects(subjectData)
-      setTrialDurations(trialDurationData)
-      setCourseStatuses(courseStatusData)
-      setStudentTypes(studentTypeData)
+    const loadLeads = async () => {
+      const leadsResult = await LeadsService.getLeads()
       setLeads(leadsResult.data || [])
     }
-    loadData()
+    loadLeads()
   }, [])
 
   // 从 URL 参数加载线索信息并自动填充

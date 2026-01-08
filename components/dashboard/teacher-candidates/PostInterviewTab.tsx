@@ -4,7 +4,8 @@ import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { DictionaryService, DictionaryItem } from "@/lib/services/dictionary"
+import { useDictionary } from "@/lib/hooks/useDictionary"
+import type { DictionaryItem } from "@/lib/services/dictionary"
 
 interface PostInterviewTabProps {
   formData: {
@@ -27,48 +28,15 @@ interface PostInterviewTabProps {
 
 
 export function PostInterviewTab({ formData, onInputChange }: PostInterviewTabProps) {
-  const examScore = formData.exam_score || ""
-  const [teacherTypes, setTeacherTypes] = useState<DictionaryItem[]>([])
-  const [subjects, setSubjects] = useState<DictionaryItem[]>([])
-  const [mandarinLevels, setMandarinLevels] = useState<DictionaryItem[]>([])
-  const [initialEvalOptions, setInitialEvalOptions] = useState<DictionaryItem[]>([])
-  const [researchAbilityOptions, setResearchAbilityOptions] = useState<DictionaryItem[]>([])
-  const [serviceAwarenessOptions, setServiceAwarenessOptions] = useState<DictionaryItem[]>([])
-  const [affinityOptions, setAffinityOptions] = useState<DictionaryItem[]>([])
-
-  useEffect(() => {
-    const loadDictionaryData = async () => {
-      try {
-        const [
-          teacherData, 
-          subjectData, 
-          mandarinData,
-          initialEvalData,
-          researchData, 
-          serviceData, 
-          affinityData
-        ] = await Promise.all([
-          DictionaryService.getDictionaryItems('teacher_type'),
-          DictionaryService.getDictionaryItems('subject'),
-          DictionaryService.getDictionaryItems('mandarin_level'),
-          DictionaryService.getDictionaryItems('interview_initial_eval'),
-          DictionaryService.getDictionaryItems('research_ability'),
-          DictionaryService.getDictionaryItems('service_awareness'),
-          DictionaryService.getDictionaryItems('affinity_level')
-        ])
-        setTeacherTypes(teacherData)
-        setSubjects(subjectData)
-        setMandarinLevels(mandarinData)
-        setInitialEvalOptions(initialEvalData)
-        setResearchAbilityOptions(researchData)
-        setServiceAwarenessOptions(serviceData)
-        setAffinityOptions(affinityData)
-      } catch (error) {
-        console.error('Failed to load dictionary data:', error)
-      }
-    }
-    loadDictionaryData()
-  }, [])
+  const examScore = formData.exam_score
+  // 字典数据
+  const { items: teacherTypes, loading: teacherTypesLoading } = useDictionary('teacher_type')
+  const { items: subjects, loading: subjectsLoading } = useDictionary('subject')
+  const { items: mandarinLevels, loading: mandarinLevelsLoading } = useDictionary('mandarin_level')
+  const { items: interviewEvals, loading: interviewEvalsLoading } = useDictionary('interview_initial_eval')
+  const { items: researchAbilityOptions, loading: researchAbilityLoading } = useDictionary('research_ability')
+  const { items: serviceOptions, loading: serviceLoading } = useDictionary('service_awareness')
+  const { items: affinityOptions, loading: affinityLoading } = useDictionary('affinity_level')
 
   return (
     <div className="space-y-6">
@@ -95,7 +63,7 @@ export function PostInterviewTab({ formData, onInputChange }: PostInterviewTabPr
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
             >
               <option value="">请选择</option>
-              {initialEvalOptions.map((opt) => (
+              {interviewEvals.map((opt) => (
                 <option key={opt.code} value={opt.label}>
                   {opt.label}
                 </option>
@@ -201,7 +169,7 @@ export function PostInterviewTab({ formData, onInputChange }: PostInterviewTabPr
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
             >
               <option value="">请选择</option>
-              {serviceAwarenessOptions.map((opt) => (
+              {serviceOptions.map((opt) => (
                 <option key={opt.code} value={opt.label}>
                   {opt.label}
                 </option>

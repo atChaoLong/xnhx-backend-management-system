@@ -11,7 +11,7 @@ import { Loader2 } from "lucide-react"
 import { FormalOrdersService, FormalOrder, generateOrderNumber } from "@/lib/services/formalOrders"
 import { TeachersService } from "@/lib/services/teachers"
 import { StudentsService } from "@/lib/services/students"
-import { getDictionaryItems } from "@/lib/services/dictionary"
+import { useDictionary } from "@/lib/hooks/useDictionary"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { Textarea } from "@/components/ui/textarea"
@@ -27,13 +27,13 @@ export default function EditFormalOrderPage() {
   const orderId = params.id as string
 
   // 字典数据
-  const [orderTypes, setOrderTypes] = useState<any[]>([])
-  const [paymentChannels, setPaymentChannels] = useState<any[]>([])
-  const [consultants, setConsultants] = useState<any[]>([])
-  const [sessionDurations, setSessionDurations] = useState<any[]>([])
-  const [fixedModes, setFixedModes] = useState<any[]>([])
-  const [frequencies, setFrequencies] = useState<any[]>([])
-  const [subjects, setSubjects] = useState<any[]>([])
+  const { items: orderTypes, loading: orderTypesLoading } = useDictionary('order_type')
+  const { items: paymentChannels, loading: paymentChannelsLoading } = useDictionary('payment_channel')
+  const { items: consultants, loading: consultantsLoading } = useDictionary('consultant')
+  const { items: sessionDurations, loading: sessionDurationsLoading } = useDictionary('class_duration')
+  const { items: fixedModes, loading: fixedModesLoading } = useDictionary('fixed_mode')
+  const { items: frequencies, loading: frequenciesLoading } = useDictionary('class_frequency')
+  const { items: subjects, loading: subjectsLoading } = useDictionary('subject')
 
   // 列表数据
   const [teachers, setTeachers] = useState<any[]>([])
@@ -121,27 +121,13 @@ export default function EditFormalOrderPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId])
 
-  // 加载字典数据和列表数据
+  // 加载列表数据
   useEffect(() => {
     const loadData = async () => {
-      const [orderTypeData, paymentChannelData, consultantData, sessionDurationData, fixedModeData, frequencyData, subjectData, teachersData, studentsData] = await Promise.all([
-        getDictionaryItems('order_type'),
-        getDictionaryItems('payment_channel'),
-        getDictionaryItems('consultant'),
-        getDictionaryItems('class_duration'),
-        getDictionaryItems('fixed_mode'),
-        getDictionaryItems('class_frequency'),
-        getDictionaryItems('subject'),
+      const [teachersData, studentsData] = await Promise.all([
         TeachersService.getAllTeachers(),
         StudentsService.getAllStudents(),
       ])
-      setOrderTypes(orderTypeData)
-      setPaymentChannels(paymentChannelData)
-      setConsultants(consultantData)
-      setSessionDurations(sessionDurationData)
-      setFixedModes(fixedModeData)
-      setFrequencies(frequencyData)
-      setSubjects(subjectData)
       setTeachers(teachersData)
       setStudents(studentsData)
     }

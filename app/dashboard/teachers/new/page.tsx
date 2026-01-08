@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2, Upload } from "lucide-react"
 import { TeachersService, NewTeacher } from "@/lib/services/teachers"
-import { getDictionaryItems } from "@/lib/services/dictionary"
+import { useDictionary } from "@/lib/hooks/useDictionary"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 
@@ -20,8 +20,8 @@ export default function NewTeacherPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // 字典数据
-  const [textbookVersions, setTextbookVersions] = useState<any[]>([])
-  const [provinces, setProvinces] = useState<any[]>([])
+  const { items: textbookVersions, loading: textbookVersionsLoading } = useDictionary('textbook_version')
+  const { items: provinces, loading: provincesLoading } = useDictionary('province')
 
   // 多选字段
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
@@ -61,19 +61,6 @@ export default function NewTeacherPage() {
     // 其他
     notes: "",
   })
-
-  // 加载字典数据
-  useEffect(() => {
-    const loadData = async () => {
-      const [textbookData, provinceData] = await Promise.all([
-        getDictionaryItems('textbook_version'),
-        getDictionaryItems('province'),
-      ])
-      setTextbookVersions(textbookData)
-      setProvinces(provinceData)
-    }
-    loadData()
-  }, [])
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))

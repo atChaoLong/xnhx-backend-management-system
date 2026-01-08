@@ -4,7 +4,8 @@ import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { DictionaryService, DictionaryItem } from "@/lib/services/dictionary"
+import { useDictionary } from "@/lib/hooks/useDictionary"
+import type { DictionaryItem } from "@/lib/services/dictionary"
  
 
 interface ReviewTabProps {
@@ -27,24 +28,8 @@ interface ReviewTabProps {
 }
 
 export function ReviewTab({ formData, onInputChange, currentUser }: ReviewTabProps) {
-  const [reviewResults, setReviewResults] = useState<DictionaryItem[]>([])
-  const [teacherLevels, setTeacherLevels] = useState<DictionaryItem[]>([])
-
-  useEffect(() => {
-    const loadDictionaryData = async () => {
-      try {
-        const [reviewData, levelData] = await Promise.all([
-          DictionaryService.getDictionaryItems('review_result'),
-          DictionaryService.getDictionaryItems('teacher_level')
-        ])
-        setReviewResults(reviewData)
-        setTeacherLevels(levelData)
-      } catch (error) {
-        console.error('Failed to load dictionary data:', error)
-      }
-    }
-    loadDictionaryData()
-  }, [])
+  const { items: reviewResults, loading: reviewResultsLoading } = useDictionary('review_result')
+  const { items: teacherLevels, loading: teacherLevelsLoading } = useDictionary('teacher_level')
 
   return (
     <div className="space-y-6">

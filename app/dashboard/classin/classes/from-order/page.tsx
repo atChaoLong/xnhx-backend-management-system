@@ -12,7 +12,7 @@ import { Loader2, Users, GraduationCap, User, CheckCircle2, Clock, AlertCircle }
 import { FormalOrdersService } from "@/lib/services/formalOrders"
 import { StudentsService } from "@/lib/services/students"
 import { TeachersService } from "@/lib/services/teachers"
-import { getDictionaryItems } from "@/lib/services/dictionary"
+import { useDictionary } from "@/lib/hooks/useDictionary"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 
@@ -28,7 +28,7 @@ export default function CreateClassFromOrderPage() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null)
 
   // 字典数据
-  const [subjects, setSubjects] = useState<any[]>([])
+  const { items: subjects, loading: subjectsLoading } = useDictionary('subject')
 
   // 班级信息
   const [className, setClassName] = useState("")
@@ -47,15 +47,13 @@ export default function CreateClassFromOrderPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [orderData, subjectData, teacherData, studentData] = await Promise.all([
+        const [orderData, teacherData, studentData] = await Promise.all([
           FormalOrdersService.getAllFormalOrders(),
-          getDictionaryItems('subject'),
           TeachersService.getAllTeachers(),
           StudentsService.getAllStudents(),
         ])
         // 只显示进行中的订单
         setOrders(orderData.filter((order: any) => order.status === 'active'))
-        setSubjects(subjectData)
         setAvailableTeachers(teacherData)
         setAvailableStudents(studentData)
       } catch (error: any) {

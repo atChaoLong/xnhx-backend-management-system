@@ -13,7 +13,7 @@ import { Loader2, Plus, Trash2, Calendar, Clock, User, GraduationCap } from "luc
 import { FormalOrdersService } from "@/lib/services/formalOrders"
 import { StudentsService } from "@/lib/services/students"
 import { TeachersService } from "@/lib/services/teachers"
-import { getDictionaryItems } from "@/lib/services/dictionary"
+import { useDictionary } from "@/lib/hooks/useDictionary"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { format } from "date-fns"
@@ -44,7 +44,7 @@ export default function BatchSchedulePage() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null)
 
   // 字典数据
-  const [subjects, setSubjects] = useState<any[]>([])
+  const { items: subjects, loading: subjectsLoading } = useDictionary('subject')
 
   // 排课列表
   const [scheduleList, setScheduleList] = useState<ScheduleItem[]>([])
@@ -57,17 +57,13 @@ export default function BatchSchedulePage() {
   // UI状态
   const [showPreview, setShowPreview] = useState(false)
 
-  // 加载订单和字典数据
+  // 加载订单数据
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [orderData, subjectData] = await Promise.all([
-          FormalOrdersService.getAllFormalOrders(),
-          getDictionaryItems('subject'),
-        ])
+        const orderData = await FormalOrdersService.getAllFormalOrders()
         // 只显示进行中的订单
         setOrders(orderData.filter((order: any) => order.status === 'active'))
-        setSubjects(subjectData)
       } catch (error: any) {
         toast({
           variant: "destructive",

@@ -78,11 +78,18 @@ export interface TeacherCandidate {
   current_rate?: number
   approved_hourly_rate?: number
 
+  // 银行信息
+  bank_account?: string
+  bank_account_name?: string
+  bank_name?: string
+  bank_branch?: string
+  notes_external?: string
+
   // 招聘流程
   recruitment_step?: 'scheduling' | 'interview_video' | 'teaching_review' | 'salary_negotiation' | 'final_entry' | 'rejected'
   recruitment_status?: 'waiting_contact' | 'scheduled' | 'video_uploaded' | 'pending_teaching_review' | 'teaching_review_approved' | 'pending_salary' | 'in_teacher_pool' | 'review_rejected'
   video_reviewed_at?: string
-  reviewed_by?: string
+  salary_reviewed_by?: string
   salary_confirmed_at?: string
   salary_confirmed_by?: string
 

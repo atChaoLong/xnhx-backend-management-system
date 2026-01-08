@@ -13,7 +13,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Loader2, X } from "lucide-react"
 import { TeacherCandidate } from "@/lib/services/teacherCandidates"
 import { useToast } from "@/hooks/use-toast"
-import { getDictionaryItems, DictionaryItem } from "@/lib/services/dictionary"
+import { useDictionary } from "@/lib/hooks/useDictionary"
+import type { DictionaryItem } from "@/lib/services/dictionary"
 
 interface SalaryNegotiationFormProps {
   candidate: TeacherCandidate
@@ -30,8 +31,8 @@ export default function SalaryNegotiationForm({
 }: SalaryNegotiationFormProps) {
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [gradeLevels, setGradeLevels] = useState<DictionaryItem[]>([])
-  const [subjects, setSubjects] = useState<DictionaryItem[]>([])
+  const { items: gradeLevels, loading: gradeLevelsLoading } = useDictionary('grade')
+  const { items: subjects, loading: subjectsLoading } = useDictionary('subject')
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>(
     candidate.subjects_taught || []
   )
@@ -51,23 +52,6 @@ export default function SalaryNegotiationForm({
   })
 
   // 加载字典数据
-  useEffect(() => {
-    const loadDictionaries = async () => {
-      try {
-        const [gradeData, subjectData] = await Promise.all([
-          getDictionaryItems('grade'),
-          getDictionaryItems('subject')
-        ])
-        setGradeLevels(gradeData)
-        setSubjects(subjectData)
-      } catch (error: any) {
-        console.error("加载字典数据失败:", error)
-      }
-    }
-
-    loadDictionaries()
-  }, [])
-
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }

@@ -4,7 +4,8 @@ import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { DictionaryService, DictionaryItem } from "@/lib/services/dictionary"
+import { useDictionary } from "@/lib/hooks/useDictionary"
+import type { DictionaryItem } from "@/lib/services/dictionary"
 
 interface QualityEvaluationTabProps {
   formData: {
@@ -22,30 +23,11 @@ interface QualityEvaluationTabProps {
 
 
 export function QualityEvaluationTab({ formData, onInputChange }: QualityEvaluationTabProps) {
-  const [mandarinLevels, setMandarinLevels] = useState<DictionaryItem[]>([])
-  const [researchAbilityOptions, setResearchAbilityOptions] = useState<DictionaryItem[]>([])
-  const [serviceAwarenessOptions, setServiceAwarenessOptions] = useState<DictionaryItem[]>([])
-  const [affinityOptions, setAffinityOptions] = useState<DictionaryItem[]>([])
+  const { items: mandarinLevels, loading: mandarinLevelsLoading } = useDictionary('mandarin_level')
+  const { items: researchAbilityOptions, loading: researchAbilityLoading } = useDictionary('research_ability')
+  const { items: serviceOptions, loading: serviceLoading } = useDictionary('service_awareness')
+  const { items: affinityOptions, loading: affinityLoading } = useDictionary('affinity_level')
 
-  useEffect(() => {
-    const loadDictionaryData = async () => {
-      try {
-        const [mandarinData, researchData, serviceData, affinityData] = await Promise.all([
-          DictionaryService.getDictionaryItems('mandarin_level'),
-          DictionaryService.getDictionaryItems('research_ability'),
-          DictionaryService.getDictionaryItems('service_awareness'),
-          DictionaryService.getDictionaryItems('affinity_level')
-        ])
-        setMandarinLevels(mandarinData)
-        setResearchAbilityOptions(researchData)
-        setServiceAwarenessOptions(serviceData)
-        setAffinityOptions(affinityData)
-      } catch (error) {
-        console.error('Failed to load dictionary data:', error)
-      }
-    }
-    loadDictionaryData()
-  }, [])
   return (
     <div className="space-y-6">
       {/* 素质评价 */}
@@ -98,7 +80,7 @@ export function QualityEvaluationTab({ formData, onInputChange }: QualityEvaluat
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
             >
               <option value="">请选择</option>
-              {serviceAwarenessOptions.map((opt) => (
+              {serviceOptions.map((opt) => (
                 <option key={opt.code} value={opt.label}>
                   {opt.label}
                 </option>

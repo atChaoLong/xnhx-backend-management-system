@@ -11,7 +11,7 @@ import { Loader2 } from "lucide-react"
 import { FormalOrdersService, NewFormalOrder, generateOrderNumber } from "@/lib/services/formalOrders"
 import { TeachersService } from "@/lib/services/teachers"
 import { StudentsService } from "@/lib/services/students"
-import { getDictionaryItems } from "@/lib/services/dictionary"
+import { useDictionary } from "@/lib/hooks/useDictionary"
 import { LeadsService } from "@/lib/services/leads"
 import { UserProfilesService } from "@/lib/services/userProfiles"
 import { useToast } from "@/hooks/use-toast"
@@ -24,19 +24,19 @@ export default function NewFormalOrderPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // 字典数据
-  const [orderTypes, setOrderTypes] = useState<any[]>([])
-  const [paymentChannels, setPaymentChannels] = useState<any[]>([])
-  const [consultants, setConsultants] = useState<{ id: string; name: string }[]>([])
-  const [sessionDurations, setSessionDurations] = useState<any[]>([])
-  const [fixedModes, setFixedModes] = useState<any[]>([])
-  const [frequencies, setFrequencies] = useState<any[]>([])
-  const [subjects, setSubjects] = useState<any[]>([])
+  const { items: orderTypes, loading: orderTypesLoading } = useDictionary('order_type')
+  const { items: paymentChannels, loading: paymentChannelsLoading } = useDictionary('payment_channel')
+  const { items: sessionDurations, loading: sessionDurationsLoading } = useDictionary('class_duration')
+  const { items: fixedModes, loading: fixedModesLoading } = useDictionary('fixed_mode')
+  const { items: frequencies, loading: frequenciesLoading } = useDictionary('class_frequency')
+  const { items: subjects, loading: subjectsLoading } = useDictionary('subject')
 
   // 列表数据
   const [teachers, setTeachers] = useState<any[]>([])
   const [students, setStudents] = useState<any[]>([])
   const [leads, setLeads] = useState<any[]>([])
   const [previousOrders, setPreviousOrders] = useState<any[]>([])
+  const [consultants, setConsultants] = useState<{ id: string; name: string }[]>([])
 
   // 多选
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
@@ -77,16 +77,10 @@ export default function NewFormalOrderPage() {
     status: "active",
   })
 
-  // 加载字典数据
+  // 加载列表数据
   useEffect(() => {
     const loadData = async () => {
-      const [orderTypeData, paymentChannelData, sessionDurationData, fixedModeData, frequencyData, subjectData, teachersData, studentsData, salesData, headTeachersData, leadsResult, ordersResult] = await Promise.all([
-        getDictionaryItems('order_type'),
-        getDictionaryItems('payment_channel'),
-        getDictionaryItems('class_duration'),
-        getDictionaryItems('fixed_mode'),
-        getDictionaryItems('class_frequency'),
-        getDictionaryItems('subject'),
+      const [teachersData, studentsData, salesData, headTeachersData, leadsResult, ordersResult] = await Promise.all([
         TeachersService.getAllTeachers(),
         StudentsService.getAllStudents(),
         UserProfilesService.getUsers('sales'),
@@ -94,12 +88,6 @@ export default function NewFormalOrderPage() {
         LeadsService.getLeads(),
         FormalOrdersService.getAllFormalOrders(),
       ])
-      setOrderTypes(orderTypeData)
-      setPaymentChannels(paymentChannelData)
-      setSessionDurations(sessionDurationData)
-      setFixedModes(fixedModeData)
-      setFrequencies(frequencyData)
-      setSubjects(subjectData)
       setTeachers(teachersData)
       setStudents(studentsData)
       const mergedConsultants = [

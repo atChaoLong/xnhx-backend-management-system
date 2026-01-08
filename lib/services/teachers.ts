@@ -13,11 +13,25 @@ export interface Teacher {
   created_at: string
   updated_at: string
   teacher_name: string
+  gender: string
   wechat: string
   classin_phone: string
   subjects: string[]
   grade_levels: string[]
   used_classin?: boolean
+  has_certificate?: boolean
+  education?: string
+  university?: string
+  teaching_years?: number
+  teaching_style?: string
+  success_cases?: string
+  available_times?: string[]
+  textbook_versions?: string[]
+  student_regions?: string[]
+  student_levels?: string[]
+  photo_url?: string
+  review_screenshots?: string[]
+  notes?: string
   classin_uid?: number | null
   location?: string
 }
