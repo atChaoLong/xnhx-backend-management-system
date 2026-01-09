@@ -105,6 +105,28 @@ export class ClassInSDKService {
   }
 
   /**
+   * 更新课堂活动
+   */
+  async updateClassroom(params: any): Promise<any> {
+    try {
+      return await this.sdk.updateClassroom(params)
+    } catch (error: any) {
+      throw this.handleError(error)
+    }
+  }
+
+  /**
+   * 删除课堂活动
+   */
+  async deleteClassroom(params: any): Promise<any> {
+    try {
+      return await this.sdk.deleteClassroom(params)
+    } catch (error: any) {
+      throw this.handleError(error)
+    }
+  }
+
+  /**
    * 课程下添加学生/旁听（单个）
    */
   async addCourseStudent(params: AddCourseStudentParams): Promise<any> {
@@ -134,6 +156,8 @@ export class ClassInSDKService {
    * 统一错误处理
    */
   private handleError(error: any): Error {
+    console.error('ClassIn SDK Error:', error)
+    
     const apiError: APIError = error
 
     // 常见错误码处理

@@ -14,6 +14,24 @@ export interface Classroom {
   activity_id?: number
 }
 
+export interface EditClassroomParams {
+  courseId: number
+  classId: number
+  className?: string
+  beginTime?: number
+  endTime?: number
+  teacherUid?: number
+  teacherName?: string
+  record?: number
+  live?: number
+  replay?: number
+}
+
+export interface DeleteClassroomParams {
+  courseId: number
+  classId: number
+}
+
 export async function getClassrooms(from: number = 0, to: number = 19): Promise<{ data: Classroom[]; count: number }> {
   const response = await api.get(`/api/classroom-classin?from=${from}&to=${to}`)
   if (!response.ok) {
@@ -24,7 +42,38 @@ export async function getClassrooms(from: number = 0, to: number = 19): Promise<
   return { data: result.data as Classroom[], count: result.count || 0 }
 }
 
+export async function editClassroom(params: EditClassroomParams): Promise<any> {
+  const response = await api.put("/api/classin/classrooms", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(params),
+  })
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: "修改课节失败" }))
+    throw new Error(error.error || "修改课节失败")
+  }
+  
+  return await response.json()
+}
+
+export async function deleteClassroom(params: DeleteClassroomParams): Promise<any> {
+  const queryString = new URLSearchParams(params as any).toString()
+  const response = await api.delete(`/api/classin/classrooms?${queryString}`)
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: "删除课节失败" }))
+    throw new Error(error.error || "删除课节失败")
+  }
+  
+  return await response.json()
+}
+
 export const ClassroomsService = {
   getClassrooms,
+  editClassroom,
+  deleteClassroom,
 }
 
