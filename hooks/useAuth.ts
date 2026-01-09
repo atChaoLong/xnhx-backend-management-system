@@ -44,6 +44,11 @@ export function useAuth() {
 
   const handleLogout = useCallback(async () => {
     localStorage.removeItem('supabase.auth.token')
+    localStorage.removeItem('user')
+    // 清理 profile 缓存
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('currentUser')
+    }
     setUser(null)
 
     try {

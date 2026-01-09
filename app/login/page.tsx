@@ -36,6 +36,12 @@ export default function LoginPage() {
 
       const { data } = await response.json()
 
+      // 清理旧的缓存数据
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('currentUser')
+        localStorage.removeItem('user')
+      }
+
       // 保存 token 到 localStorage
       if (data.access_token) {
         localStorage.setItem('supabase.auth.token', data.access_token)
