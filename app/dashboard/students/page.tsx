@@ -38,6 +38,7 @@ import Link from "next/link"
 import { StudentsService, Student } from "@/lib/services/students"
 import { useToast } from "@/hooks/use-toast"
 import { usePagination } from "@/lib/hooks/usePagination"
+import { useCurrentUser } from "@/lib/hooks/useCurrentUser"
 
 // 班主任类型
 interface HeadTeacher {
@@ -47,6 +48,7 @@ interface HeadTeacher {
 }
 
 export default function StudentsPage() {
+  const { user } = useCurrentUser()
   const [students, setStudents] = useState<Student[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
@@ -81,15 +83,34 @@ export default function StudentsPage() {
   })
 
 
-  // 加载学生列表
+  // 加载学生列表（根据用户角色自动过滤）
   const fetchStudents = async (page: number = 1, size: number = pageSize) => {
     try {
       setIsLoading(true)
       const from = (page - 1) * size
       const to = from + size - 1
-      const { data, count } = await StudentsService.getStudents(from, to)
-      setStudents(data)
-      setTotalCount(count)
+
+      // 根据用户角色构建 URL
+      let url = `/api/students?from=${from}&to=${to}`
+      // 如果是班主任，只获取自己管理的学生
+      if (user?.role === 'head_teacher') {
+        url += `&head_teacher_id=${user.id}`
+      }
+
+      const token = localStorage.getItem('supabase.auth.token')
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('获取学生列表失败')
+      }
+
+      const { data, count } = await response.json()
+      setStudents(data || [])
+      setTotalCount(count || 0)
     } catch (error: any) {
       toast({
         variant: "destructive",

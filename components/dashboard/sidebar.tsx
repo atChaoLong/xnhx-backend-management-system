@@ -81,7 +81,6 @@ const navigationGroups: MenuGroup[] = [
       { name: "面试管理", href: "/dashboard/teacher-candidates", icon: ClipboardList, permission: { resource: 'teacherCandidates', action: 'view' } },
       { name: "老师库存管理", href: "/dashboard/teachers", icon: GraduationCap, permission: { resource: 'teachers', action: 'view' } },
       { name: "学生管理", href: "/dashboard/students", icon: Users, permission: { resource: 'students', action: 'view' } },
-      { name: "我的学生", href: "/dashboard/my-students", icon: Users, roles: ['head_teacher'] },
       { name: "排课管理", href: "/dashboard/schedule/batch", icon: Calendar },
       { name: "课堂管理", href: "/dashboard/classroom", icon: Video },
       { name: "课程日历", href: "/dashboard/calendar", icon: Calendar },
