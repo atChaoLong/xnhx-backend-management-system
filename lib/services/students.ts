@@ -21,6 +21,7 @@ export interface Student {
   status?: string
   parent_phone?: string
   head_teacher_id?: string
+  head_teacher_name?: string  // 班主任姓名（关联查询）
   classin_initial_password?: string
   classin_uid?: number
 }

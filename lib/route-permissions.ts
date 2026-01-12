@@ -53,6 +53,10 @@ export const ROUTE_PERMISSIONS = {
     PUT: { resource: RESOURCES.students, action: ACTIONS.edit },
     DELETE: { resource: RESOURCES.students, action: ACTIONS.delete },
   },
+  // 学生分配班主任
+  '/api/students/assign-head-teacher': {
+    POST: { resource: RESOURCES.students, action: ACTIONS.edit },
+  },
 
   // 正式订单
   '/api/formal-orders': {

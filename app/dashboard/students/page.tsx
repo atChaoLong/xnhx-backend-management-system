@@ -24,20 +24,41 @@ import {
   PaginationPageSize,
   PaginationInfo,
 } from "@/components/ui/pagination"
-import { Plus, Edit, Trash2, Loader2, AlertTriangle } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle, UserCheck } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { StudentsService, Student } from "@/lib/services/students"
 import { useToast } from "@/hooks/use-toast"
 import { usePagination } from "@/lib/hooks/usePagination"
 
+// 班主任类型
+interface HeadTeacher {
+  id: string
+  name: string
+  role: string
+}
+
 export default function StudentsPage() {
   const [students, setStudents] = useState<Student[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const [isAssigning, setIsAssigning] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false)
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null)
+  const [studentToAssign, setStudentToAssign] = useState<Student | null>(null)
+  const [headTeachers, setHeadTeachers] = useState<HeadTeacher[]>([])
+  const [selectedHeadTeacher, setSelectedHeadTeacher] = useState<string>("")
+  const [isLoadingHeadTeachers, setIsLoadingHeadTeachers] = useState(false)
   const { toast } = useToast()
 
   const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
@@ -80,6 +101,33 @@ export default function StudentsPage() {
     }
   }
 
+  // 加载班主任列表
+  const fetchHeadTeachers = async () => {
+    try {
+      setIsLoadingHeadTeachers(true)
+      const token = localStorage.getItem('supabase.auth.token')
+      const response = await fetch('/api/users?role=head_teacher', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+      if (!response.ok) {
+        throw new Error('获取班主任列表失败')
+      }
+      const { data } = await response.json()
+      setHeadTeachers(data || [])
+    } catch (error: any) {
+      console.error('获取班主任列表失败:', error)
+      toast({
+        variant: "destructive",
+        title: "加载失败",
+        description: error.message || "无法加载班主任列表",
+      })
+    } finally {
+      setIsLoadingHeadTeachers(false)
+    }
+  }
+
 
   useEffect(() => {
     fetchStudents(1, pageSize)
@@ -118,6 +166,73 @@ export default function StudentsPage() {
   const handleDeleteCancel = () => {
     setDeleteDialogOpen(false)
     setStudentToDelete(null)
+  }
+
+  // 分配班主任
+  const openAssignDialog = async (student: Student) => {
+    setStudentToAssign(student)
+    setSelectedHeadTeacher(student.head_teacher_id || "")
+    setAssignDialogOpen(true)
+    // 加载班主任列表
+    await fetchHeadTeachers()
+  }
+
+  const handleAssignHeadTeacher = async () => {
+    if (!studentToAssign || !selectedHeadTeacher) {
+      toast({
+        variant: "destructive",
+        title: "请选择班主任",
+        description: "请从下拉列表中选择一个班主任",
+      })
+      return
+    }
+
+    try {
+      setIsAssigning(studentToAssign.id)
+      const token = localStorage.getItem('supabase.auth.token')
+      const response = await fetch('/api/students/assign-head-teacher', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          studentId: studentToAssign.id,
+          headTeacherId: selectedHeadTeacher,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: '分配班主任失败' }))
+        throw new Error(error.error || '分配班主任失败')
+      }
+
+      const selectedTeacher = headTeachers.find(t => t.id === selectedHeadTeacher)
+
+      toast({
+        title: "分配成功",
+        description: `已将学生分配给班主任：${selectedTeacher?.name || '未知'}`,
+      })
+
+      fetchStudents(currentPage, pageSize)
+      setAssignDialogOpen(false)
+      setStudentToAssign(null)
+      setSelectedHeadTeacher("")
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "分配失败",
+        description: error.message || "无法分配班主任",
+      })
+    } finally {
+      setIsAssigning(null)
+    }
+  }
+
+  const handleAssignCancel = () => {
+    setAssignDialogOpen(false)
+    setStudentToAssign(null)
+    setSelectedHeadTeacher("")
   }
 
   const handleConfirmEntry = async (student: Student) => {
@@ -217,6 +332,7 @@ export default function StudentsPage() {
                     <TableHead>手机号</TableHead>
                     <TableHead>ClassIn初始密码</TableHead>
                     <TableHead>ClassIn UID</TableHead>
+                    <TableHead>班主任</TableHead>
                     <TableHead>状态</TableHead>
                     <TableHead className="text-right">操作</TableHead>
                   </TableRow>
@@ -224,7 +340,7 @@ export default function StudentsPage() {
                 <TableBody>
                     {students.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         暂无数据，点击"新增学生"开始添加
                       </TableCell>
                     </TableRow>
@@ -236,6 +352,15 @@ export default function StudentsPage() {
                         <TableCell>{student.parent_phone || "-"}</TableCell>
                         <TableCell>{student.classin_initial_password || "-"}</TableCell>
                         <TableCell>{student.classin_uid ?? "-"}</TableCell>
+                        <TableCell>
+                          {student.head_teacher_name ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {student.head_teacher_name}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">未分配</span>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {student.status === 'active' ? (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -259,6 +384,14 @@ export default function StudentsPage() {
                                 入库
                               </Button>
                             )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openAssignDialog(student)}
+                            >
+                              <UserCheck className="mr-2 h-4 w-4" />
+                              分配班主任
+                            </Button>
                             <Link href={`/dashboard/students/${student.id}/edit`}>
                               <Button variant="ghost" size="icon">
                                 <Edit className="h-4 w-4" />
@@ -368,6 +501,65 @@ export default function StudentsPage() {
                 </>
               ) : (
                 "确认删除"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 分配班主任对话框 */}
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>分配班主任</DialogTitle>
+            <DialogDescription>
+              为学生 <span className="font-semibold">{studentToAssign?.student_name}</span> 分配班主任
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="head-teacher">选择班主任</Label>
+              <Select
+                value={selectedHeadTeacher}
+                onValueChange={setSelectedHeadTeacher}
+                disabled={isLoadingHeadTeachers || isAssigning !== null}
+              >
+                <SelectTrigger id="head-teacher">
+                  <SelectValue placeholder={isLoadingHeadTeachers ? "加载中..." : "请选择班主任"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {headTeachers.length === 0 ? (
+                    <div className="p-2 text-sm text-muted-foreground text-center">
+                      暂无可用的班主任
+                    </div>
+                  ) : (
+                    headTeachers.map((teacher) => (
+                      <SelectItem key={teacher.id} value={teacher.id}>
+                        {teacher.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {studentToAssign?.head_teacher_id && (
+                <p className="text-xs text-muted-foreground">
+                  当前班主任: {studentToAssign.head_teacher_name || '未知'}
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleAssignCancel} disabled={isAssigning !== null}>
+              取消
+            </Button>
+            <Button onClick={handleAssignHeadTeacher} disabled={!selectedHeadTeacher || isAssigning !== null}>
+              {isAssigning ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  分配中...
+                </>
+              ) : (
+                "确认分配"
               )}
             </Button>
           </DialogFooter>

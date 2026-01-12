@@ -47,23 +47,36 @@ async function isAdmin(request: NextRequest): Promise<{ isAdmin: boolean; userId
 /**
  * GET /api/users
  * 获取所有用户列表（包含角色信息）
+ * 支持按角色筛选：?role=head_teacher
  */
 export async function GET(request: NextRequest) {
   try {
-    // 验证管理员权限
+    const { searchParams } = new URL(request.url)
+    const role = searchParams.get('role')
+
+    // 如果是按角色筛选（如获取班主任列表），允许所有认证用户访问
+    // 如果获取全部用户，需要管理员权限
     const { isAdmin: isAdminUser } = await isAdmin(request)
-    if (!isAdminUser) {
+
+    if (!role && !isAdminUser) {
       return NextResponse.json(
-        { error: '权限不足，只有超级管理员可以查看用户列表' },
+        { error: '权限不足，只有超级管理员可以查看全部用户列表' },
         { status: 403 }
       )
     }
 
-    // 获取所有用户及其角色信息
-    const { data: users, error } = await supabaseServer
+    // 构建查询
+    let query = supabaseServer
       .from('user_profiles')
       .select('*')
-      .order('created_at', { ascending: false })
+
+    // 如果指定了角色，添加筛选条件
+    if (role) {
+      query = query.eq('role', role)
+    }
+
+    // 获取用户列表
+    const { data: users, error } = await query.order('created_at', { ascending: false })
 
     if (error) {
       console.error('获取用户列表失败:', error)

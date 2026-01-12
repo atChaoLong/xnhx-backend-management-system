@@ -17,9 +17,24 @@ export async function GET(request: NextRequest) {
     logger.debug('获取学生数据', { id, from, to })
 
     if (id) {
+      // 单个学生查询
       const { data, error } = await supabaseServer
         .from('students')
-        .select('id, created_at, updated_at, student_code, student_name, grade_code, region, school, parent_phone, head_teacher_id, status, classin_initial_password, classin_uid')
+        .select(`
+          id,
+          created_at,
+          updated_at,
+          student_code,
+          student_name,
+          grade_code,
+          region,
+          school,
+          parent_phone,
+          head_teacher_id,
+          status,
+          classin_initial_password,
+          classin_uid
+        `)
         .eq('id', id)
         .single()
 
@@ -31,17 +46,48 @@ export async function GET(request: NextRequest) {
         )
       }
 
+      // 如果有班主任ID，获取班主任姓名
+      let studentWithTeacher = data
+      if (data?.head_teacher_id) {
+        const { data: teacher } = await supabaseServer
+          .from('user_profiles')
+          .select('name')
+          .eq('id', data.head_teacher_id)
+          .single()
+
+        studentWithTeacher = {
+          ...data,
+          head_teacher_name: teacher?.name,
+        } as typeof data & { head_teacher_name?: string }
+      }
+
       logger.debug('获取学生成功', { id })
-      return NextResponse.json({ data })
+      return NextResponse.json({ data: studentWithTeacher })
     }
 
+    // 获取总数
     const { count: totalCount } = await supabaseServer
       .from('students')
       .select('*', { count: 'exact', head: true })
 
+    // 获取学生列表
     const { data, error } = await supabaseServer
       .from('students')
-      .select('id, created_at, updated_at, student_code, student_name, grade_code, region, school, parent_phone, head_teacher_id, status, classin_initial_password, classin_uid')
+      .select(`
+        id,
+        created_at,
+        updated_at,
+        student_code,
+        student_name,
+        grade_code,
+        region,
+        school,
+        parent_phone,
+        head_teacher_id,
+        status,
+        classin_initial_password,
+        classin_uid
+      `)
       .order('created_at', { ascending: false })
       .range(from, to)
 
@@ -53,9 +99,41 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    logger.debug('获取学生列表成功', { count: data?.length || 0 })
+    // 批量获取班主任信息
+    let studentsWithTeachers = data || []
+    if (data && data.length > 0) {
+      // 收集所有唯一的班主任ID
+      const headTeacherIds = Array.from(
+        new Set(data.map(s => s.head_teacher_id).filter(Boolean))
+      )
+
+      // 批量查询班主任信息
+      let teacherMap = new Map<string, string>()
+      if (headTeacherIds.length > 0) {
+        const { data: teachers } = await supabaseServer
+          .from('user_profiles')
+          .select('id, name')
+          .in('id', headTeacherIds)
+
+        if (teachers) {
+          teachers.forEach(teacher => {
+            teacherMap.set(teacher.id, teacher.name)
+          })
+        }
+      }
+
+      // 添加班主任姓名到学生数据
+      studentsWithTeachers = data.map(student => ({
+        ...student,
+        head_teacher_name: student.head_teacher_id
+          ? (teacherMap.get(student.head_teacher_id) || null)
+          : null,
+      })) as Array<typeof data[0] & { head_teacher_name?: string | null }>
+    }
+
+    logger.debug('获取学生列表成功', { count: studentsWithTeachers.length })
     return NextResponse.json({
-      data: data || [],
+      data: studentsWithTeachers,
       count: totalCount || 0,
       from,
       to,

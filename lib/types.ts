@@ -111,14 +111,19 @@ export interface Student {
   id: string
   classinUid: number               // ClassIn 唯一标识符
   studentNumber?: string          // 学生学号
+  student_code?: string           // 学生编号（数据库字段）
   name: string
+  student_name?: string           // 学生姓名（数据库字段）
   grade: string
   region: string
   parentPhone: string
+  parent_phone?: string           // 家长电话（数据库字段）
   parentWechat: string
   mobile?: string                 // 学生本人联系电话
   school?: string                 // 学校
   headTeacherId?: string          // 班主任ID
+  head_teacher_id?: string        // 班主任ID（数据库字段）
+  head_teacher_name?: string      // 班主任姓名（数据库字段，关联查询）
   status?: string                 // 状态
 
   // ClassIn 额外字段
@@ -126,6 +131,8 @@ export interface Student {
   serveState?: number             // 服务状态 (2=在籍)
   joinType?: number               // 加入类型
   studId?: number                 // ClassIn 学生 ID
+  classinInitialPassword?: string // ClassIn 初始密码
+  classin_uid?: number            // ClassIn UID（数据库字段）
   classinExtra?: {                // ClassIn 额外信息
     labelInfo?: any[]
     progressInfo?: any
