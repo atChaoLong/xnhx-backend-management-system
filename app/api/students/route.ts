@@ -6,15 +6,16 @@ import { getClassInSDKService } from "@/lib/services/classin-sdk/service"
 
 const logger = createLogger('API:Students')
 
-// GET: 获取学生列表（支持ID查询单个）
+// GET: 获取学生列表（支持ID查询单个、按班主任过滤）
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
     const from = parseInt(searchParams.get('from') || '0')
     const to = parseInt(searchParams.get('to') || '19')
+    const headTeacherId = searchParams.get('head_teacher_id') // 新增：按班主任过滤
 
-    logger.debug('获取学生数据', { id, from, to })
+    logger.debug('获取学生数据', { id, from, to, headTeacherId })
 
     if (id) {
       // 单个学生查询
@@ -65,13 +66,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ data: studentWithTeacher })
     }
 
-    // 获取总数
-    const { count: totalCount } = await supabaseServer
+    // 构建查询（支持按班主任过滤）
+    let countQuery = supabaseServer
       .from('students')
       .select('*', { count: 'exact', head: true })
 
-    // 获取学生列表
-    const { data, error } = await supabaseServer
+    let query = supabaseServer
       .from('students')
       .select(`
         id,
@@ -88,8 +88,19 @@ export async function GET(request: NextRequest) {
         classin_initial_password,
         classin_uid
       `)
-      .order('created_at', { ascending: false })
-      .range(from, to)
+
+    // 如果指定了班主任ID，添加过滤条件
+    if (headTeacherId) {
+      countQuery = countQuery.eq('head_teacher_id', headTeacherId)
+      query = query.eq('head_teacher_id', headTeacherId)
+    }
+
+    // 获取总数
+    const { count: totalCount } = await countQuery
+
+    // 获取学生列表
+    query = query.order('created_at', { ascending: false }).range(from, to)
+    const { data, error } = await query
 
     if (error) {
       logger.error('获取学生列表失败', { message: error.message, code: error.code })
