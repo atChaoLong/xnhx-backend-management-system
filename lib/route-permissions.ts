@@ -62,6 +62,14 @@ export const ROUTE_PERMISSIONS = {
     GET: { resource: RESOURCES.students, action: ACTIONS.view },
   },
 
+  // 回访记录
+  '/api/visit-records': {
+    GET: { resource: RESOURCES.students, action: ACTIONS.view },
+    POST: { resource: RESOURCES.students, action: ACTIONS.edit },
+    PUT: { resource: RESOURCES.students, action: ACTIONS.edit },
+    DELETE: { resource: RESOURCES.students, action: ACTIONS.delete },
+  },
+
   // 正式订单
   '/api/formal-orders': {
     GET: { resource: RESOURCES.formalOrders, action: ACTIONS.view },

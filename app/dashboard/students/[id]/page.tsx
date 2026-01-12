@@ -8,9 +8,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, ArrowLeft, FileText, BookOpen, Video, User, Phone, Mail, School, Calendar, DollarSign, Clock } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Loader2, ArrowLeft, FileText, BookOpen, Video, User, Phone, Mail, School, Calendar, DollarSign, Clock, MessageCircle, Plus } from "lucide-react"
 import { format } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
+import { getDictionaryItems, DictionaryItem } from "@/lib/services/dictionary"
 
 // 学生数据类型
 interface StudentDetail {
@@ -37,10 +55,12 @@ interface StudentDetail {
   orders: FormalOrder[]
   trialLessons: TrialLesson[]
   classrooms: Classroom[]
+  visitRecords: VisitRecord[]
   stats: {
     formalOrdersCount: number
     trialLessonsCount: number
     classroomsCount: number
+    visitRecordsCount: number
     totalFormalHours: number
     totalFormalAmount: number
   }
@@ -95,6 +115,19 @@ interface Classroom {
   created_at: string
 }
 
+interface VisitRecord {
+  id: string
+  student_id: string
+  visit_date: string
+  visit_method: string
+  parent_attitude?: string
+  visit_notes: string
+  visit_personnel: string
+  next_visit_date?: string
+  created_at: string
+  visit_personnel_name?: string
+}
+
 // 订单类型映射
 const ORDER_TYPE_MAP: Record<string, string> = {
   'new': '新签',
@@ -117,6 +150,14 @@ const CLASS_STATUS_MAP: Record<number, string> = {
   2: '已结束',
 }
 
+// 家长态度颜色映射
+const PARENT_ATTITUDE_COLORS: Record<string, string> = {
+  'very_satisfied': 'bg-green-100 text-green-800',
+  'satisfied': 'bg-blue-100 text-blue-800',
+  'neutral': 'bg-yellow-100 text-yellow-800',
+  'dissatisfied': 'bg-red-100 text-red-800',
+}
+
 export default function StudentDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -125,28 +166,112 @@ export default function StudentDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
 
+  // 字典数据
+  const [visitMethods, setVisitMethods] = useState<DictionaryItem[]>([])
+  const [parentAttitudes, setParentAttitudes] = useState<DictionaryItem[]>([])
+
+  // 回访表单状态
+  const [visitDialogOpen, setVisitDialogOpen] = useState(false)
+  const [isSubmittingVisit, setIsSubmittingVisit] = useState(false)
+  const [visitForm, setVisitForm] = useState({
+    visit_method: '',
+    parent_attitude: '',
+    visit_notes: '',
+  })
+
   useEffect(() => {
+    // 加载字典数据
+    const loadDictionaries = async () => {
+      try {
+        const [methods, attitudes] = await Promise.all([
+          getDictionaryItems('visit_method'),
+          getDictionaryItems('parent_attitude'),
+        ])
+        setVisitMethods(methods)
+        setParentAttitudes(attitudes)
+      } catch (error) {
+        console.error('Failed to load dictionaries:', error)
+      }
+    }
+
+    loadDictionaries()
+
     if (params.id) {
       fetchStudentDetail(params.id as string)
     }
   }, [params.id])
 
+  // 辅助函数：根据code获取label
+  const getLabelByCode = (items: DictionaryItem[], code: string): string => {
+    const item = items.find(i => i.code === code)
+    return item?.label || code
+  }
+
   const fetchStudentDetail = async (id: string) => {
     try {
       setIsLoading(true)
       const token = localStorage.getItem('supabase.auth.token')
-      const response = await fetch(`/api/students/detail?id=${encodeURIComponent(id)}`, {
+
+      // 获取学生基本信息和订单等数据
+      const detailResponse = await fetch(`/api/students/detail?id=${encodeURIComponent(id)}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       })
 
-      if (!response.ok) {
+      if (!detailResponse.ok) {
         throw new Error('获取学生详情失败')
       }
 
-      const { data } = await response.json()
-      setDetail(data)
+      const detailResult = await detailResponse.json()
+
+      // 获取回访记录
+      const visitResponse = await fetch(`/api/visit-records?student_id=${encodeURIComponent(id)}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      let visitRecords = []
+      if (visitResponse.ok) {
+        const visitResult = await visitResponse.json()
+        visitRecords = visitResult.data || []
+      }
+
+      // 获取回访人员信息
+      const visitRecordsWithNames = await Promise.all(
+        visitRecords.map(async (record: VisitRecord) => {
+          try {
+            const userResponse = await fetch(`/api/users?id=${record.visit_personnel}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+            })
+            if (userResponse.ok) {
+              const userResult = await userResponse.json()
+              return {
+                ...record,
+                visit_personnel_name: userResult.data?.name || '未知',
+              }
+            }
+          } catch (e) {
+            // 忽略错误
+          }
+          return {
+            ...record,
+            visit_personnel_name: '未知',
+          }
+        })
+      )
+
+      setDetail({
+        ...detailResult.data,
+        visitRecords: visitRecordsWithNames,
+        stats: {
+          ...detailResult.data.stats,
+          visitRecordsCount: visitRecordsWithNames.length,
+        },
+      })
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -155,6 +280,81 @@ export default function StudentDetailPage() {
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // 打开新建回访对话框
+  const openVisitDialog = () => {
+    setVisitForm({
+      visit_method: '',
+      parent_attitude: '',
+      visit_notes: '',
+    })
+    setVisitDialogOpen(true)
+  }
+
+  // 提交回访记录
+  const handleSubmitVisit = async () => {
+    if (!detail) return
+
+    if (!visitForm.visit_method) {
+      toast({
+        variant: "destructive",
+        title: "验证失败",
+        description: "请选择回访方式",
+      })
+      return
+    }
+
+    if (!visitForm.visit_notes.trim()) {
+      toast({
+        variant: "destructive",
+        title: "验证失败",
+        description: "请填写回访备注",
+      })
+      return
+    }
+
+    try {
+      setIsSubmittingVisit(true)
+      const token = localStorage.getItem('supabase.auth.token')
+
+      const response = await fetch('/api/visit-records', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          student_id: detail.student.id,
+          visit_date: new Date().toISOString().split('T')[0],
+          visit_method: visitForm.visit_method,
+          parent_attitude: visitForm.parent_attitude || null,
+          visit_notes: visitForm.visit_notes.trim(),
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: '创建回访记录失败' }))
+        throw new Error(error.error || '创建回访记录失败')
+      }
+
+      toast({
+        title: "回访成功",
+        description: "回访记录已创建",
+      })
+
+      setVisitDialogOpen(false)
+      // 重新获取数据
+      fetchStudentDetail(params.id as string)
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "回访失败",
+        description: error.message || "无法创建回访记录",
+      })
+    } finally {
+      setIsSubmittingVisit(false)
     }
   }
 
@@ -180,7 +380,7 @@ export default function StudentDetailPage() {
     )
   }
 
-  const { student, orders, trialLessons, classrooms, stats } = detail
+  const { student, orders, trialLessons, classrooms, visitRecords, stats } = detail
 
   return (
     <div className="flex flex-col h-full">
@@ -194,17 +394,18 @@ export default function StudentDetailPage() {
           </Button>
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto">
             <TabsTrigger value="overview">概览</TabsTrigger>
             <TabsTrigger value="orders">订单 ({stats.formalOrdersCount})</TabsTrigger>
             <TabsTrigger value="trials">试听课 ({stats.trialLessonsCount})</TabsTrigger>
             <TabsTrigger value="classrooms">课堂 ({stats.classroomsCount})</TabsTrigger>
+            <TabsTrigger value="visits">回访 ({stats.visitRecordsCount})</TabsTrigger>
           </TabsList>
 
           {/* 概览标签 */}
           <TabsContent value="overview" className="space-y-6">
             {/* 统计卡片 */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">正式订单</CardTitle>
@@ -242,6 +443,15 @@ export default function StudentDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{stats.classroomsCount}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">回访记录</CardTitle>
+                  <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.visitRecordsCount}</div>
                 </CardContent>
               </Card>
             </div>
@@ -512,8 +722,148 @@ export default function StudentDetailPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* 回访记录标签 */}
+          <TabsContent value="visits" className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>回访记录</CardTitle>
+                <Button onClick={openVisitDialog} size="sm">
+                  <Plus className="mr-2 h-4 w-4" />
+                  新建回访
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {visitRecords.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">暂无回访记录</p>
+                ) : (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>回访日期</TableHead>
+                          <TableHead>回访方式</TableHead>
+                          <TableHead>家长态度</TableHead>
+                          <TableHead>回访备注</TableHead>
+                          <TableHead>回访人员</TableHead>
+                          <TableHead>创建时间</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {visitRecords.map((record) => (
+                          <TableRow key={record.id}>
+                            <TableCell className="font-medium">
+                              {format(new Date(record.visit_date), 'yyyy-MM-dd')}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">
+                                {getLabelByCode(visitMethods, record.visit_method)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {record.parent_attitude ? (
+                                <Badge className={PARENT_ATTITUDE_COLORS[record.parent_attitude]}>
+                                  {getLabelByCode(parentAttitudes, record.parent_attitude)}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="max-w-md truncate">
+                              {record.visit_notes}
+                            </TableCell>
+                            <TableCell>{record.visit_personnel_name || '未知'}</TableCell>
+                            <TableCell>
+                              {format(new Date(record.created_at), 'yyyy-MM-dd HH:mm')}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
+
+      {/* 新建回访对话框 */}
+      <Dialog open={visitDialogOpen} onOpenChange={setVisitDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新建回访记录</DialogTitle>
+            <DialogDescription>
+              为学生 <span className="font-semibold">{student.student_name}</span> 添加回访记录
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="visit_method">回访方式 *</Label>
+              <Select
+                value={visitForm.visit_method}
+                onValueChange={(value) => setVisitForm({ ...visitForm, visit_method: value })}
+              >
+                <SelectTrigger id="visit_method">
+                  <SelectValue placeholder="请选择回访方式" />
+                </SelectTrigger>
+                <SelectContent>
+                  {visitMethods.map((method) => (
+                    <SelectItem key={method.code} value={method.code}>
+                      {method.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="parent_attitude">家长态度</Label>
+              <Select
+                value={visitForm.parent_attitude}
+                onValueChange={(value) => setVisitForm({ ...visitForm, parent_attitude: value })}
+              >
+                <SelectTrigger id="parent_attitude">
+                  <SelectValue placeholder="请选择家长态度" />
+                </SelectTrigger>
+                <SelectContent>
+                  {parentAttitudes.map((attitude) => (
+                    <SelectItem key={attitude.code} value={attitude.code}>
+                      {attitude.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="visit_notes">回访备注 *</Label>
+              <Textarea
+                id="visit_notes"
+                placeholder="请输入回访备注内容"
+                value={visitForm.visit_notes}
+                onChange={(e) => setVisitForm({ ...visitForm, visit_notes: e.target.value })}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVisitDialogOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleSubmitVisit} disabled={isSubmittingVisit}>
+              {isSubmittingVisit ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  提交中...
+                </>
+              ) : (
+                "提交回访"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

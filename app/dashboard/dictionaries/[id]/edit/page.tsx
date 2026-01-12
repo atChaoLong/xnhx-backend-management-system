@@ -46,6 +46,8 @@ const CATEGORY_OPTIONS = [
   { value: "review_result", label: "复核结果" },
   { value: "hiring_status", label: "是否入库" },
   { value: "trial_course_status", label: "试听课程状态" },
+  { value: "visit_method", label: "回访方式" },
+  { value: "parent_attitude", label: "家长态度" },
 ]
 
 export default function EditDictionaryPage() {

@@ -55,6 +55,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   review_result: "复核结果",
   hiring_status: "是否入库",
   trial_course_status: "试听课程状态",
+  visit_method: "回访方式",
+  parent_attitude: "家长态度",
 }
 
 export default function DictionariesPage() {
