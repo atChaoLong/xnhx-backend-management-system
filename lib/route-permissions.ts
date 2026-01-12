@@ -57,6 +57,10 @@ export const ROUTE_PERMISSIONS = {
   '/api/students/assign-head-teacher': {
     POST: { resource: RESOURCES.students, action: ACTIONS.edit },
   },
+  // 学生详情
+  '/api/students/detail': {
+    GET: { resource: RESOURCES.students, action: ACTIONS.view },
+  },
 
   // 正式订单
   '/api/formal-orders': {

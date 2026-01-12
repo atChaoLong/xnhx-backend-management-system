@@ -369,7 +369,11 @@ export default function StudentsPage() {
                     students.map((student) => (
                       <TableRow key={student.id}>
                         <TableCell className="font-medium">{student.student_code || "-"}</TableCell>
-                        <TableCell>{student.student_name || "-"}</TableCell>
+                        <TableCell>
+                          <Link href={`/dashboard/students/${student.id}`} className="hover:underline font-medium text-primary">
+                            {student.student_name || "-"}
+                          </Link>
+                        </TableCell>
                         <TableCell>{student.parent_phone || "-"}</TableCell>
                         <TableCell>{student.classin_initial_password || "-"}</TableCell>
                         <TableCell>{student.classin_uid ?? "-"}</TableCell>
