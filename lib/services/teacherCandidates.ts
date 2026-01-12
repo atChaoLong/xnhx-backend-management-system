@@ -77,6 +77,12 @@ export interface TeacherCandidate {
   // 薪资信息
   current_rate?: number
   approved_hourly_rate?: number
+  grade_level_rates?: Record<string, number>  // 年级-时薪映射（已废弃）
+  grade_level_settings?: Array<{
+    grade: string
+    workload: number
+    hourlyRate: number
+  }>  // 年级配置数组（包含年级、带课量、时薪）
 
   // 银行信息
   bank_account?: string

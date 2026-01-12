@@ -137,6 +137,8 @@ export async function POST(request: NextRequest) {
       qr_code_url: body.qr_code_url || null,
       current_rate: body.current_rate || null,
       approved_hourly_rate: body.approved_hourly_rate || null,
+      grade_level_rates: body.grade_level_rates || null,
+      grade_level_settings: body.grade_level_settings || null,
     }
 
     logger.debug('创建老师面试 - 准备插入的数据', { insertData })
@@ -203,7 +205,8 @@ export async function PUT(request: NextRequest) {
       'review_status', 'reviewed_by', 'review_result', 'review_evaluation_comment',
       'review_date', 'teacher_level', 'can_teach_graduation_class',
       'is_hired', 'teacher_feeling', 'suitable_for_students', 'scheduling_preference',
-      'hired_notes', 'qr_code_url', 'current_rate', 'approved_hourly_rate'
+      'hired_notes', 'qr_code_url', 'current_rate', 'approved_hourly_rate',
+      'grade_level_rates', 'grade_level_settings'
     ]
 
     optionalFields.forEach(field => {

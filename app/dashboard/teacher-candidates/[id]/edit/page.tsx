@@ -104,7 +104,11 @@ export default function EditTeacherCandidatePage() {
 
     // 薪资信息
     current_rate: "",
-    approved_hourly_rate: "",
+    grade_level_settings: [] as Array<{
+      grade: string
+      workload: number
+      hourlyRate: number
+    }>,
 
     // 招聘决定
     is_hired: false,
@@ -160,7 +164,11 @@ export default function EditTeacherCandidatePage() {
           reviewed_by: data.reviewed_by || "",
           trial_video_url: data.trial_video_url || "",
           current_rate: data.current_rate?.toString() || "",
-          approved_hourly_rate: data.approved_hourly_rate?.toString() || "",
+          grade_level_settings: (data.grade_level_settings as Array<{
+            grade: string
+            workload: number
+            hourlyRate: number
+          }>) || [],
           is_hired: data.is_hired || false,
           teacher_level: data.teacher_level || "",
           can_teach_graduation_class: data.can_teach_graduation_class || false,
@@ -181,7 +189,7 @@ export default function EditTeacherCandidatePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candidateId])
 
-  const handleInputChange = (field: string, value: string | boolean | number) => {
+  const handleInputChange = (field: string, value: string | boolean | number | Array<any>) => {
     setFormData((prev) => {
       const next = { ...prev, [field]: value }
       if (field === "review_result") {
@@ -257,7 +265,9 @@ export default function EditTeacherCandidatePage() {
         reviewed_by: formData.reviewed_by || undefined,
         trial_video_url: formData.trial_video_url || undefined,
         current_rate: formData.current_rate ? parseFloat(formData.current_rate as string) : undefined,
-        approved_hourly_rate: formData.approved_hourly_rate ? parseFloat(formData.approved_hourly_rate as string) : undefined,
+        grade_level_settings: formData.grade_level_settings && formData.grade_level_settings.length > 0
+          ? formData.grade_level_settings.filter(s => s.grade)
+          : undefined,
         is_hired: formData.is_hired,
         teacher_level: formData.teacher_level || undefined,
         can_teach_graduation_class: formData.can_teach_graduation_class,
@@ -426,7 +436,7 @@ export default function EditTeacherCandidatePage() {
                     <TabsContent value="salary" className="mt-6">
                       <SalaryHiringTab
                         formData={{
-                          approved_hourly_rate: formData.approved_hourly_rate,
+                          grade_level_settings: formData.grade_level_settings,
                         }}
                         onInputChange={handleInputChange}
                       />
