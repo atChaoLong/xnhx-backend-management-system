@@ -12,7 +12,7 @@ export interface Teacher {
   id: string
   created_at: string
   updated_at: string
-  teacher_name: string
+  name: string
   gender: string
   wechat: string
   classin_phone: string
@@ -34,6 +34,7 @@ export interface Teacher {
   notes?: string
   classin_uid?: number | null
   location?: string
+  total_hours?: number
 }
 
 /**

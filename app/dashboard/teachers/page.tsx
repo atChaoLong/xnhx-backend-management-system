@@ -139,7 +139,7 @@ export default function TeachersPage() {
       return
     }
 
-    const password = prompt(`正在将老师 ${teacher.teacher_name || '-'} 入库到 ClassIn 系统\n\n手机号: ${teacher.classin_phone}\n\n请输入 ClassIn 登录密码：`)
+    const password = prompt(`正在将老师 ${teacher.name || '-'} 入库到 ClassIn 系统\n\n手机号: ${teacher.classin_phone}\n\n请输入 ClassIn 登录密码：`)
     if (password === null) {
       return
     }
@@ -161,7 +161,7 @@ export default function TeachersPage() {
         body: JSON.stringify({
           teacherId: teacher.id,
           telephone: teacher.classin_phone,
-          nickname: teacher.teacher_name,
+          nickname: teacher.name,
           password: password.trim(),
         }),
       })
@@ -261,7 +261,7 @@ export default function TeachersPage() {
                   ) : (
                     teachers.map((teacher) => (
                       <TableRow key={teacher.id}>
-                        <TableCell className="font-medium">{teacher.teacher_name || "-"}</TableCell>
+                        <TableCell className="font-medium">{teacher.name || "-"}</TableCell>
                         <TableCell>{teacher.wechat || "-"}</TableCell>
                         <TableCell>{teacher.classin_phone || "-"}</TableCell>
                         <TableCell>{Array.isArray(teacher.subjects) ? teacher.subjects.join(', ') : '-'}</TableCell>

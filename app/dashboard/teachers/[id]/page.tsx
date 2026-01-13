@@ -52,7 +52,7 @@ export default function TeacherDetailPage({ params }: { params: Promise<{ id: st
       setTeacher(teacherData)
 
       // 获取面试记录（通过姓名关联）
-      const response = await fetch(`/api/teacher-candidates?name=${encodeURIComponent(teacherData.teacher_name)}`)
+      const response = await fetch(`/api/teacher-candidates?name=${encodeURIComponent(teacherData.name)}`)
       if (response.ok) {
         const result = await response.json()
         setInterviews(result.data || [])
@@ -157,7 +157,7 @@ export default function TeacherDetailPage({ params }: { params: Promise<{ id: st
                 {/* 姓名和性别 */}
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-muted-foreground">姓名</label>
-                  <p className="text-base font-semibold">{teacher.teacher_name || '-'}</p>
+                  <p className="text-base font-semibold">{teacher.name || '-'}</p>
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-muted-foreground">性别</label>

@@ -17,10 +17,10 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // 1. 获取老师信息（teacher_profiles）
+    // 1. 获取老师信息（teachers 表）
     const { data: teacher, error: teacherError } = await supabaseServer
-      .from('teacher_profiles')
-      .select('id, teacher_name, classin_phone, used_classin, classin_uid')
+      .from('teachers')
+      .select('id, name, classin_phone, used_classin, classin_uid')
       .eq('id', teacherId)
       .single()
 
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     // 4. 更新老师记录，标记已入库并保存 UID
     const { error: updateError } = await supabaseServer
-      .from('teacher_profiles')
+      .from('teachers')
       .update({
         used_classin: true,
         classin_uid: uid,

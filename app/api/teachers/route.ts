@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     if (id) {
       const { data, error } = await supabaseServer
-        .from('teacher_profiles')
+        .from('teachers')
         .select('*')
         .eq('id', id)
         .single()
@@ -36,12 +36,12 @@ export async function GET(request: NextRequest) {
     }
 
     const { count: totalCount } = await supabaseServer
-      .from('teacher_profiles')
+      .from('teachers')
       .select('*', { count: 'exact', head: true })
 
     const { data, error } = await supabaseServer
-      .from('teacher_profiles')
-      .select('id, created_at, updated_at, teacher_name, wechat, classin_phone, subjects, grade_levels, used_classin, classin_uid, location')
+      .from('teachers')
+      .select('id, created_at, updated_at, name, wechat, classin_phone, subjects, grade_levels, used_classin, classin_uid, location')
       .order('created_at', { ascending: false })
       .range(from, to)
 
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     logger.debug('创建老师 - 接收到的数据', { body })
 
     // 后端验证：必填字段
-    const requiredFields = ['teacher_name', 'gender', 'wechat', 'classin_phone', 'location', 'subjects', 'grade_levels', 'education', 'university']
+    const requiredFields = ['name', 'gender', 'wechat', 'classin_phone', 'location', 'subjects', 'grade_levels', 'education', 'university']
     for (const field of requiredFields) {
       if (!body[field] || (Array.isArray(body[field]) && body[field].length === 0)) {
         logger.error(`创建老师失败 - ${field} 为空`, { body })
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     }
 
     const insertData = {
-      teacher_name: body.teacher_name.trim(),
+      name: body.name?.trim() || body.teacher_name?.trim(),
       gender: body.gender,
       wechat: body.wechat.trim(),
       classin_phone: body.classin_phone.trim(),
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
     logger.debug('创建老师 - 准备插入的数据', { insertData })
 
     const { data, error } = await supabaseServer
-      .from('teacher_profiles')
+      .from('teachers')
       .insert(insertData)
       .select()
       .single()
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: message }, { status })
     }
 
-    logger.info('创建老师成功', { id: data.id, teacher_name: data.teacher_name })
+    logger.info('创建老师成功', { id: data.id, name: data.name })
 
     // 可选：注册到 ClassIn（参考 /api/teachers/register-classin）
     const registerToClassIn = true
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
       try {
         const uid = await sdk.registerTeacher({
           telephone: insertData.classin_phone,
-          nickname: insertData.teacher_name,
+          nickname: insertData.name,
           password: classinPassword,
         })
 
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
 
         // 保存 ClassIn 映射到主表
         const { error: updateError } = await supabaseServer
-          .from('teacher_profiles')
+          .from('teachers')
           .update({
             used_classin: true,
             classin_uid: uid,
@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
             .from('teacher_classin')
             .upsert({
               uid: uid,
-              name: insertData.teacher_name,
+              name: insertData.name,
               mobile: insertData.classin_phone,
               is_del: 0,
               updated_at: new Date().toISOString(),
@@ -233,7 +233,7 @@ export async function PUT(request: NextRequest) {
 
     const updatePayload: any = {}
     const optionalFields = [
-      'teacher_name', 'gender', 'wechat', 'classin_phone', 'location',
+      'name', 'gender', 'wechat', 'classin_phone', 'location',
       'subjects', 'grade_levels', 'used_classin', 'has_certificate',
       'education', 'university', 'available_times', 'textbook_versions',
       'student_regions', 'student_levels', 'teaching_years',
@@ -250,7 +250,7 @@ export async function PUT(request: NextRequest) {
     logger.debug('更新老师 - 准备更新的数据', { id, updatePayload })
 
     const { data, error } = await supabaseServer
-      .from('teacher_profiles')
+      .from('teachers')
       .update(updatePayload)
       .eq('id', id)
       .select()
@@ -262,7 +262,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: message }, { status })
     }
 
-    logger.info('更新老师成功', { id, teacher_name: data.teacher_name })
+    logger.info('更新老师成功', { id, name: data.name })
     return NextResponse.json({ data })
   } catch (error: any) {
     logger.error('更新老师异常', { message: error.message, stack: error.stack })
@@ -289,7 +289,7 @@ export async function DELETE(request: NextRequest) {
     logger.debug('删除老师', { id })
 
     const { error } = await supabaseServer
-      .from('teacher_profiles')
+      .from('teachers')
       .delete()
       .eq('id', id)
 

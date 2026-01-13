@@ -152,10 +152,10 @@ export default function TrialLessonsPage() {
           })
         }
 
-        // 映射 teacher_profiles 字段到 teachers 状态
+        // 映射 teachers 字段到组件状态
         const mappedTeachers = (data || []).map((t: any) => ({
           id: t.id,
-          name: t.teacher_name || '未知',
+          name: t.name || '未知',
           subject: Array.isArray(t.subjects) && t.subjects.length > 0 ? t.subjects[0] : '',
           classin_uid: t.classin_uid,
         }))
