@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2, Plus, Trash2, Calendar, Clock, User, GraduationCap } from "lucide-react"
 import { FormalOrdersService } from "@/lib/services/formalOrders"
@@ -43,8 +44,18 @@ export default function BatchSchedulePage() {
   const [orders, setOrders] = useState<any[]>([])
   const [selectedOrder, setSelectedOrder] = useState<any>(null)
 
+  // 可编辑的排课参数
+  const [editableParams, setEditableParams] = useState({
+    totalSessions: 0,
+    sessionDuration: 60,
+    frequency: '1_per_week',
+    startDate: '', // 开课日期 YYYY-MM-DD
+    startTime: '14:00', // 开课时间 HH:mm
+  })
+
   // 字典数据
   const { items: subjects, loading: subjectsLoading } = useDictionary('subject')
+  const { items: frequencies } = useDictionary('class_frequency')
 
   // 排课列表
   const [scheduleList, setScheduleList] = useState<ScheduleItem[]>([])
@@ -77,6 +88,22 @@ export default function BatchSchedulePage() {
     loadData()
   }, [])
 
+  // 根据频次计算日期间隔
+  const getDaysBetweenSessions = (frequency: string): number => {
+    switch (frequency) {
+      case 'workdays': return 1  // 工作日每天
+      case '1_per_week': return 7  // 一周一次
+      case '2_per_week': return 3.5  // 一周两次
+      case '3_per_week': return 7 / 3  // 一周三约
+      case '4_per_week': return 1.75  // 一周四约
+      case '5_per_week': return 1.4  // 一周五约
+      case '6_per_week': return 7 / 6  // 一周六约
+      case '7_per_week': return 1  // 一周七次（每天）
+      case 'other': return 7  // 其他，默认一周一次
+      default: return 7
+    }
+  }
+
   // 选择订单时预览排课信息
   const handleOrderChange = async (orderId: string) => {
     setSelectedOrderId(orderId)
@@ -98,31 +125,63 @@ export default function BatchSchedulePage() {
       // 获取学生信息
       const student = await StudentsService.getStudentById(order.student_id)
 
-      setSelectedOrder({ ...order, student_name: student.student_name })
+      const orderWithStudent = { ...order, student_name: student.student_name }
+      setSelectedOrder(orderWithStudent)
 
-      // 生成预览列表（不实际应用到scheduleList）
-      const totalSessions = order.total_sessions || 1
-      const sessionDuration = order.session_duration || 60
+      // 将订单的 frequency 转换为字典 code
+      const frequencyItem = frequencies.find(f => f.label === order.frequency)
+      const frequencyCode = frequencyItem?.code || '1_per_week'
+
+      // 解析开课日期和时间，如果订单没有 official_start_time，默认下周
+      let startDate = ''
+      let startTime = '14:00'
+      if (order.official_start_time) {
+        const datetime = new Date(order.official_start_time)
+        startDate = format(datetime, 'yyyy-MM-dd')
+        startTime = format(datetime, 'HH:mm')
+      } else {
+        // 默认下周今天 14:00
+        const nextWeek = new Date()
+        nextWeek.setDate(nextWeek.getDate() + 7)
+        startDate = format(nextWeek, 'yyyy-MM-dd')
+      }
+
+      // 初始化可编辑参数
+      const params = {
+        totalSessions: order.total_sessions || 1,
+        sessionDuration: order.session_duration || 60,
+        frequency: frequencyCode,
+        startDate: startDate,
+        startTime: startTime,
+      }
+      setEditableParams(params)
+
+      // 直接生成第一次预览
       const preview: ScheduleItem[] = []
-      const now = new Date()
+      const { totalSessions, sessionDuration, frequency } = params
+      const daysBetween = getDaysBetweenSessions(frequency)
 
       for (let i = 0; i < totalSessions; i++) {
-        const scheduleDate = new Date(now)
-        scheduleDate.setDate(now.getDate() + 7 + (i * 7))
+        const scheduleDate = new Date(startDate)
+        scheduleDate.setDate(scheduleDate.getDate() + Math.floor(i * daysBetween))
 
-        const startTime = "14:00"
-        const endTime = `${14 + Math.floor(sessionDuration / 60)}:${String(sessionDuration % 60).padStart(2, '0')}`
+        const sessionStartTime = startTime
+        const [hour, minute] = startTime.split(':').map(Number)
+        const totalMinutes = hour * 60 + minute + sessionDuration
+        const endHour = Math.floor(totalMinutes / 60)
+        const endMinute = totalMinutes % 60
+        const sessionEndTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
 
         preview.push({
-          id: `preview-${orderId}-${i}`,
+          id: `preview-${order.id}-${i}`,
           studentId: order.student_id,
           studentName: student.student_name || "未知学生",
           teacherId: order.teacher_names?.[0] || "",
           teacherName: order.teacher_names?.[0] || "未分配",
           subject: order.subjects?.[0] || "",
           date: format(scheduleDate, 'yyyy-MM-dd'),
-          startTime,
-          endTime,
+          startTime: sessionStartTime,
+          endTime: sessionEndTime,
           classroom: "",
         })
       }
@@ -136,6 +195,48 @@ export default function BatchSchedulePage() {
         description: error.message || "无法加载订单信息",
       })
     }
+  }
+
+  // 重新生成预览
+  const regeneratePreviewWithNewParams = (params: typeof editableParams) => {
+    if (!selectedOrder) return
+
+    const preview: ScheduleItem[] = []
+    const { totalSessions, sessionDuration, frequency, startDate, startTime } = params
+    const daysBetween = getDaysBetweenSessions(frequency)
+
+    for (let i = 0; i < totalSessions; i++) {
+      const scheduleDate = new Date(startDate)
+      scheduleDate.setDate(scheduleDate.getDate() + Math.floor(i * daysBetween))
+
+      const sessionStartTime = startTime
+      const [hour, minute] = startTime.split(':').map(Number)
+      const totalMinutes = hour * 60 + minute + sessionDuration
+      const endHour = Math.floor(totalMinutes / 60)
+      const endMinute = totalMinutes % 60
+      const sessionEndTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
+
+      preview.push({
+        id: `preview-${selectedOrder.id}-${i}`,
+        studentId: selectedOrder.student_id,
+        studentName: selectedOrder.student_name || "未知学生",
+        teacherId: selectedOrder.teacher_names?.[0] || "",
+        teacherName: selectedOrder.teacher_names?.[0] || "未分配",
+        subject: selectedOrder.subjects?.[0] || "",
+        date: format(scheduleDate, 'yyyy-MM-dd'),
+        startTime: sessionStartTime,
+        endTime: sessionEndTime,
+        classroom: "",
+      })
+    }
+
+    setPreviewList(preview)
+    setShowPreview(true)
+
+    toast({
+      title: "预览已更新",
+      description: `已根据新参数生成 ${totalSessions} 节课程的预览`,
+    })
   }
 
   // 确认生成排课列表
@@ -334,19 +435,20 @@ export default function BatchSchedulePage() {
 
                 {selectedOrder && (
                   <div className="mt-4 p-4 bg-muted rounded-lg space-y-2">
-                    <h4 className="font-medium text-sm">订单信息</h4>
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium text-sm">订单信息</h4>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => regeneratePreviewWithNewParams(editableParams)}
+                      >
+                        重新生成预览
+                      </Button>
+                    </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div>
                         <span className="text-muted-foreground">学生姓名：</span>
                         <span className="font-medium">{selectedOrder.student_name}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">总课时：</span>
-                        <span className="font-medium">{selectedOrder.total_sessions} 节</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">课时时长：</span>
-                        <span className="font-medium">{selectedOrder.session_duration} 分钟</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">科目：</span>
@@ -361,12 +463,64 @@ export default function BatchSchedulePage() {
                         <span className="font-medium">{selectedOrder.fixed_mode}</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">课程频次：</span>
-                        <span className="font-medium">{selectedOrder.frequency}</span>
+                        <span className="text-muted-foreground">开课日期：</span>
+                        <Input
+                          type="date"
+                          value={editableParams.startDate}
+                          onChange={(e) => setEditableParams(p => ({ ...p, startDate: e.target.value }))}
+                          className="h-7 w-32 inline-block align-middle ml-1"
+                        />
                       </div>
                       <div>
-                        <span className="text-muted-foreground">订单号：</span>
-                        <span className="font-medium">{selectedOrder.order_number}</span>
+                        <span className="text-muted-foreground">开课时间：</span>
+                        <Input
+                          type="time"
+                          value={editableParams.startTime}
+                          onChange={(e) => setEditableParams(p => ({ ...p, startTime: e.target.value }))}
+                          className="h-7 w-24 inline-block align-middle ml-1"
+                        />
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">总课时：</span>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={editableParams.totalSessions}
+                          onChange={(e) => setEditableParams(p => ({ ...p, totalSessions: parseInt(e.target.value) || 1 }))}
+                          className="h-7 w-20 inline-block align-middle ml-1"
+                        />
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">课时时长：</span>
+                        <Input
+                          type="number"
+                          min={15}
+                          max={300}
+                          step={15}
+                          value={editableParams.sessionDuration}
+                          onChange={(e) => setEditableParams(p => ({ ...p, sessionDuration: parseInt(e.target.value) || 60 }))}
+                          className="h-7 w-20 inline-block align-middle ml-1"
+                        />
+                        <span className="text-muted-foreground ml-1">分钟</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">课程频次：</span>
+                        <Select
+                          value={editableParams.frequency}
+                          onValueChange={(value) => setEditableParams(p => ({ ...p, frequency: value }))}
+                        >
+                          <SelectTrigger className="h-7 w-28 inline-block ml-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {frequencies.map((freq) => (
+                              <SelectItem key={freq.code} value={freq.code}>
+                                {freq.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                   </div>
