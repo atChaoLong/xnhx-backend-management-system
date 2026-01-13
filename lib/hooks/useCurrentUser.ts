@@ -64,7 +64,16 @@ export function useCurrentUser() {
 
         if (!response.ok) {
           if (response.status === 401) {
-            // 未登录
+            // Token 过期或无效，清除本地存储
+            if (typeof window !== 'undefined') {
+              // 清除 token
+              localStorage.removeItem('supabase.auth.token')
+              // 清除用户缓存
+              sessionStorage.removeItem('currentUser')
+              // 清除 Supabase session
+              await supabase.auth.signOut()
+            }
+
             setState({
               user: null,
               isLoading: false,
