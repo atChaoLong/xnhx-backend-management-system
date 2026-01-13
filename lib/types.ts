@@ -294,48 +294,14 @@ export interface ClassClassin {
   created_at: string               // 创建时间
   updated_at: string               // 更新时间
 
-  // 数据库字段（snake_case）
-  course_name: string              // 班级名称（对应 API: courseName）
-  school_uid?: number              // 学校编号（对应 API: schoolUid）
-  web_cast?: string                // webcast链接（对应 API: webCast）
-  live_host?: string               // 直播主机（对应 API: liveHost）
-  course_type?: number             // 课程类型（对应 API: courseType）
-  cover_img?: string               // 封面图片（对应 API: coverImg）
-  creater_name?: string            // 创建者名称（对应 API: createrName）
-  add_time?: number                // 添加时间 Unix时间戳（对应 API: addTime）
-  creator_uid?: number             // 创建者UID（对应 API: creatorUid）
-  end_uid?: number                 // 结束UID（对应 API: endUid）
-  end_name?: string                // 结束名称（对应 API: endName）
-  end_time?: number                // 结束时间（对应 API: endTime）
-  subject_id?: number              // 科目ID（对应 API: subjectId）
-  course_state?: number            // 课程状态（对应 API: courseState）
-  first_class_begin_time?: number  // 第一次上课时间（对应 API: firstClassBeginTime）
-  teacher_num?: number             // 老师数量（对应 API: teacherNum）
-  student_num?: number             // 学生数量（对应 API: studentNum）
-  audit_num?: number               // 听课人数（对应 API: auditNum）
-  expiry_time?: number             // 过期时间（对应 API: expiryTime）
-  cloud_folder?: number            // 云文件夹（对应 API: cloudFolder）
-  skin_id?: number                 // 皮肤ID（对应 API: skinId）
-
-  // 统计字段
-  complete_class_num?: number      // 完成的课节数（对应 API: completeClassNum）
-  total_class_num?: number         // 总课节数（对应 API: totalClassNum）
-  record_num?: number              // 录播数量（对应 API: recordNum）
-  live_num?: number                // 直播数量（对应 API: liveNum）
-  open_num?: number                // 公开课数量（对应 API: openNum）
-  homework_num?: number            // 作业数量（对应 API: homeworkNum）
-  exam_num?: number                // 考试数量（对应 API: examNum）
-
-  // JSONB 字段
-  head_img?: any                   // 头图信息（对应 API: headImg）
-  course_img?: any                 // 课程图片（对应 API: courseImg）
-  setting?: any                    // 设置信息（对应 API: setting）
-  main_user_info?: any             // 主用户信息（对应 API: mainUserInfo）
-  teachers?: any[]                 // 老师列表（对应 API: teachers）
-  labels?: any[]                   // 标签（对应 API: labels）
-  cat_info?: any                   // 分类信息（对应 API: catInfo）
-  cloud_folder_info?: any          // 云文件夹信息（对应 API: cloudFolderInfo）
-  skin_info?: any                  // 皮肤信息（对应 API: skinInfo）
+  // 基本信息
+  course_name: string              // 班级名称
+  creater_name?: string            // 创建者名称
+  add_time?: number                // 添加时间 Unix时间戳
+  creator_uid?: number             // 创建者UID
+  subject_id?: number              // 科目ID
+  course_state?: number            // 课程状态
+  first_class_begin_time?: number  // 第一次上课时间（Unix时间戳）
 
   // 同步相关字段
   sync_time?: string               // 最后同步时间
@@ -343,67 +309,33 @@ export interface ClassClassin {
 }
 
 // ============================================
-// ClassIn 课堂原始数据类型
+// ClassIn 课堂原始数据类型（简化版）
 // ============================================
 export interface ClassroomClassin {
   class_id: number                   // ClassIn 课堂ID（主键）
   created_at: string                // 创建时间
   updated_at: string                // 更新时间
 
-  // 数据库字段（snake_case）
+  // 基本信息
   name: string                       // 课堂名称
-  class_status?: number              // 课堂状态（对应 API: classStatus）
-  class_type?: number                // 课堂类型（对应 API: classType）
-  start_time?: number                // 开始时间 Unix时间戳（对应 API: startTime）
-  end_time?: number                  // 结束时间 Unix时间戳（对应 API: endTime）
-  seat_num?: number                  // 座位数量（对应 API: seatNum）
-  teach_mode?: number                // 教学模式（对应 API: teachMode）
-  screen_mode?: number               // 屏幕模式（对应 API: screenMode）
-  camera_hide?: number               // 是否隐藏摄像头（对应 API: cameraHide）
-  is_auto_onstage?: number            // 是否自动上台（对应 API: isAutoOnstage）
-  is_dc?: number                     // 是否DC（对应 API: isDc）
-  is_hd?: number                     // 是否HD（对应 API: isHd）
-  lesson_key?: string                // 课程key（对应 API: lessonKey）
-  live_host?: string                 // 直播主机（对应 API: liveHost）
-  class_introduce?: string           // 课堂介绍（对应 API: classIntroduce）
-
-  // 统计字段
-  transfer_stu_num?: number           // 转出学生数（对应 API: transferStuNum）
-  out_stu_num?: number                // 离开学生数（对应 API: outStuNum）
-  stu_num?: number                   // 学生数（对应 API: stuNum）
-  audit_num?: number                  // 听课人数（对应 API: auditNum）
-  goods_num?: number                  // 商品数量（对应 API: goodsNum）
+  start_time?: number                // 开始时间 Unix时间戳
+  end_time?: number                  // 结束时间 Unix时间戳
+  teach_mode?: number                // 教学模式
+  is_auto_onstage?: number            // 是否自动上台
 
   // 关联字段
-  course_id?: number                 // 班级ID（关联 class_classin，对应 API: courseId）
-  school_uid?: number                // 学校UID（对应 API: schoolUid）
-  activity_id?: number               // 活动ID（对应 API: activityId）
-  co_type?: number                   // coType（对应 API: coType）
-  co_main_id?: number                // coMainId（对应 API: coMainId）
-  created_at_timestamp?: number      // 创建时间 Unix时间戳（对应 API: createdAt）
-  biz_type?: number                  // bizType（对应 API: bizType）
-  publish_flag?: number              // publishFlag（对应 API: publishFlag）
-  process_flag?: number              // processFlag（对应 API: processFlag）
-  biz_id?: number                    // bizId（对应 API: bizId）
-  mute_all?: number                  // muteAll（对应 API: muteAll）
-  forbid_assistant_operation?: number // forbidAssistantOperation（对应 API: forbidAssistantOperation）
+  course_id?: number                 // 班级ID（关联 class_classin）
+  created_at_timestamp?: number      // 创建时间 Unix时间戳
+  biz_type?: number                  // 业务类型
+  process_flag?: number              // 处理标志
 
   // 额外字段
-  course_name?: string               // 班级名称（冗余，对应 API: courseName）
-
-  // JSONB 字段
-  video_array?: any                  // 视频数组信息（对应 API: videoArray）
-  teacher?: any                      // 老师信息（对应 API: teacher）
-  class_label?: any[]                // 班级标签（对应 API: classLabel）
-  assistant?: any[]                  // 助教列表（对应 API: assistant）
-  creator?: any                      // 创建者信息（对应 API: creator）
-  cloud_folder?: any                 // 云文件夹信息（对应 API: cloudFolder）
-  unit?: any                         // 单元信息（对应 API: unit）
-  category?: any                     // 分类信息（对应 API: category）
+  course_name?: string               // 课程名称（冗余）
 
   // 同步相关字段
   sync_time?: string                 // 最后同步时间
   notes?: string                     // 备注
+  omo_station_broadcast?: number     // OMO站点广播
 }
 
 // ============================================
@@ -607,6 +539,102 @@ export interface Activity {
 }
 
 // ============================================
+// 课程类型（业务层）
+// ============================================
+export interface Course {
+  id: string
+  orderId: string
+  studentId?: string  // 学生ID
+
+  // ClassIn 关联
+  classinCourseId?: number
+
+  // 课程基本信息
+  courseName?: string
+  subject?: string
+  grade?: string
+
+  // 教师信息
+  teacherId?: string
+  teacherName?: string
+
+  // 课程统计
+  sessionCount: number
+  totalHours: number
+
+  // 课程状态
+  courseStatus: "active" | "completed" | "suspended" | "cancelled"
+
+  // ClassIn 统计信息（JSON）
+  courseConsumptionInfo?: string  // JSON string
+
+  // 备注
+  notes?: string
+
+  createdAt: string
+  updatedAt: string
+
+  // 关联数据（查询时返回）
+  teacher?: {
+    id: string
+    name: string
+  }
+  orders?: {
+    id: string
+    orderNumber: string
+    studentId: string
+  }
+}
+
+// ============================================
+// 课时类型（业务层）
+// ============================================
+export interface ClassSession {
+  id: string
+  courseId: string
+
+  // ClassIn 关联
+  classroomId?: number
+
+  // 课时基本信息
+  sessionNumber: number
+  sessionName?: string
+
+  // 排课信息
+  scheduledDate?: string
+  scheduledTimeStart?: string
+  scheduledTimeEnd?: string
+  scheduledDurationMinutes?: number
+
+  // 实际上课信息（从 classroom_classin 同步）
+  actualStartTime?: string
+  actualEndTime?: string
+  actualDurationMinutes?: number
+
+  // 课时状态
+  status: "scheduled" | "completed" | "cancelled" | "missed"
+
+  // 教师信息
+  teacherId?: string
+  teacherName?: string
+
+  // 学生出勤
+  studentAttendanceStatus?: "present" | "absent" | "late"
+
+  // 课堂备注
+  notes?: string
+
+  createdAt: string
+  updatedAt: string
+
+  // 关联数据（查询时返回）
+  course?: {
+    id: string
+    courseName: string
+  }
+}
+
+// ============================================
 // 表单相关类型
 // ============================================
 export type NewLead = Omit<Lead, "id" | "createdAt" | "updatedAt">
@@ -656,3 +684,9 @@ export type UpdateTransactionRecord = Partial<NewTransactionRecord> & { id: stri
 
 export type NewSysDictionary = Omit<SysDictionary, "id" | "createdAt" | "updatedAt">
 export type UpdateSysDictionary = Partial<NewSysDictionary> & { id: string }
+
+export type NewCourse = Omit<Course, "id" | "createdAt" | "updatedAt">
+export type UpdateCourse = Partial<NewCourse> & { id: string }
+
+export type NewClassSession = Omit<ClassSession, "id" | "createdAt" | "updatedAt">
+export type UpdateClassSession = Partial<NewClassSession> & { id: string }

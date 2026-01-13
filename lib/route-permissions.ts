@@ -62,6 +62,41 @@ export const ROUTE_PERMISSIONS = {
     GET: { resource: RESOURCES.students, action: ACTIONS.view },
   },
 
+  // 课程管理
+  '/api/courses': {
+    GET: { resource: RESOURCES.formalOrders, action: ACTIONS.view },
+    POST: { resource: RESOURCES.formalOrders, action: ACTIONS.create },
+    PUT: { resource: RESOURCES.formalOrders, action: ACTIONS.edit },
+    DELETE: { resource: RESOURCES.formalOrders, action: ACTIONS.delete },
+  },
+  // 课程按订单查询
+  '/api/courses/by-order': {
+    GET: { resource: RESOURCES.formalOrders, action: ACTIONS.view },
+  },
+  // 关联 ClassIn 课程
+  '/api/courses/link-classin': {
+    POST: { resource: RESOURCES.formalOrders, action: ACTIONS.edit },
+  },
+  // 课程课时
+  '/api/courses/[courseId]/sessions': {
+    GET: { resource: RESOURCES.formalOrders, action: ACTIONS.view },
+  },
+  // 同步课程统计
+  '/api/courses/[courseId]/sync-stats': {
+    POST: { resource: RESOURCES.formalOrders, action: ACTIONS.edit },
+  },
+  // 计算课程消耗
+  '/api/courses/[courseId]/consumption': {
+    GET: { resource: RESOURCES.formalOrders, action: ACTIONS.view },
+  },
+  // 课时管理
+  '/api/class-sessions': {
+    GET: { resource: RESOURCES.classSessions, action: ACTIONS.view },
+    POST: { resource: RESOURCES.classSessions, action: ACTIONS.create },
+    PUT: { resource: RESOURCES.classSessions, action: ACTIONS.edit },
+    DELETE: { resource: RESOURCES.classSessions, action: ACTIONS.delete },
+  },
+
   // 回访记录
   '/api/visit-records': {
     GET: { resource: RESOURCES.students, action: ACTIONS.view },

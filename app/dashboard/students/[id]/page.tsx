@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import { Loader2, ArrowLeft, FileText, BookOpen, Video, User, Phone, Mail, School, Calendar, DollarSign, Clock, MessageCircle, Plus } from "lucide-react"
 import { format } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
@@ -54,11 +55,13 @@ interface StudentDetail {
   }
   orders: FormalOrder[]
   trialLessons: TrialLesson[]
+  courses: Course[]
   classrooms: Classroom[]
   visitRecords: VisitRecord[]
   stats: {
     formalOrdersCount: number
     trialLessonsCount: number
+    coursesCount: number
     classroomsCount: number
     visitRecordsCount: number
     totalFormalHours: number
@@ -128,6 +131,25 @@ interface VisitRecord {
   visit_personnel_name?: string
 }
 
+interface Course {
+  id: string
+  order_id: string
+  classin_course_id?: number
+  course_name?: string
+  subject?: string
+  grade?: string
+  teacher_id?: string
+  teacher_name?: string
+  session_count: number
+  total_hours: number
+  course_status: string
+  course_consumption_info?: string
+  notes?: string
+  created_at: string
+  updated_at: string
+  order_number?: string
+}
+
 // 订单类型映射
 const ORDER_TYPE_MAP: Record<string, string> = {
   'new': '新签',
@@ -156,6 +178,24 @@ const PARENT_ATTITUDE_COLORS: Record<string, string> = {
   'satisfied': 'bg-blue-100 text-blue-800',
   'neutral': 'bg-yellow-100 text-yellow-800',
   'dissatisfied': 'bg-red-100 text-red-800',
+}
+
+// 课程状态映射
+const COURSE_STATUS_MAP: Record<string, string> = {
+  'active': '进行中',
+  'completed': '已完成',
+  'suspended': '已暂停',
+  'cancelled': '已取消',
+}
+
+// 辅助函数：解析课程消耗信息
+const parseConsumptionInfo = (info: string | null | undefined): { totalSessions: number; completedSessions: number; progress: number } => {
+  if (!info) return { totalSessions: 0, completedSessions: 0, progress: 0 }
+  try {
+    return JSON.parse(info)
+  } catch {
+    return { totalSessions: 0, completedSessions: 0, progress: 0 }
+  }
 }
 
 export default function StudentDetailPage() {
@@ -380,7 +420,7 @@ export default function StudentDetailPage() {
     )
   }
 
-  const { student, orders, trialLessons, classrooms, visitRecords, stats } = detail
+  const { student, orders, trialLessons, courses, classrooms, visitRecords, stats } = detail
 
   return (
     <div className="flex flex-col h-full">
@@ -394,9 +434,10 @@ export default function StudentDetailPage() {
           </Button>
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto">
             <TabsTrigger value="overview">概览</TabsTrigger>
             <TabsTrigger value="orders">订单 ({stats.formalOrdersCount})</TabsTrigger>
+            <TabsTrigger value="courses">课程 ({stats.coursesCount})</TabsTrigger>
             <TabsTrigger value="trials">试听课 ({stats.trialLessonsCount})</TabsTrigger>
             <TabsTrigger value="classrooms">课堂 ({stats.classroomsCount})</TabsTrigger>
             <TabsTrigger value="visits">回访 ({stats.visitRecordsCount})</TabsTrigger>
@@ -599,6 +640,82 @@ export default function StudentDetailPage() {
                             <TableCell>{format(new Date(order.created_at), 'yyyy-MM-dd')}</TableCell>
                           </TableRow>
                         ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 课程标签 */}
+          <TabsContent value="courses" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>课程列表</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {courses.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">暂无课程记录</p>
+                ) : (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>订单号</TableHead>
+                          <TableHead>课程名称</TableHead>
+                          <TableHead>学科</TableHead>
+                          <TableHead>教师</TableHead>
+                          <TableHead>课时数</TableHead>
+                          <TableHead>总时长</TableHead>
+                          <TableHead>进度</TableHead>
+                          <TableHead>状态</TableHead>
+                          <TableHead>创建时间</TableHead>
+                          <TableHead>操作</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {courses.map((course) => {
+                          const consumption = parseConsumptionInfo(course.course_consumption_info)
+                          return (
+                            <TableRow key={course.id}>
+                              <TableCell className="font-medium">{course.order_number || '-'}</TableCell>
+                              <TableCell>{course.course_name || '-'}</TableCell>
+                              <TableCell>{course.subject || '-'}</TableCell>
+                              <TableCell>{course.teacher_name || '-'}</TableCell>
+                              <TableCell>{consumption.totalSessions || course.session_count || 0}</TableCell>
+                              <TableCell>{course.total_hours || 0} 小时</TableCell>
+                              <TableCell>
+                                {consumption.totalSessions > 0 ? (
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-24 bg-gray-200 rounded-full h-2">
+                                      <div
+                                        className="bg-blue-600 h-2 rounded-full"
+                                        style={{ width: `${consumption.progress}%` }}
+                                      />
+                                    </div>
+                                    <span className="text-xs">{consumption.progress}%</span>
+                                  </div>
+                                ) : '-'}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline">
+                                  {COURSE_STATUS_MAP[course.course_status] || course.course_status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>{format(new Date(course.created_at), 'yyyy-MM-dd')}</TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => router.push(`/dashboard/courses/${course.id}`)}
+                                >
+                                  管理课节
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
                       </TableBody>
                     </Table>
                   </div>

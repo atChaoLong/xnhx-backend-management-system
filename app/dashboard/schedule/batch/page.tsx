@@ -233,6 +233,15 @@ export default function BatchSchedulePage() {
 
   // 批量提交排课
   const handleSubmit = async () => {
+    if (!selectedOrderId) {
+      toast({
+        variant: "destructive",
+        title: "验证失败",
+        description: "请先选择订单",
+      })
+      return
+    }
+
     if (scheduleList.length === 0) {
       toast({
         variant: "destructive",
@@ -246,6 +255,7 @@ export default function BatchSchedulePage() {
 
     try {
       const payload = {
+        orderId: selectedOrderId,
         items: scheduleList.map(item => ({
           studentName: item.studentName,
           teacherName: item.teacherName,

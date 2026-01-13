@@ -23,6 +23,8 @@ export const RESOURCES = {
   trialLessons: 'trialLessons',      // 试听
   students: 'students',              // 学生
   formalOrders: 'formalOrders',      // 正式订单
+  classSessions: 'classSessions',    // 课节
+  courses: 'courses',                // 课程
   transactions: 'transactions',      // 课程异动
   teacherCandidates: 'teacherCandidates', // 老师面试
   teachers: 'teachers',              // 老师库
@@ -68,6 +70,8 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     trialLessons: ['view', 'edit', 'delete'], // 移除 create, convert - 管理员不创建试听
     students: ['view', 'create', 'edit', 'delete'], // 保留学生管理
     formalOrders: ['view', 'create', 'edit', 'delete'], // 保留订单管理
+    classSessions: ['view', 'create', 'edit', 'delete'], // 课节管理
+    courses: ['view', 'create', 'edit', 'delete'], // 课程管理
     transactions: ['view', 'create', 'verifyHours', 'payment', 'verifyPerformance'],
     teacherCandidates: ['view', 'interview', 'evaluate', 'uploadVideo', 'reviewVideo'],
     teachers: ['view', 'create', 'edit', 'delete', 'notes'],
@@ -81,6 +85,8 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     trialLessons: ['view'],
     students: ['view'],
     formalOrders: ['view'],
+    classSessions: ['view'],
+    courses: ['view'],
     transactions: ['view'],
     teacherCandidates: ['view'],
     teachers: ['view', 'create'],
@@ -94,6 +100,8 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     trialLessons: ['view', 'create', 'edit', 'matchTeacher', 'confirmTime', 'convert'], // 添加 matchTeacher - 销售可以匹配老师
     students: ['view', 'create', 'edit'],
     formalOrders: ['view', 'create', 'edit'],
+    classSessions: ['view'],
+    courses: ['view'],
     transactions: ['view'],
     teacherCandidates: ['view'],
     teachers: ['view', 'create'],
@@ -107,6 +115,8 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     trialLessons: ['view', 'edit'],
     students: ['view', 'create', 'edit', 'schedule', 'visit'],
     formalOrders: ['view', 'create', 'edit'],
+    classSessions: ['view', 'create', 'edit', 'delete'], // 课节管理
+    courses: ['view', 'create', 'edit'], // 课程管理
     transactions: ['view', 'create'],
     teacherCandidates: ['view'],
     teachers: ['view'],
@@ -120,6 +130,8 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     trialLessons: ['view', 'edit'],
     students: ['view', 'edit'],
     formalOrders: ['view'],
+    classSessions: ['view'],
+    courses: ['view'],
     transactions: ['view'],
     teacherCandidates: ['view'],
     teachers: ['view', 'create', 'edit'],
@@ -133,6 +145,8 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     trialLessons: ['view', 'edit', 'matchTeacher', 'confirmTeacher', 'confirmTime', 'addLink'],
     students: ['view', 'manageHours'],
     formalOrders: ['view', 'addLink'], // 添加 addLink - 教务可以为正式订单开课
+    classSessions: ['view'],
+    courses: ['view'],
     transactions: ['view', 'verifyHours'],
     teacherCandidates: ['view', 'evaluate', 'uploadVideo', 'reviewVideo'],
     teachers: ['view', 'edit', 'notes'],
@@ -146,6 +160,8 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     trialLessons: ['view'],
     students: ['view'],
     formalOrders: ['view'],
+    classSessions: ['view'],
+    courses: ['view'],
     transactions: ['view', 'payment'],
     teacherCandidates: ['view'],
     teachers: ['view'],
@@ -159,6 +175,8 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     trialLessons: ['view'],
     students: ['view'],
     formalOrders: ['view'],
+    classSessions: ['view'],
+    courses: ['view'],
     transactions: ['view', 'verifyPerformance'],
     teacherCandidates: ['view', 'create', 'edit', 'interview', 'evaluate', 'uploadVideo', 'reviewVideo'],
     teachers: ['view'],
