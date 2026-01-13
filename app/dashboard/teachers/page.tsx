@@ -24,7 +24,7 @@ import {
   PaginationPageSize,
   PaginationInfo,
 } from "@/components/ui/pagination"
-import { Plus, Edit, Trash2, Loader2, AlertTriangle, Upload } from "lucide-react"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle, Upload, Eye } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { TeachersService, Teacher } from "@/lib/services/teachers"
@@ -273,6 +273,11 @@ export default function TeachersPage() {
                         <TableCell>{teacher.updated_at ? format(new Date(teacher.updated_at), "yyyy-MM-dd HH:mm") : "-"}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            <Link href={`/dashboard/teachers/${teacher.id}`}>
+                              <Button variant="ghost" size="icon" title="查看详情">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </Link>
                             {!teacher.classin_uid && (
                               <Button
                                 variant="default"
