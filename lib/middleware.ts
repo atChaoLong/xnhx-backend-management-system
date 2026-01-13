@@ -17,7 +17,8 @@ const logger = createLogger('Auth:Middleware')
 export enum AuthStatus {
   AUTHENTICATED = 'authenticated',    // 已认证
   NO_TOKEN = 'no_token',              // 没有token
-  INVALID_TOKEN = 'invalid_token',    // token无效
+  EXPIRED_TOKEN = 'expired_token',    // token已过期
+  INVALID_TOKEN = 'invalid_token',    // token无效（格式错误、伪造等）
 }
 
 /**
@@ -47,6 +48,20 @@ export async function authenticateUser(request: NextRequest): Promise<AuthResult
     const { data: { user }, error } = await supabaseServer.auth.getUser(token)
 
     if (error) {
+      // 判断 token 是否过期
+      // Supabase 在 token 过期时返回 401 Unauthorized
+      const isExpired = error.status === 401 ||
+                       error.message?.includes('expired') ||
+                       error.message?.includes('过期')
+
+      if (isExpired) {
+        logger.debug('认证失败：token 已过期', {
+          message: error.message,
+          status: error.status,
+        })
+        return { status: AuthStatus.EXPIRED_TOKEN }
+      }
+
       logger.debug('认证失败：token 无效', {
         message: error.message,
         status: error.status,
@@ -77,9 +92,12 @@ export async function authenticateUser(request: NextRequest): Promise<AuthResult
       role,
       userId: user.id,
     }
-  } catch (error) {
+  } catch (error: any) {
     logger.error('认证异常', { error })
-    return { status: AuthStatus.INVALID_TOKEN }
+    // 捕获异常时，尝试判断是否是过期相关的错误
+    const isExpired = error?.message?.includes('expired') ||
+                     error?.message?.includes('过期')
+    return { status: isExpired ? AuthStatus.EXPIRED_TOKEN : AuthStatus.INVALID_TOKEN }
   }
 }
 
@@ -123,10 +141,18 @@ export async function checkPermission(
       )
     }
 
+    if (authResult.status === AuthStatus.EXPIRED_TOKEN) {
+      logger.debug('权限检查失败：token 已过期')
+      return NextResponse.json(
+        { error: '登录已过期，请重新登录' },
+        { status: 401 }
+      )
+    }
+
     if (authResult.status === AuthStatus.INVALID_TOKEN) {
       logger.debug('权限检查失败：token 无效')
       return NextResponse.json(
-        { error: '登录已过期，请重新登录' },
+        { error: '登录信息无效，请重新登录' },
         { status: 401 }
       )
     }
