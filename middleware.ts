@@ -5,7 +5,7 @@
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { verifyPermission } from '@/lib/middleware'
+import { authenticateUser, AuthStatus, hasPermission } from '@/lib/middleware'
 import { getRoutePermission, PUBLIC_PATHS } from '@/lib/route-permissions'
 import { createLogger } from '@/lib/logger'
 
@@ -34,12 +34,58 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // 4. 检查用户权限
-  const { hasPermission: authorized, role } = await verifyPermission(
-    request,
-    permission.resource,
-    permission.action
-  )
+  // 4. 先检查认证状态（第一步：认证）
+  const authResult = await authenticateUser(request)
+
+  // 处理认证失败情况
+  if (authResult.status === AuthStatus.NO_TOKEN) {
+    logger.debug('中间件认证失败：未提供 token', {
+      path: pathname,
+      method: request.method,
+    })
+    return NextResponse.json(
+      { error: '未登录或登录已过期' },
+      { status: 401 }
+    )
+  }
+
+  if (authResult.status === AuthStatus.EXPIRED_TOKEN) {
+    logger.debug('中间件认证失败：token 已过期', {
+      path: pathname,
+      method: request.method,
+    })
+    return NextResponse.json(
+      { error: '登录已过期，请重新登录' },
+      { status: 401 }
+    )
+  }
+
+  if (authResult.status === AuthStatus.INVALID_TOKEN) {
+    logger.debug('中间件认证失败：token 无效', {
+      path: pathname,
+      method: request.method,
+    })
+    return NextResponse.json(
+      { error: '登录信息无效，请重新登录' },
+      { status: 401 }
+    )
+  }
+
+  // 检查用户角色
+  if (!authResult.role) {
+    logger.warn('认证成功但用户没有角色', {
+      path: pathname,
+      method: request.method,
+      userId: authResult.userId,
+    })
+    return NextResponse.json(
+      { error: '用户角色未配置，请联系管理员' },
+      { status: 403 }
+    )
+  }
+
+  // 5. 再检查权限（第二步：授权）
+  const authorized = hasPermission(authResult.role, permission.resource, permission.action)
 
   if (!authorized) {
     logger.info('权限不足', {
@@ -47,7 +93,8 @@ export async function middleware(request: NextRequest) {
       method: request.method,
       requiredResource: permission.resource,
       requiredAction: permission.action,
-      userRole: role,
+      userRole: authResult.role,
+      userId: authResult.userId,
     })
 
     return NextResponse.json(
@@ -62,11 +109,12 @@ export async function middleware(request: NextRequest) {
     )
   }
 
-  // 5. 权限验证通过，放行
+  // 6. 认证和授权都通过，放行
   logger.debug('权限验证通过', {
     path: pathname,
     method: request.method,
-    role,
+    role: authResult.role,
+    userId: authResult.userId,
   })
 
   return NextResponse.next()
