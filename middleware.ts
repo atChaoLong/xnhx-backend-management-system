@@ -5,7 +5,8 @@
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { authenticateUser, AuthStatus, hasPermission } from '@/lib/middleware'
+import { authenticateUser, AuthStatus } from '@/lib/middleware'
+import { hasPermission } from '@/lib/permissions'
 import { getRoutePermission, PUBLIC_PATHS } from '@/lib/route-permissions'
 import { createLogger } from '@/lib/logger'
 
