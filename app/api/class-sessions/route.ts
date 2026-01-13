@@ -6,6 +6,70 @@ import { getClassInSDKService } from "@/lib/services/classin-sdk/service"
 
 const logger = createLogger('API:ClassSessions')
 
+/**
+ * 同步更新课程统计信息
+ * 当课节增删改时，自动更新课程的 session_count 和 course_consumption_info
+ */
+async function syncCourseStats(courseId: string) {
+  try {
+    // 获取该课程的所有课节
+    const { data: allSessions, error: sessionsError } = await supabaseServer
+      .from('class_sessions')
+      .select('id, status, scheduled_date, scheduled_time_start, scheduled_time_end')
+      .eq('course_id', courseId)
+
+    if (sessionsError) {
+      logger.warn("获取课程所有课节失败（非致命）", { courseId, message: sessionsError.message })
+      return
+    }
+
+    // 统计课程信息
+    const totalSessions = allSessions?.length || 0
+    const completedSessions = allSessions?.filter((s: any) => s.status === 'completed').length || 0
+    const progress = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0
+
+    // 获取最后上课日期
+    let lastSessionDate = null
+    if (allSessions && allSessions.length > 0) {
+      const sortedByDate = [...allSessions].sort((a: any, b: any) =>
+        new Date(b.scheduled_date).getTime() - new Date(a.scheduled_date).getTime()
+      )
+      lastSessionDate = sortedByDate[0].scheduled_date
+    }
+
+    // 更新课程统计信息
+    const consumptionInfo = {
+      totalSessions,
+      completedSessions,
+      progress,
+      lastSessionDate,
+      lastSyncTime: new Date().toISOString(),
+    }
+
+    const { error: updateError } = await supabaseServer
+      .from('courses')
+      .update({
+        session_count: totalSessions,
+        course_consumption_info: JSON.stringify(consumptionInfo),
+      })
+      .eq('id', courseId)
+
+    if (updateError) {
+      logger.warn("更新课程统计信息失败（非致命）", { courseId, message: updateError.message })
+    } else {
+      logger.info("同步课程统计信息成功", {
+        courseId,
+        totalSessions,
+        completedSessions,
+        progress,
+        lastSessionDate,
+      })
+    }
+  } catch (e: any) {
+    logger.warn("同步课程统计信息异常（非致命）", { message: e?.message })
+  }
+}
+
 // GET: 获取课时列表（支持ID查询单个）
 export async function GET(request: NextRequest) {
   try {
@@ -103,6 +167,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: message }, { status })
       }
 
+      // 同步更新课程统计信息（批量创建时，使用第一个课节的课程ID）
+      if (data && data.length > 0) {
+        const courseId = data[0].course_id
+        await syncCourseStats(courseId)
+      }
+
       logger.info('批量创建课时成功', { count: data?.length || 0 })
       return NextResponse.json({ data: data || [] }, { status: 201 })
     }
@@ -156,6 +226,9 @@ export async function POST(request: NextRequest) {
       const { message, status } = handleDatabaseError(error)
       return NextResponse.json({ error: message }, { status })
     }
+
+    // 同步更新课程统计信息
+    await syncCourseStats(insertData.course_id)
 
     logger.info('创建课时成功', { id: data.id })
     return NextResponse.json({ data }, { status: 201 })
@@ -212,6 +285,11 @@ export async function PUT(request: NextRequest) {
       logger.error('更新课时失败', { id, message: error.message, code: error.code })
       const { message, status } = handleDatabaseError(error)
       return NextResponse.json({ error: message }, { status })
+    }
+
+    // 同步更新课程统计信息（如果状态改变了）
+    if (updatePayload.status && data?.course_id) {
+      await syncCourseStats(data.course_id)
     }
 
     logger.info('更新课时成功', { id })
@@ -345,6 +423,11 @@ export async function DELETE(request: NextRequest) {
       logger.error('删除课时失败', { id, message: error.message, code: error.code })
       const { message, status } = handleDatabaseError(error)
       return NextResponse.json({ error: message }, { status })
+    }
+
+    // 同步更新课程统计信息
+    if (session.course_id) {
+      await syncCourseStats(session.course_id)
     }
 
     logger.info('删除课时成功', { id, deleteClassIn, classInDeleted, classInError })

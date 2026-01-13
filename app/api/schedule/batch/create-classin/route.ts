@@ -407,6 +407,65 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 同步更新课程统计信息
+    if (localCourseId) {
+      try {
+        // 获取该课程的所有课节
+        const { data: allSessions, error: sessionsError } = await supabaseServer
+          .from('class_sessions')
+          .select('id, status, scheduled_date, scheduled_time_start, scheduled_time_end')
+          .eq('course_id', localCourseId)
+
+        if (sessionsError) {
+          logger.warn("获取课程所有课节失败（非致命）", { localCourseId, message: sessionsError.message })
+        } else {
+          // 统计课程信息
+          const totalSessions = allSessions?.length || 0
+          const completedSessions = allSessions?.filter((s: any) => s.status === 'completed').length || 0
+          const progress = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0
+
+          // 获取最后上课日期
+          let lastSessionDate = null
+          if (allSessions && allSessions.length > 0) {
+            const sortedByDate = [...allSessions].sort((a: any, b: any) =>
+              new Date(b.scheduled_date).getTime() - new Date(a.scheduled_date).getTime()
+            )
+            lastSessionDate = sortedByDate[0].scheduled_date
+          }
+
+          // 更新课程统计信息
+          const consumptionInfo = {
+            totalSessions,
+            completedSessions,
+            progress,
+            lastSessionDate,
+            lastSyncTime: new Date().toISOString(),
+          }
+
+          const { error: updateError } = await supabaseServer
+            .from('courses')
+            .update({
+              session_count: totalSessions,
+              course_consumption_info: JSON.stringify(consumptionInfo),
+            })
+            .eq('id', localCourseId)
+
+          if (updateError) {
+            logger.warn("更新课程统计信息失败（非致命）", { localCourseId, message: updateError.message })
+          } else {
+            logger.info("更新课程统计信息成功", {
+              localCourseId,
+              totalSessions,
+              completedSessions,
+              progress,
+            })
+          }
+        }
+      } catch (e: any) {
+        logger.warn("同步课程统计信息异常（非致命）", { localCourseId, message: e?.message })
+      }
+    }
+
     return NextResponse.json({
       success,
       skipped,

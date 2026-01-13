@@ -7,10 +7,10 @@ const logger = createLogger('API:Courses:ByOrder')
 // GET: 根据订单ID获取课程（一对一关系）
 export async function GET(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
-    const { orderId } = params
+    const { orderId } = await params
 
     if (!orderId) {
       return NextResponse.json(
@@ -26,7 +26,7 @@ export async function GET(
       .select(`
         *,
         teacher:teacher_id(id, name),
-        orders(id, order_number, student_id)
+        formal_orders(id, order_number, student_id)
       `)
       .eq('order_id', orderId)
       .maybeSingle()

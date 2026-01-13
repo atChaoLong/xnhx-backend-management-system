@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+import { api } from "@/lib/fetch"
 
 interface ScheduleItem {
   id: string
@@ -59,14 +60,10 @@ export default function BatchSchedulePage() {
 
   // 排课列表
   const [scheduleList, setScheduleList] = useState<ScheduleItem[]>([])
-  const [previewList, setPreviewList] = useState<ScheduleItem[]>([])
 
   // 全选
   const [selectAll, setSelectAll] = useState(false)
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
-
-  // UI状态
-  const [showPreview, setShowPreview] = useState(false)
 
   // 加载订单数据
   useEffect(() => {
@@ -107,9 +104,8 @@ export default function BatchSchedulePage() {
   // 选择订单时预览排课信息
   const handleOrderChange = async (orderId: string) => {
     setSelectedOrderId(orderId)
-    setShowPreview(false)
-    setPreviewList([])
     setScheduleList([])
+    setSelectedItems(new Set())
 
     if (!orderId) {
       setSelectedOrder(null)
@@ -156,8 +152,93 @@ export default function BatchSchedulePage() {
       }
       setEditableParams(params)
 
-      // 直接生成第一次预览
-      const preview: ScheduleItem[] = []
+      // 加载已有的课节
+      try {
+        const courseResp = await api.get(`/api/courses/by-order/${orderId}`)
+        if (courseResp.ok) {
+          const courseData = await courseResp.json()
+          if (courseData.data) {
+            const course = courseData.data
+            // 获取该课程的所有课节（按日期排序）
+            const sessionsResp = await api.get(`/api/class-sessions?course_id=${course.id}`)
+            if (sessionsResp.ok) {
+              const sessionsData = await sessionsResp.json()
+              if (sessionsData.data && sessionsData.data.length > 0) {
+                // 按日期排序已有课节
+                const sortedSessions = sessionsData.data.sort((a: any, b: any) =>
+                  new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime()
+                )
+
+                // 将已有课节转换为 scheduleItem 格式
+                const existingSessions: ScheduleItem[] = sortedSessions.map((session: any) => ({
+                  id: session.id,
+                  studentId: order.student_id,
+                  studentName: student.student_name || "未知学生",
+                  teacherId: session.teacher_id || "",
+                  teacherName: session.teacher_name || "未分配",
+                  subject: order.subjects?.[0] || "",
+                  date: session.scheduled_date,
+                  startTime: session.scheduled_time_start || "",
+                  endTime: session.scheduled_time_end || "",
+                  classroom: session.classroom_id || "",
+                }))
+
+                // 获取最后一节课的日期
+                const lastSession = sortedSessions[sortedSessions.length - 1]
+                const lastDate = lastSession.scheduled_date
+
+                // 从最后一节课的日期开始，根据频次生成后续课程
+                const { totalSessions, sessionDuration, frequency } = params
+                const daysBetween = getDaysBetweenSessions(frequency)
+
+                // 计算还需要生成多少节课（总共 - 已有）
+                const remainingSessions = totalSessions - existingSessions.length
+                const newSessions: ScheduleItem[] = []
+
+                for (let i = 0; i < remainingSessions; i++) {
+                  const scheduleDate = new Date(lastDate)
+                  scheduleDate.setDate(scheduleDate.getDate() + Math.floor((i + 1) * daysBetween))
+
+                  const sessionStartTime = startTime
+                  const [hour, minute] = startTime.split(':').map(Number)
+                  const totalMinutes = hour * 60 + minute + sessionDuration
+                  const endHour = Math.floor(totalMinutes / 60)
+                  const endMinute = totalMinutes % 60
+                  const sessionEndTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
+
+                  newSessions.push({
+                    id: `preview-${order.id}-${i}`,
+                    studentId: order.student_id,
+                    studentName: student.student_name || "未知学生",
+                    teacherId: order.teacher_names?.[0] || "",
+                    teacherName: order.teacher_names?.[0] || "未分配",
+                    subject: order.subjects?.[0] || "",
+                    date: format(scheduleDate, 'yyyy-MM-dd'),
+                    startTime: sessionStartTime,
+                    endTime: sessionEndTime,
+                    classroom: "",
+                  })
+                }
+
+                // 合并已有课节和新课节，已有课节在前
+                setScheduleList([...existingSessions, ...newSessions])
+
+                toast({
+                  title: "已加载课节列表",
+                  description: `已有 ${existingSessions.length} 节，新增 ${newSessions.length} 节`,
+                })
+                return
+              }
+            }
+          }
+        }
+      } catch (error) {
+        // 忽略加载已有课节的错误，继续生成
+        console.warn("加载已有课节失败:", error)
+      }
+
+      // 如果没有已有课节，生成所有课程
+      const newSessions: ScheduleItem[] = []
       const { totalSessions, sessionDuration, frequency } = params
       const daysBetween = getDaysBetweenSessions(frequency)
 
@@ -172,7 +253,7 @@ export default function BatchSchedulePage() {
         const endMinute = totalMinutes % 60
         const sessionEndTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
 
-        preview.push({
+        newSessions.push({
           id: `preview-${order.id}-${i}`,
           studentId: order.student_id,
           studentName: student.student_name || "未知学生",
@@ -186,8 +267,12 @@ export default function BatchSchedulePage() {
         })
       }
 
-      setPreviewList(preview)
-      setShowPreview(true)
+      setScheduleList(newSessions)
+
+      toast({
+        title: "已生成排课列表",
+        description: `共 ${newSessions.length} 节课程`,
+      })
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -195,91 +280,6 @@ export default function BatchSchedulePage() {
         description: error.message || "无法加载订单信息",
       })
     }
-  }
-
-  // 重新生成预览
-  const regeneratePreviewWithNewParams = (params: typeof editableParams) => {
-    if (!selectedOrder) return
-
-    const preview: ScheduleItem[] = []
-    const { totalSessions, sessionDuration, frequency, startDate, startTime } = params
-    const daysBetween = getDaysBetweenSessions(frequency)
-
-    for (let i = 0; i < totalSessions; i++) {
-      const scheduleDate = new Date(startDate)
-      scheduleDate.setDate(scheduleDate.getDate() + Math.floor(i * daysBetween))
-
-      const sessionStartTime = startTime
-      const [hour, minute] = startTime.split(':').map(Number)
-      const totalMinutes = hour * 60 + minute + sessionDuration
-      const endHour = Math.floor(totalMinutes / 60)
-      const endMinute = totalMinutes % 60
-      const sessionEndTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
-
-      preview.push({
-        id: `preview-${selectedOrder.id}-${i}`,
-        studentId: selectedOrder.student_id,
-        studentName: selectedOrder.student_name || "未知学生",
-        teacherId: selectedOrder.teacher_names?.[0] || "",
-        teacherName: selectedOrder.teacher_names?.[0] || "未分配",
-        subject: selectedOrder.subjects?.[0] || "",
-        date: format(scheduleDate, 'yyyy-MM-dd'),
-        startTime: sessionStartTime,
-        endTime: sessionEndTime,
-        classroom: "",
-      })
-    }
-
-    setPreviewList(preview)
-    setShowPreview(true)
-
-    toast({
-      title: "预览已更新",
-      description: `已根据新参数生成 ${totalSessions} 节课程的预览`,
-    })
-  }
-
-  // 确认生成排课列表
-  const confirmGenerateSchedule = () => {
-    if (previewList.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "没有可生成的课程",
-        description: "请先选择订单查看预览",
-      })
-      return
-    }
-
-    // 将预览列表转换为实际的排课列表（生成新的ID）
-    const actualScheduleList = previewList.map((item, index) => ({
-      ...item,
-      id: `schedule-${Date.now()}-${index}`,
-    }))
-
-    setScheduleList(actualScheduleList)
-    setShowPreview(false)
-
-    toast({
-      title: "生成成功",
-      description: `已生成 ${actualScheduleList.length} 节课程的排课列表`,
-    })
-  }
-
-  // 手动添加单节课程
-  const addSingleSchedule = () => {
-    const newSchedule: ScheduleItem = {
-      id: `manual-${Date.now()}`,
-      studentId: "",
-      studentName: "",
-      teacherId: "",
-      teacherName: "",
-      subject: "",
-      date: format(new Date(), 'yyyy-MM-dd'),
-      startTime: "14:00",
-      endTime: "15:00",
-      classroom: "",
-    }
-    setScheduleList([...scheduleList, newSchedule])
   }
 
   // 更新排课项
@@ -290,6 +290,104 @@ export default function BatchSchedulePage() {
       }
       return item
     }))
+  }
+
+  // 根据当前参数重新生成课表
+  const regenerateSchedule = async () => {
+    if (!selectedOrder || !selectedOrderId) return
+
+    try {
+      // 加载已有的课节
+      let existingSessions: ScheduleItem[] = []
+      let lastDate = editableParams.startDate
+
+      try {
+        const courseResp = await api.get(`/api/courses/by-order/${selectedOrderId}`)
+        if (courseResp.ok) {
+          const courseData = await courseResp.json()
+          if (courseData.data) {
+            const course = courseData.data
+            const sessionsResp = await api.get(`/api/class-sessions?course_id=${course.id}`)
+            if (sessionsResp.ok) {
+              const sessionsData = await sessionsResp.json()
+              if (sessionsData.data && sessionsData.data.length > 0) {
+                const sortedSessions = sessionsData.data.sort((a: any, b: any) =>
+                  new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime()
+                )
+
+                existingSessions = sortedSessions.map((session: any) => ({
+                  id: session.id,
+                  studentId: selectedOrder.student_id,
+                  studentName: selectedOrder.student_name || "未知学生",
+                  teacherId: session.teacher_id || "",
+                  teacherName: session.teacher_name || "未分配",
+                  subject: selectedOrder.subjects?.[0] || "",
+                  date: session.scheduled_date,
+                  startTime: session.scheduled_time_start || "",
+                  endTime: session.scheduled_time_end || "",
+                  classroom: session.classroom_id || "",
+                }))
+
+                const lastSession = sortedSessions[sortedSessions.length - 1]
+                lastDate = lastSession.scheduled_date
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn("加载已有课节失败:", error)
+      }
+
+      // 根据当前参数生成新课节
+      const { totalSessions, sessionDuration, frequency, startDate, startTime } = editableParams
+      const daysBetween = getDaysBetweenSessions(frequency)
+      const remainingSessions = totalSessions - existingSessions.length
+      const newSessions: ScheduleItem[] = []
+
+      // 从最后一节课（或开始日期）开始生成
+      const baseDate = existingSessions.length > 0 ? lastDate : startDate
+
+      for (let i = 0; i < remainingSessions; i++) {
+        const scheduleDate = new Date(baseDate)
+        scheduleDate.setDate(scheduleDate.getDate() + Math.floor((i + 1) * daysBetween))
+
+        const sessionStartTime = startTime
+        const [hour, minute] = startTime.split(':').map(Number)
+        const totalMinutes = hour * 60 + minute + sessionDuration
+        const endHour = Math.floor(totalMinutes / 60)
+        const endMinute = totalMinutes % 60
+        const sessionEndTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
+
+        newSessions.push({
+          id: `preview-${selectedOrder.id}-${Date.now()}-${i}`,
+          studentId: selectedOrder.student_id,
+          studentName: selectedOrder.student_name || "未知学生",
+          teacherId: selectedOrder.teacher_names?.[0] || "",
+          teacherName: selectedOrder.teacher_names?.[0] || "未分配",
+          subject: selectedOrder.subjects?.[0] || "",
+          date: format(scheduleDate, 'yyyy-MM-dd'),
+          startTime: sessionStartTime,
+          endTime: sessionEndTime,
+          classroom: "",
+        })
+      }
+
+      // 合并已有课节和新课节
+      setScheduleList([...existingSessions, ...newSessions])
+
+      toast({
+        title: "已重新生成排课列表",
+        description: existingSessions.length > 0
+          ? `保留 ${existingSessions.length} 节已有课节，新增 ${newSessions.length} 节课`
+          : `已生成 ${newSessions.length} 节新课`,
+      })
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "重新生成失败",
+        description: error.message || "无法重新生成排课列表",
+      })
+    }
   }
 
   // 删除排课项
@@ -352,12 +450,34 @@ export default function BatchSchedulePage() {
       return
     }
 
+    // 区分已有课节和新课节
+    const existingSessions = scheduleList.filter(item =>
+      !item.id.startsWith('preview-') &&
+      !item.id.startsWith('schedule-') &&
+      !item.id.startsWith('manual-')
+    )
+    const newSessions = scheduleList.filter(item =>
+      item.id.startsWith('preview-') ||
+      item.id.startsWith('schedule-') ||
+      item.id.startsWith('manual-')
+    )
+
+    // 如果全部是已有课节，提示用户
+    if (newSessions.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "没有新课节需要创建",
+        description: `该订单已创建 ${existingSessions.length} 节课程，请添加新课节后再提交`,
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
       const payload = {
         orderId: selectedOrderId,
-        items: scheduleList.map(item => ({
+        items: newSessions.map(item => ({
           studentName: item.studentName,
           teacherName: item.teacherName,
           subject: item.subject,
@@ -366,11 +486,7 @@ export default function BatchSchedulePage() {
           endTime: item.endTime,
         }))
       }
-      const resp = await fetch("/api/schedule/batch/create-classin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
+      const resp = await api.post("/api/schedule/batch/create-classin", payload)
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ error: "批量排课失败" }))
         throw new Error(err.error || "批量排课失败")
@@ -379,7 +495,9 @@ export default function BatchSchedulePage() {
 
       toast({
         title: "排课成功",
-        description: `已成功创建 ${result.success}/${result.total} 节课程`,
+        description: existingSessions.length > 0
+          ? `已跳过 ${existingSessions.length} 节已有课程，成功创建 ${result.success}/${result.total} 节新课`
+          : `已成功创建 ${result.success}/${result.total} 节课程`,
       })
 
       router.push("/dashboard/classroom")
@@ -440,9 +558,9 @@ export default function BatchSchedulePage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => regeneratePreviewWithNewParams(editableParams)}
+                        onClick={regenerateSchedule}
                       >
-                        重新生成预览
+                        重新生成
                       </Button>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -529,84 +647,53 @@ export default function BatchSchedulePage() {
             </CardContent>
           </Card>
 
-          {/* 预览区 */}
-          {showPreview && previewList.length > 0 && (
-            <Card className="border-blue-200 bg-blue-50/50">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold">2. 排课预览</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      将生成 {previewList.length} 节课程，默认每周一次，从下周开始
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setShowPreview(false)
-                        setPreviewList([])
-                      }}
-                    >
-                      取消
-                    </Button>
-                    <Button
-                      onClick={confirmGenerateSchedule}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      确认生成
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="rounded-md border bg-white">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-16">序号</TableHead>
-                        <TableHead>日期</TableHead>
-                        <TableHead>时间段</TableHead>
-                        <TableHead>学生</TableHead>
-                        <TableHead>老师</TableHead>
-                        <TableHead>科目</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {previewList.map((item, index) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">{index + 1}</TableCell>
-                          <TableCell>{item.date}</TableCell>
-                          <TableCell>{item.startTime} - {item.endTime}</TableCell>
-                          <TableCell>{item.studentName}</TableCell>
-                          <TableCell>{item.teacherName}</TableCell>
-                          <TableCell>{item.subject}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                <div className="mt-4 p-3 bg-blue-100 rounded-lg text-sm text-blue-800">
-                  💡 提示：确认生成后，您可以编辑每节课的日期、时间、教室等信息
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* 排课列表区 */}
           {scheduleList.length > 0 && (
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">
-                    {showPreview ? "3. 排课列表" : "2. 排课列表"}
-                  {scheduleList.length > 0 && (
-                    <span className="ml-2 text-sm font-normal text-muted-foreground">
-                      (共 {scheduleList.length} 节课)
-                    </span>
-                  )}
-                </h3>
+                  <div>
+                    <h3 className="text-lg font-semibold">2. 排课列表</h3>
+                    <div className="flex gap-3 mt-1">
+                      {scheduleList.length > 0 && (
+                        <span className="text-sm font-normal text-muted-foreground">
+                          共 {scheduleList.length} 节课
+                        </span>
+                      )}
+                      {/* 统计已有课节数量 */}
+                      {scheduleList.some(item =>
+                        !item.id.startsWith('preview-') &&
+                        !item.id.startsWith('schedule-') &&
+                        !item.id.startsWith('manual-')
+                      ) && (
+                        <span className="text-sm font-normal text-green-600">
+                          已创建 {
+                            scheduleList.filter(item =>
+                              !item.id.startsWith('preview-') &&
+                              !item.id.startsWith('schedule-') &&
+                              !item.id.startsWith('manual-')
+                            ).length
+                          } 节
+                        </span>
+                      )}
+                      {/* 统计新课节数量 */}
+                      {scheduleList.some(item =>
+                        item.id.startsWith('preview-') ||
+                        item.id.startsWith('schedule-') ||
+                        item.id.startsWith('manual-')
+                      ) && (
+                        <span className="text-sm font-normal text-blue-600">
+                          待创建 {
+                            scheduleList.filter(item =>
+                              item.id.startsWith('preview-') ||
+                              item.id.startsWith('schedule-') ||
+                              item.id.startsWith('manual-')
+                            ).length
+                          } 节
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 <div className="flex gap-2">
                   {selectedItems.size > 0 && (
                     <Button
@@ -618,14 +705,6 @@ export default function BatchSchedulePage() {
                       删除选中 ({selectedItems.size})
                     </Button>
                   )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={addSingleSchedule}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    手动添加
-                  </Button>
                 </div>
               </div>
 
@@ -633,7 +712,7 @@ export default function BatchSchedulePage() {
                 <div className="text-center py-12 text-muted-foreground">
                   <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>暂无排课信息</p>
-                  <p className="text-sm mt-2">请选择订单生成排课列表，或手动添加课程</p>
+                  <p className="text-sm mt-2">请选择订单，系统将自动生成排课列表</p>
                 </div>
               ) : (
                 <div className="rounded-md border">
@@ -657,21 +736,38 @@ export default function BatchSchedulePage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {scheduleList.map((item, index) => (
-                        <TableRow key={item.id}>
-                          <TableCell>
-                            <Checkbox
-                              checked={selectedItems.has(item.id)}
-                              onCheckedChange={() => handleSelectItem(item.id)}
-                            />
-                          </TableCell>
-                          <TableCell className="font-medium">{index + 1}</TableCell>
+                      {scheduleList.map((item, index) => {
+                        const isExisting = !item.id.startsWith('preview-') &&
+                          !item.id.startsWith('schedule-') &&
+                          !item.id.startsWith('manual-')
+
+                        return (
+                          <TableRow
+                            key={item.id}
+                            className={isExisting ? "bg-green-50" : ""}
+                          >
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedItems.has(item.id)}
+                                onCheckedChange={() => !isExisting && handleSelectItem(item.id)}
+                                disabled={isExisting}
+                              />
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {index + 1}
+                              {isExisting && (
+                                <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                                  已创建
+                                </span>
+                              )}
+                            </TableCell>
                           <TableCell>
                             <Input
                               type="date"
                               value={item.date}
                               onChange={(e) => updateScheduleItem(item.id, 'date', e.target.value)}
                               className="h-9"
+                              disabled={isExisting}
                             />
                           </TableCell>
                           <TableCell>
@@ -681,6 +777,7 @@ export default function BatchSchedulePage() {
                                 value={item.startTime}
                                 onChange={(e) => updateScheduleItem(item.id, 'startTime', e.target.value)}
                                 className="h-9 w-24"
+                                disabled={isExisting}
                               />
                               <span>-</span>
                               <Input
@@ -688,6 +785,7 @@ export default function BatchSchedulePage() {
                                 value={item.endTime}
                                 onChange={(e) => updateScheduleItem(item.id, 'endTime', e.target.value)}
                                 className="h-9 w-24"
+                                disabled={isExisting}
                               />
                             </div>
                           </TableCell>
@@ -708,6 +806,7 @@ export default function BatchSchedulePage() {
                               value={item.subject}
                               onChange={(e) => updateScheduleItem(item.id, 'subject', e.target.value)}
                               className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                              disabled={isExisting}
                             >
                               <option value="">请选择</option>
                               {subjects.map((subject) => (
@@ -723,19 +822,23 @@ export default function BatchSchedulePage() {
                               value={item.classroom}
                               onChange={(e) => updateScheduleItem(item.id, 'classroom', e.target.value)}
                               className="h-9"
+                              disabled={isExisting}
                             />
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeScheduleItem(item.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                            {!isExisting && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeScheduleItem(item.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
                           </TableCell>
                         </TableRow>
-                      ))}
+                        )
+                      })}
                     </TableBody>
                   </Table>
                 </div>
