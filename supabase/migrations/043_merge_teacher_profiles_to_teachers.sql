@@ -79,13 +79,9 @@ COMMENT ON COLUMN public.teachers.bank_card_info IS '银行卡信息';
 -- 更新已存在的 teachers 记录（通过 classin_uid 或 name 匹配）
 UPDATE public.teachers t
 SET
-  wechat = tp.wechat,
-  classin_phone = tp.classin_phone,
-  -- 如果 subject 为空，使用 subjects 数组的第一个元素
-  subject = COALESCE(t.subject, tp.subjects[1]),
+  wechat = COALESCE(tp.wechat, t.wechat),
+  classin_phone = COALESCE(tp.classin_phone, t.classin_phone),
   subjects = COALESCE(t.subjects, tp.subjects),
-  -- 如果 grade 为空，使用 grade_levels 数组的第一个元素
-  grade = COALESCE(t.grade, tp.grade_levels[1]),
   grade_levels = COALESCE(t.grade_levels, tp.grade_levels),
   used_classin = COALESCE(t.used_classin, tp.used_classin),
   has_certificate = COALESCE(t.has_certificate, tp.has_certificate),
@@ -133,23 +129,20 @@ INSERT INTO public.teachers (
   review_screenshots,
   notes,
   bank_card_info,
-  -- 从 teacher_profiles 继承的字段
-  classin_uid,
-  candidate_id,
-  teacher_code,
-  classin_initial_password
+  status,
+  is_del
 )
 SELECT
   tp.teacher_name as name,
   tp.gender,
   tp.wechat,
   tp.classin_phone,
-  NULL as mobile, -- teacher_profiles 没有 mobile 字段
-  NULL as email,  -- teacher_profiles 没有 email 字段
+  NULL as mobile,
+  NULL as email,
   tp.location,
-  tp.subjects[1] as subject, -- 取第一个元素
+  tp.subjects[1] as subject,
   tp.subjects,
-  tp.grade_levels[1] as grade, -- 取第一个元素
+  tp.grade_levels[1] as grade,
   tp.grade_levels,
   tp.education,
   tp.university,
@@ -164,20 +157,16 @@ SELECT
   tp.success_cases,
   tp.photo_url,
   tp.review_screenshots,
-  NULL as notes, -- teacher_profiles 的 notes 映射到 teachers 的 notes
+  NULL as notes,
   tp.bank_card_info,
-  -- 尝试通过 classin_uid 查找已存在的值
-  NULL::BIGINT as classin_uid,
-  NULL::UUID as candidate_id,
-  NULL::TEXT as teacher_code,
-  NULL::TEXT as classin_initial_password
+  'active' as status,
+  0 as is_del
 FROM public.teacher_profiles tp
 WHERE NOT EXISTS (
   SELECT 1
   FROM public.teachers t
   WHERE t.name = tp.teacher_name
-     OR (t.classin_uid IS NOT NULL AND tp.classin_uid IS NOT NULL AND t.classin_uid = tp.classin_uid)
-);
+)
 
 -- ============================================
 -- 第三步：重命名 teacher_profiles 表为备份表（安全起见）
