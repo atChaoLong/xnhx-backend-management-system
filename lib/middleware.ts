@@ -7,37 +7,88 @@ import { NextRequest } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
 import { hasPermission, PermissionDeniedError, Role, Resource, Action } from '@/lib/permissions'
 import { NextResponse } from 'next/server'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('Auth:Middleware')
 
 /**
- * 从请求中获取用户角色
+ * 认证状态
  */
-export async function getUserRole(request: NextRequest): Promise<Role | null> {
+export enum AuthStatus {
+  AUTHENTICATED = 'authenticated',    // 已认证
+  NO_TOKEN = 'no_token',              // 没有token
+  INVALID_TOKEN = 'invalid_token',    // token无效
+}
+
+/**
+ * 认证结果
+ */
+export interface AuthResult {
+  status: AuthStatus
+  role?: Role
+  userId?: string
+}
+
+/**
+ * 从请求中验证用户身份并获取角色
+ */
+export async function authenticateUser(request: NextRequest): Promise<AuthResult> {
   try {
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '')
 
+    // 1. 检查是否有 token
     if (!token) {
-      return null
+      logger.debug('认证失败：未提供 token')
+      return { status: AuthStatus.NO_TOKEN }
     }
 
+    // 2. 验证 token 是否有效
     const { data: { user }, error } = await supabaseServer.auth.getUser(token)
 
-    if (error || !user) {
-      return null
+    if (error) {
+      logger.debug('认证失败：token 无效', {
+        message: error.message,
+        status: error.status,
+      })
+      return { status: AuthStatus.INVALID_TOKEN }
     }
 
-    // 获取用户档案中的角色
+    if (!user) {
+      logger.debug('认证失败：未找到用户')
+      return { status: AuthStatus.INVALID_TOKEN }
+    }
+
+    // 3. 获取用户角色
     const { data: profile } = await supabaseServer
       .from('user_profiles')
       .select('role')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
-    return profile?.role as Role || null
+    const role = profile?.role as Role | undefined
+
+    if (!role) {
+      logger.warn('用户没有角色信息', { userId: user.id })
+    }
+
+    return {
+      status: AuthStatus.AUTHENTICATED,
+      role,
+      userId: user.id,
+    }
   } catch (error) {
-    console.error('获取用户角色失败:', error)
-    return null
+    logger.error('认证异常', { error })
+    return { status: AuthStatus.INVALID_TOKEN }
   }
+}
+
+/**
+ * 从请求中获取用户角色（保持向后兼容）
+ */
+export async function getUserRole(request: NextRequest): Promise<Role | null> {
+  const result = await authenticateUser(request)
+  return result.role || null
 }
 
 /**
@@ -60,23 +111,47 @@ export async function checkPermission(
   handler: () => Promise<NextResponse>
 ): Promise<NextResponse> {
   try {
-    // 获取用户角色
-    const role = await getUserRole(request)
+    // 认证用户
+    const authResult = await authenticateUser(request)
 
-    if (!role) {
+    // 处理认证失败情况
+    if (authResult.status === AuthStatus.NO_TOKEN) {
+      logger.debug('权限检查失败：未提供 token')
       return NextResponse.json(
         { error: '未登录或登录已过期' },
         { status: 401 }
       )
     }
 
+    if (authResult.status === AuthStatus.INVALID_TOKEN) {
+      logger.debug('权限检查失败：token 无效')
+      return NextResponse.json(
+        { error: '登录已过期，请重新登录' },
+        { status: 401 }
+      )
+    }
+
+    // 检查用户角色
+    if (!authResult.role) {
+      logger.warn('认证成功但用户没有角色', { userId: authResult.userId })
+      return NextResponse.json(
+        { error: '用户角色未配置，请联系管理员' },
+        { status: 403 }
+      )
+    }
+
     // 检查权限
-    if (!hasPermission(role, resource, action)) {
+    if (!hasPermission(authResult.role, resource, action)) {
+      logger.debug('权限不足', {
+        userId: authResult.userId,
+        role: authResult.role,
+        resource,
+        action,
+      })
       return NextResponse.json(
         {
           error: '权限不足',
           message: `您没有 ${resource} 资源的 ${action} 操作权限`,
-          requiredRole: 'admin',
         },
         { status: 403 }
       )
@@ -85,7 +160,7 @@ export async function checkPermission(
     // 执行业务逻辑
     return await handler()
   } catch (error: any) {
-    console.error('权限检查错误:', error)
+    logger.error('权限检查错误', { error })
     return NextResponse.json(
       { error: error.message || '服务器错误' },
       { status: 500 }
