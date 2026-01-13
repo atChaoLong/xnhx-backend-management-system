@@ -5,6 +5,10 @@
 
 import { ClassInCallbackData, MessageHandler } from './callback-types';
 import crypto from 'crypto';
+import { supabaseServer } from '@/lib/supabase';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('ClassIn:Callback');
 
 // ClassIn 安全密钥，从环境变量获取
 const CLASSIN_SECRET = process.env.CLASSIN_SECRET || 'your-secret-key';
@@ -182,11 +186,205 @@ async function handleLive(data: ClassInCallbackData): Promise<void> {
 
 /**
  * 处理课后汇总数据
+ * 更新课节状态并计算课时消耗
  */
 async function handleLessonSummary(data: ClassInCallbackData): Promise<void> {
-  console.log('处理课后汇总数据:', data);
-  // TODO: 保存课后汇总数据到数据库
-  // 可能包括学生出勤、互动统计等
+  try {
+    logger.info('收到课后汇总回调', { data });
+
+    // 从 Msg 中解析数据（可能是 JSON 字符串）
+    let msgData: any = {};
+    if (typeof data.Msg === 'string') {
+      try {
+        msgData = JSON.parse(data.Msg);
+      } catch (e) {
+        logger.warn('解析 Msg 数据失败', { Msg: data.Msg });
+      }
+    } else {
+      msgData = data;
+    }
+
+    const classId = msgData.class_id || data.classId;
+    const activityId = msgData.activity_id || data.activityId;
+
+    if (!classId) {
+      logger.warn('课后汇总缺少 class_id', { data });
+      return;
+    }
+
+    // 1. 根据 classroom_classin 查找对应的课节
+    const { data: classroomClassin, error: classroomError } = await supabaseServer
+      .from('classroom_classin')
+      .select('class_id')
+      .eq('class_id', classId)
+      .maybeSingle();
+
+    if (classroomError || !classroomClassin) {
+      logger.warn('未找到对应的 classroom_classin 记录', { classId, error: classroomError?.message });
+      return;
+    }
+
+    // 2. 查找课节记录
+    const { data: session, error: sessionError } = await supabaseServer
+      .from('class_sessions')
+      .select('id, course_id, scheduled_duration_minutes, teacher_id, teacher_name')
+      .eq('classroom_id', classId)
+      .single();
+
+    if (sessionError || !session) {
+      logger.warn('未找到对应的课节记录', { classId, error: sessionError?.message });
+      return;
+    }
+
+    logger.info('找到课节记录', { sessionId: session.id, courseId: session.course_id });
+
+    // 3. 更新课节状态为已完成
+    const actualEndTime = new Date().toISOString();
+    const { error: updateError } = await supabaseServer
+      .from('class_sessions')
+      .update({
+        status: 'completed',
+        actual_end_time: actualEndTime,
+        // 如果有实际开始时间，计算实际时长
+        actual_duration_minutes: session.scheduled_duration_minutes,
+      })
+      .eq('id', session.id);
+
+    if (updateError) {
+      logger.error('更新课节状态失败', { sessionId: session.id, error: updateError.message });
+      return;
+    }
+
+    logger.info('课节状态已更新为已完成', { sessionId: session.id });
+
+    // 4. 更新课程的统计信息
+    await updateCourseStats(session.course_id);
+
+    // 5. 记录老师课时消耗
+    // 通过 teacher_name 查找 teachers 表中的记录
+    if (session.teacher_name) {
+      await updateTeacherHoursByName(session.teacher_name, session.scheduled_duration_minutes);
+    }
+
+    logger.info('课消处理完成', {
+      sessionId: session.id,
+      courseId: session.course_id,
+      teacherId: session.teacher_id,
+    });
+
+  } catch (error: any) {
+    logger.error('处理课后汇总时出错', { error: error.message, stack: error.stack });
+    // 不抛出错误，避免影响 ClassIn 回调
+  }
+}
+
+/**
+ * 更新课程统计信息
+ */
+async function updateCourseStats(courseId: string): Promise<void> {
+  try {
+    // 获取该课程的所有课节
+    const { data: allSessions, error: sessionsError } = await supabaseServer
+      .from('class_sessions')
+      .select('id, status, scheduled_date, scheduled_time_start, scheduled_time_end')
+      .eq('course_id', courseId);
+
+    if (sessionsError) {
+      logger.warn('获取课程所有课节失败', { courseId, message: sessionsError.message });
+      return;
+    }
+
+    // 统计课程信息
+    const totalSessions = allSessions?.length || 0;
+    const completedSessions = allSessions?.filter((s: any) => s.status === 'completed').length || 0;
+    const progress = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
+
+    // 获取最后上课日期
+    let lastSessionDate = null;
+    if (allSessions && allSessions.length > 0) {
+      const sortedByDate = [...allSessions].sort((a: any, b: any) =>
+        new Date(b.scheduled_date).getTime() - new Date(a.scheduled_date).getTime()
+      );
+      lastSessionDate = sortedByDate[0].scheduled_date;
+    }
+
+    // 更新课程统计信息
+    const consumptionInfo = {
+      totalSessions,
+      completedSessions,
+      progress,
+      lastSessionDate,
+      lastSyncTime: new Date().toISOString(),
+    };
+
+    const { error: updateError } = await supabaseServer
+      .from('courses')
+      .update({
+        session_count: totalSessions,
+        course_consumption_info: JSON.stringify(consumptionInfo),
+      })
+      .eq('id', courseId);
+
+    if (updateError) {
+      logger.warn('更新课程统计信息失败', { courseId, message: updateError.message });
+    } else {
+      logger.info('课程统计信息已更新', { courseId, totalSessions, completedSessions, progress });
+    }
+  } catch (error: any) {
+    logger.warn('更新课程统计信息异常', { message: error.message });
+  }
+}
+
+/**
+ * 更新老师课时消耗（通过老师名称）
+ */
+async function updateTeacherHoursByName(teacherName: string, minutes: number): Promise<void> {
+  try {
+    // 将分钟转换为小时（保留2位小数）
+    const hours = Math.round((minutes / 60) * 100) / 100;
+
+    // 通过老师名称查找 teachers 表中的记录
+    const { data: teacher, error: fetchError } = await supabaseServer
+      .from('teachers')
+      .select('id, total_hours, name')
+      .eq('name', teacherName)
+      .maybeSingle();
+
+    if (fetchError) {
+      logger.warn('获取老师信息失败', { teacherName, message: fetchError.message });
+      return;
+    }
+
+    if (!teacher) {
+      logger.warn('未找到对应的老师记录', { teacherName });
+      return;
+    }
+
+    const currentHours = teacher.total_hours || 0;
+    const newHours = Math.round((currentHours + hours) * 100) / 100;
+
+    // 更新老师累计课时
+    const { error: updateError } = await supabaseServer
+      .from('teachers')
+      .update({
+        total_hours: newHours,
+      })
+      .eq('id', teacher.id);
+
+    if (updateError) {
+      logger.warn('更新老师课时失败', { teacherId: teacher.id, teacherName, message: updateError.message });
+    } else {
+      logger.info('老师课时已更新', {
+        teacherId: teacher.id,
+        teacherName,
+        previousHours: currentHours,
+        addedHours: hours,
+        newHours
+      });
+    }
+  } catch (error: any) {
+    logger.warn('更新老师课时异常', { teacherName, message: error.message });
+  }
 }
 
 /**
