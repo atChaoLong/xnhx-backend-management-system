@@ -401,47 +401,86 @@ async function handleLessonEvaluation(data: ClassInCallbackData): Promise<void> 
  */
 async function handleEnd(data: ClassInCallbackData): Promise<void> {
   try {
-    logger.info('收到课堂结束回调', { classId: data.ClassID, courseId: data.CourseID });
+    logger.info('收到课堂结束回调', {
+      courseId: data.CourseID,
+      sid: data.SID,
+      startTime: data.StartTime,
+      realCloseTime: data.RealCloseTime
+    });
 
-    const classId = data.ClassID;
-    const courseId = data.CourseID;
-    const sid = data.SID;
+    const classId = data.ClassID; // ClassIn 提供的商家ID（不用于查找）
+    const courseId = data.CourseID; // 班级ID
+    const sid = data.SID; // 学生ID
     const startTime = data.StartTime;
     const closeTime = data.CloseTime;
     const realCloseTime = data.RealCloseTime;
     const statistics = data.Data;
 
-    if (!classId) {
-      logger.warn('课堂结束回调缺少 ClassID');
+    if (!courseId) {
+      logger.warn('课堂结束回调缺少 CourseID');
       return;
     }
 
-    // 1. 查找课节记录
+    // 1. 通过 CourseID 查找对应的 course 记录
+    const { data: course, error: courseError } = await supabaseServer
+      .from('courses')
+      .select('id')
+      .eq('classin_course_id', courseId)
+      .maybeSingle();
+
+    if (courseError || !course) {
+      logger.warn('未找到对应的课程记录', { courseId, error: courseError?.message });
+      return;
+    }
+
+    logger.info('找到课程记录', { courseId, localCourseId: course.id });
+
+    // 2. 通过 course_id 查找对应的课节记录（状态为 scheduled 且最近排课的）
     const { data: session, error: sessionError } = await supabaseServer
       .from('class_sessions')
-      .select('id, course_id, scheduled_duration_minutes, teacher_id, status')
-      .eq('classroom_id', classId.toString())
+      .select('id, course_id, scheduled_duration_minutes, teacher_id, status, classroom_id, scheduled_date')
+      .eq('course_id', course.id)
+      .eq('status', 'scheduled')
+      .order('scheduled_date', { ascending: true })
+      .limit(1)
       .maybeSingle();
 
     if (sessionError) {
-      logger.warn('查询课节记录失败', { classId, error: sessionError.message });
+      logger.warn('查询课节记录失败', { courseId, courseLocalId: course.id, error: sessionError.message });
       return;
     }
 
     if (!session) {
-      logger.warn('未找到对应的课节记录', { classId });
+      logger.warn('未找到对应的课节记录', { courseId, courseLocalId: course.id });
       return;
     }
 
-    logger.info('找到课节记录', { sessionId: session.id, courseId: session.course_id });
+    // 3. 更新课节的 classroom_id（如果未设置）
+    if (!session.classroom_id && classId) {
+      logger.info('更新课节的 classroom_id', {
+        sessionId: session.id,
+        classroomId: classId
+      });
 
-    // 2. 计算实际上课时长（分钟）
+      await supabaseServer
+        .from('class_sessions')
+        .update({ classroom_id: classId.toString() })
+        .eq('id', session.id);
+    }
+
+    logger.info('找到课节记录', {
+      sessionId: session.id,
+      courseId: session.course_id,
+      classroomId: session.classroom_id
+    });
+
+    // 4. 计算实际上课时长（分钟）
     let actualDurationMinutes = 0;
     if (startTime && realCloseTime) {
       actualDurationMinutes = Math.round((realCloseTime - startTime) / 60);
     }
 
-    // 3. 更新课节状态
+    // 5. 更新课节状态
     const updateData: any = {
       status: 'completed',
       actual_end_time: new Date(realCloseTime * 1000).toISOString(),
@@ -468,17 +507,17 @@ async function handleEnd(data: ClassInCallbackData): Promise<void> {
       actualDuration: actualDurationMinutes,
     });
 
-    // 4. 保存课堂统计数据到 class_session_statistics 表
+    // 6. 保存课堂统计数据到 class_session_statistics 表
     if (statistics) {
       await saveClassSessionStatistics(session.id, classId, sid, statistics);
     }
 
-    // 5. 更新课程统计信息
+    // 7. 更新课程统计信息
     if (session.course_id) {
       await updateCourseStats(session.course_id);
     }
 
-    // 6. 记录老师课时消耗
+    // 8. 记录老师课时消耗
     if (session.teacher_id && actualDurationMinutes > 0) {
       await updateTeacherHours(session.teacher_id, actualDurationMinutes);
     }

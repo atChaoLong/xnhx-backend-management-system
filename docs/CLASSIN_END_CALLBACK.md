@@ -126,9 +126,16 @@ WHERE table_name = 'class_session_statistics';
 ```
 ClassIn End 回调
     ↓
-验证 SafeKey
+解析数据:
+  - ClassID: 商家ID（不用于查找）
+  - CourseID: 班级ID
+  - SID: 学生ID
     ↓
-查找课节记录 (by ClassID)
+查找课节记录:
+  1. 通过 CourseID → courses.classin_course_id 找到课程
+  2. 通过 course.id → class_sessions.course_id 找到课节
+     → 找到状态为 'scheduled' 的最早课节
+  3. 可选：如果课节的 classroom_id 未设置，更新为 ClassID
     ↓
 计算实际上课时长
     ↓
@@ -148,6 +155,12 @@ ClassIn End 回调
 更新老师课时:
   - teachers.total_hours += (duration / 60)
 ```
+
+**重要说明**：
+- **ClassID**: ClassIn 提供的商家ID，**不用于查找课节**
+- **CourseID**: 班级ID，对应 `courses.classin_course_id`
+- 通过 `CourseID` → `courses.id` → `class_sessions.course_id` 链式查找
+- 找到 `status = 'scheduled'` 的最早课节（按 `scheduled_date` 排序）
 
 ## 统计数据说明
 
@@ -282,11 +295,13 @@ try {
 
 ## 注意事项
 
-1. **时间戳处理**: ClassIn 使用 Unix 时间戳（秒），需要转换为 ISO 字符串
-2. **时长计算**: `actual_duration_minutes = (RealCloseTime - StartTime) / 60`
-3. **ID 类型**: ClassID 是数字，数据库存储为 TEXT
-4. **统计数据**: 完整保存为 JSONB，同时提取关键字段便于查询
-5. **RLS 策略**: 只有认证用户可以读写统计数据
+1. **不使用 ClassID**: ClassID 是 ClassIn 提供给商家的ID，**不能用于查找课节**
+2. **使用 CourseID**: 通过 CourseID（班级ID）链式查找：`CourseID → courses → class_sessions`
+3. **时间戳处理**: ClassIn 使用 Unix 时间戳（秒），需要转换为 ISO 字符串
+4. **时长计算**: `actual_duration_minutes = (RealCloseTime - StartTime) / 60`
+5. **课节匹配**: 找到 `status = 'scheduled'` 的最早课节（按排课日期排序）
+6. **统计数据**: 完整保存为 JSONB，同时提取关键字段便于查询
+7. **RLS 策略**: 只有认证用户可以读写统计数据
 
 ## 相关文件
 
