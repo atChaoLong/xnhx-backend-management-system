@@ -73,8 +73,115 @@ export interface LessonRecordData {
 // 消息处理器类型
 export type MessageHandler = (data: ClassInCallbackData) => Promise<void>;
 
+// 课堂结束统计数据
+export interface ClassEndData {
+  ClassID: number;
+  CourseID: number;
+  SID: number;
+  StartTime: number;
+  CloseTime: number;
+  RealCloseTime: number;
+  Data: ClassEndStatistics;
+  [key: string]: any;
+}
+
+// 课堂统计详情
+export interface ClassEndStatistics {
+  stageEnd: Record<string, StageStatistics>;
+  silenceEnd: SilenceStatistics;
+  screenchangeEnd: Record<string, ScreenChangeStatistics>;
+  mdscreenEnd: MdscreenStatistics;
+  authorizeEnd: Record<string, AuthorizeStatistics>;
+  inoutEnd: Record<string, InoutStatistics>;
+  muteEnd: MuteStatistics;
+  equipmentsEnd: Record<string, EquipmentStatistics>;
+}
+
+// 上讲台统计
+export interface StageStatistics {
+  UpTotal: number;
+  DownCount: number;
+  UpCount: number;
+  DownTotal: number;
+}
+
+// 静音统计
+export interface SilenceStatistics {
+  SilenceAll: {
+    Count: number;
+    Total: number;
+  };
+  Persons: Record<string, {
+    Total: number;
+  }>;
+}
+
+// 切屏统计
+export interface ScreenChangeStatistics {
+  WindowTotal: number;
+  WindowCount: number;
+  Details: any[];
+  FullTotal: number;
+  FullCount: number;
+}
+
+// 屏幕共享统计
+export interface MdscreenStatistics {
+  Count: number;
+  Total: number;
+}
+
+// 授权统计
+export interface AuthorizeStatistics {
+  Count: number;
+  Total: number;
+}
+
+// 进出课堂统计
+export interface InoutStatistics {
+  Identity: number;
+  Total: number;
+  Details: Array<{
+    Device: number;
+    Type: 'In' | 'Out';
+    Time: number;
+  }>;
+  Deputies: Array<{
+    ClientID: number;
+    Total: number;
+    Details: Array<{
+      Device: number;
+      Type: 'In' | 'Out';
+      Time: number;
+    }>;
+  }>;
+}
+
+// 静音统计
+export interface MuteStatistics {
+  MuteAll: {
+    Count: number;
+    Total: number;
+  };
+  Persons: Record<string, {
+    Total: number;
+  }>;
+}
+
+// 设备统计
+export interface EquipmentStatistics {
+  Microphone: {
+    Total: number;
+    TotalNotDisabled: number;
+  };
+  Camera: {
+    Total: number;
+    TotalNotDisabled: number;
+  };
+}
+
 // ClassIn 回调命令类型
-export type ClassInCommand = 
+export type ClassInCommand =
   | 'Test'
   | 'raiseHand'
   | 'reward'
@@ -106,4 +213,5 @@ export type ClassInCommand =
   | 'fileConvert'
   | 'accountCancel'
   | 'changePhone'
-  | 'subAccount';
+  | 'subAccount'
+  | 'End';

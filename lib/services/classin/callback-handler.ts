@@ -396,6 +396,196 @@ async function handleLessonEvaluation(data: ClassInCallbackData): Promise<void> 
 }
 
 /**
+ * 处理课堂结束消息
+ * 保存课堂数据统计到数据库
+ */
+async function handleEnd(data: ClassInCallbackData): Promise<void> {
+  try {
+    logger.info('收到课堂结束回调', { classId: data.ClassID, courseId: data.CourseID });
+
+    const classId = data.ClassID;
+    const courseId = data.CourseID;
+    const sid = data.SID;
+    const startTime = data.StartTime;
+    const closeTime = data.CloseTime;
+    const realCloseTime = data.RealCloseTime;
+    const statistics = data.Data;
+
+    if (!classId) {
+      logger.warn('课堂结束回调缺少 ClassID');
+      return;
+    }
+
+    // 1. 查找课节记录
+    const { data: session, error: sessionError } = await supabaseServer
+      .from('class_sessions')
+      .select('id, course_id, scheduled_duration_minutes, teacher_id, student_id, status')
+      .eq('classroom_id', classId.toString())
+      .maybeSingle();
+
+    if (sessionError) {
+      logger.warn('查询课节记录失败', { classId, error: sessionError.message });
+      return;
+    }
+
+    if (!session) {
+      logger.warn('未找到对应的课节记录', { classId });
+      return;
+    }
+
+    logger.info('找到课节记录', { sessionId: session.id, courseId: session.course_id });
+
+    // 2. 计算实际上课时长（分钟）
+    let actualDurationMinutes = 0;
+    if (startTime && realCloseTime) {
+      actualDurationMinutes = Math.round((realCloseTime - startTime) / 60);
+    }
+
+    // 3. 更新课节状态
+    const updateData: any = {
+      status: 'completed',
+      actual_end_time: new Date(realCloseTime * 1000).toISOString(),
+      actual_duration_minutes: actualDurationMinutes,
+    };
+
+    // 如果有开始时间，更新实际开始时间
+    if (startTime) {
+      updateData.actual_start_time = new Date(startTime * 1000).toISOString();
+    }
+
+    const { error: updateError } = await supabaseServer
+      .from('class_sessions')
+      .update(updateData)
+      .eq('id', session.id);
+
+    if (updateError) {
+      logger.error('更新课节状态失败', { sessionId: session.id, error: updateError.message });
+      return;
+    }
+
+    logger.info('课节状态已更新为已完成', {
+      sessionId: session.id,
+      actualDuration: actualDurationMinutes,
+    });
+
+    // 4. 保存课堂统计数据到 class_session_statistics 表
+    if (statistics) {
+      await saveClassSessionStatistics(session.id, classId, sid, statistics);
+    }
+
+    // 5. 更新课程统计信息
+    if (session.course_id) {
+      await updateCourseStats(session.course_id);
+    }
+
+    // 6. 记录老师课时消耗
+    if (session.teacher_id && actualDurationMinutes > 0) {
+      await updateTeacherHours(session.teacher_id, actualDurationMinutes);
+    }
+
+    logger.info('课堂结束处理完成', {
+      sessionId: session.id,
+      courseId: session.course_id,
+      actualDurationMinutes,
+    });
+
+  } catch (error: any) {
+    logger.error('处理课堂结束时出错', { error: error.message, stack: error.stack });
+  }
+}
+
+/**
+ * 保存课堂数据统计
+ */
+async function saveClassSessionStatistics(
+  sessionId: string,
+  classId: number,
+  sid: number,
+  statistics: any
+): Promise<void> {
+  try {
+    // 准备统计数据
+    const statsData = {
+      session_id: sessionId,
+      classroom_id: classId.toString(),
+      student_id: sid,
+      statistics: statistics,
+      // 提取关键指标以便查询
+      stage_up_total: statistics.stageEnd ? JSON.stringify(statistics.stageEnd) : null,
+      inout_details: statistics.inoutEnd ? JSON.stringify(statistics.inoutEnd) : null,
+      equipment_usage: statistics.equipmentsEnd ? JSON.stringify(statistics.equipmentsEnd) : null,
+      screen_sharing: statistics.mdscreenEnd ? JSON.stringify(statistics.mdscreenEnd) : null,
+      created_at: new Date().toISOString(),
+    };
+
+    // 插入统计数据
+    const { error: insertError } = await supabaseServer
+      .from('class_session_statistics')
+      .insert(statsData);
+
+    if (insertError) {
+      logger.warn('保存课堂统计数据失败', {
+        sessionId,
+        error: insertError.message,
+      });
+    } else {
+      logger.info('课堂统计数据已保存', { sessionId });
+    }
+  } catch (error: any) {
+    logger.warn('保存课堂统计数据异常', { message: error.message });
+  }
+}
+
+/**
+ * 更新老师课时消耗
+ */
+async function updateTeacherHours(teacherId: string, minutes: number): Promise<void> {
+  try {
+    // 将分钟转换为小时（保留2位小数）
+    const hours = Math.round((minutes / 60) * 100) / 100;
+
+    // 获取当前课时
+    const { data: teacher, error: fetchError } = await supabaseServer
+      .from('teachers')
+      .select('id, total_hours')
+      .eq('id', teacherId)
+      .maybeSingle();
+
+    if (fetchError) {
+      logger.warn('获取老师信息失败', { teacherId, message: fetchError.message });
+      return;
+    }
+
+    if (!teacher) {
+      logger.warn('未找到对应的老师记录', { teacherId });
+      return;
+    }
+
+    const currentHours = teacher.total_hours || 0;
+    const newHours = Math.round((currentHours + hours) * 100) / 100;
+
+    // 更新老师累计课时
+    const { error: updateError } = await supabaseServer
+      .from('teachers')
+      .update({ total_hours: newHours })
+      .eq('id', teacherId);
+
+    if (updateError) {
+      logger.warn('更新老师课时失败', { teacherId, message: updateError.message });
+    } else {
+      logger.info('老师课时已更新', {
+        teacherId,
+        previousHours: currentHours,
+        addedHours: hours,
+        newHours,
+      });
+    }
+  } catch (error: any) {
+    logger.warn('更新老师课时异常', { teacherId, message: error.message });
+  }
+}
+
+/**
  * 处理录课文件
  */
 async function handleLessonRecord(data: ClassInCallbackData): Promise<void> {
@@ -572,6 +762,10 @@ export async function handleMessage(cmd: string, data: ClassInCallbackData): Pro
 
       case 'subAccount':
         await handleSubAccount(data);
+        break;
+
+      case 'End':
+        await handleEnd(data);
         break;
 
       default:
