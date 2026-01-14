@@ -24,7 +24,7 @@ import {
   PaginationPageSize,
   PaginationInfo,
 } from "@/components/ui/pagination"
-import { Plus, Edit, Trash2, Loader2, AlertTriangle, Upload, Eye, Video, ExternalLink } from "lucide-react"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle, Upload, Eye } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { TeachersService, Teacher } from "@/lib/services/teachers"
@@ -244,7 +244,6 @@ export default function TeachersPage() {
                     <TableHead>学科</TableHead>
                     <TableHead>年级段</TableHead>
                     <TableHead>是否用过ClassIn</TableHead>
-                    <TableHead>面试视频</TableHead>
                     <TableHead>ClassIn UID</TableHead>
                     <TableHead>所在地</TableHead>
                     <TableHead>创建时间</TableHead>
@@ -255,7 +254,7 @@ export default function TeachersPage() {
                 <TableBody>
                   {teachers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                         暂无数据，点击"新增老师"开始添加
                       </TableCell>
                     </TableRow>
@@ -268,22 +267,6 @@ export default function TeachersPage() {
                         <TableCell>{Array.isArray(teacher.subjects) ? teacher.subjects.join(', ') : '-'}</TableCell>
                         <TableCell>{Array.isArray(teacher.grade_levels) ? teacher.grade_levels.join(', ') : '-'}</TableCell>
                         <TableCell>{teacher.used_classin ? '是' : '否'}</TableCell>
-                        <TableCell>
-                          {teacher.interview_link ? (
-                            <a
-                              href={teacher.interview_link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline"
-                            >
-                              <Video className="h-4 w-4" />
-                              <span className="text-sm">查看视频</span>
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">无</span>
-                          )}
-                        </TableCell>
                         <TableCell>{teacher.classin_uid ?? "-"}</TableCell>
                         <TableCell>{teacher.location || "-"}</TableCell>
                         <TableCell>{teacher.created_at ? format(new Date(teacher.created_at), "yyyy-MM-dd HH:mm") : "-"}</TableCell>
