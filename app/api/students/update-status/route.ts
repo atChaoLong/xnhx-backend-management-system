@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseServer } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 import { authenticateUser } from '@/lib/middleware'
 import { createLogger } from '@/lib/logger'
 
@@ -44,8 +44,8 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // 4. 查询当前学生信息
-    const { data: student, error: fetchError } = await supabaseServer
+    // 4. 查询当前学生信息（使用 supabaseAdmin 绕过 RLS）
+    const { data: student, error: fetchError } = await supabaseAdmin
       .from('students')
       .select('id, status, student_name')
       .eq('id', studentId)
@@ -67,8 +67,8 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // 6. 更新学生状态
-    const { data: updatedStudent, error: updateError } = await supabaseServer
+    // 6. 更新学生状态（使用 supabaseAdmin 绕过 RLS）
+    const { data: updatedStudent, error: updateError } = await supabaseAdmin
       .from('students')
       .update({
         status: status,
@@ -86,8 +86,8 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // 7. 记录状态变更历史
-    const { error: historyError } = await supabaseServer
+    // 7. 记录状态变更历史（使用 supabaseAdmin 绕过 RLS）
+    const { error: historyError } = await supabaseAdmin
       .from('student_status_history')
       .insert({
         student_id: studentId,

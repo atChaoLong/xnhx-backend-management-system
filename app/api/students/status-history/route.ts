@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseServer } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 import { authenticateUser } from '@/lib/middleware'
 import { createLogger } from '@/lib/logger'
 
@@ -28,8 +28,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // 4. 查询状态变更历史
-    const { data: history, error } = await supabaseServer
+    // 4. 查询状态变更历史（使用 supabaseAdmin 绕过 RLS）
+    const { data: history, error } = await supabaseAdmin
       .from('student_status_history')
       .select('*')
       .eq('student_id', studentId)
@@ -43,14 +43,14 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // 5. 获取操作人信息
+    // 5. 获取操作人信息（使用 supabaseAdmin 绕过 RLS）
     const historyWithOperators = await Promise.all(
       (history || []).map(async (record) => {
         let operatorName = '系统'
 
         if (record.changed_by) {
           try {
-            const { data: user } = await supabaseServer
+            const { data: user } = await supabaseAdmin
               .from('user_profiles')
               .select('name')
               .eq('id', record.changed_by)
