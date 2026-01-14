@@ -39,7 +39,7 @@ export default function NewTeacherPage() {
 
   const [formData, setFormData] = useState({
     // 基本信息
-    teacher_name: "",
+    name: "",
     gender: "",
     wechat: "",
     classin_phone: "",
@@ -168,7 +168,7 @@ export default function NewTeacherPage() {
     e.preventDefault()
 
     // 验证必填字段
-    if (!formData.teacher_name.trim()) {
+    if (!formData.name.trim()) {
       toast({
         variant: "destructive",
         title: "验证失败",
@@ -307,7 +307,7 @@ export default function NewTeacherPage() {
 
     try {
       const payload: NewTeacher = {
-        teacher_name: formData.teacher_name.trim(),
+        name: formData.name.trim(),
         gender: formData.gender,
         wechat: formData.wechat.trim(),
         classin_phone: formData.classin_phone.trim(),
@@ -366,14 +366,14 @@ export default function NewTeacherPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="teacher_name">
+                    <Label htmlFor="name">
                       姓名 <span className="text-destructive">*</span>
                     </Label>
                     <Input
-                      id="teacher_name"
+                      id="name"
                       placeholder="请输入姓名"
-                      value={formData.teacher_name}
-                      onChange={(e) => handleInputChange("teacher_name", e.target.value)}
+                      value={formData.name}
+                      onChange={(e) => handleInputChange("name", e.target.value)}
                       required
                     />
                   </div>

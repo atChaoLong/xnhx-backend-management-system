@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabaseServer
       .from('teachers')
-      .select('id, created_at, updated_at, name, wechat, classin_phone, subjects, grade_levels, used_classin, interview_link, classin_uid, location')
+      .select('id, created_at, updated_at, name, wechat, classin_phone, subjects, grade_levels, used_classin, classin_uid, location')
       .order('created_at', { ascending: false })
       .range(from, to)
 
@@ -81,8 +81,16 @@ export async function POST(request: NextRequest) {
     // 后端验证：必填字段
     const requiredFields = ['name', 'gender', 'wechat', 'classin_phone', 'location', 'subjects', 'grade_levels', 'education', 'university']
     for (const field of requiredFields) {
-      if (!body[field] || (Array.isArray(body[field]) && body[field].length === 0)) {
-        logger.error(`创建老师失败 - ${field} 为空`, { body })
+      const value = body[field]
+      const isEmpty = !value || (Array.isArray(value) && value.length === 0)
+
+      if (isEmpty) {
+        logger.error(`创建老师失败 - ${field} 为空`, {
+          field,
+          value,
+          type: typeof value,
+          body
+        })
         return NextResponse.json(
           { error: `${field}不能为空` },
           { status: 400 }
@@ -90,8 +98,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 生成老师编号（TEA + 年月日 + 4位随机数）
+    const today = new Date()
+    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '')
+    const randomStr = Math.floor(1000 + Math.random() * 9000)
+    const teacher_code = `TEA${dateStr}${randomStr}`
+
     const insertData = {
-      name: body.name?.trim() || body.teacher_name?.trim(),
+      teacher_code,
+      name: body.name?.trim(),
       gender: body.gender,
       wechat: body.wechat.trim(),
       classin_phone: body.classin_phone.trim(),
@@ -113,7 +128,6 @@ export async function POST(request: NextRequest) {
       review_screenshots: body.review_screenshots || null,
       notes: body.notes || null,
       bank_card_info: body.bank_card_info || null,
-      interview_link: body.interview_link || null,
     }
 
     logger.debug('创建老师 - 准备插入的数据', { insertData })
@@ -239,8 +253,7 @@ export async function PUT(request: NextRequest) {
       'education', 'university', 'available_times', 'textbook_versions',
       'student_regions', 'student_levels', 'teaching_years',
       'teaching_style', 'success_cases',
-      'photo_url', 'review_screenshots', 'notes', 'bank_card_info',
-      'interview_link'
+      'photo_url', 'review_screenshots', 'notes', 'bank_card_info'
     ]
 
     optionalFields.forEach(field => {

@@ -35,7 +35,6 @@ export interface Teacher {
   classin_uid?: number | null
   location?: string
   total_hours?: number
-  interview_link?: string
 }
 
 /**
