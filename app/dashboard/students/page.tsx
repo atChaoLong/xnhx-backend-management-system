@@ -32,13 +32,22 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { Plus, Edit, Trash2, Loader2, AlertTriangle, UserCheck } from "lucide-react"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle, UserCheck, MoreHorizontal } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { StudentsService, Student } from "@/lib/services/students"
 import { useToast } from "@/hooks/use-toast"
 import { usePagination } from "@/lib/hooks/usePagination"
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser"
+import { getStudentStatusLabel, getStudentStatusBadgeClass } from "@/lib/utils"
+import { api } from "@/lib/fetch"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Textarea } from "@/components/ui/textarea"
 
 // 班主任类型
 interface HeadTeacher {
@@ -61,6 +70,14 @@ export default function StudentsPage() {
   const [headTeachers, setHeadTeachers] = useState<HeadTeacher[]>([])
   const [selectedHeadTeacher, setSelectedHeadTeacher] = useState<string>("")
   const [isLoadingHeadTeachers, setIsLoadingHeadTeachers] = useState(false)
+
+  // 状态更新相关
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false)
+  const [studentToUpdateStatus, setStudentToUpdateStatus] = useState<Student | null>(null)
+  const [selectedStatus, setSelectedStatus] = useState<string>("")
+  const [statusReason, setStatusReason] = useState<string>("")
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+
   const { toast } = useToast()
 
   const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
@@ -256,6 +273,66 @@ export default function StudentsPage() {
     setSelectedHeadTeacher("")
   }
 
+  // 更新学生状态
+  const openStatusDialog = (student: Student) => {
+    setStudentToUpdateStatus(student)
+    setSelectedStatus(student.status || 'studying')
+    setStatusReason('')
+    setStatusDialogOpen(true)
+  }
+
+  const handleStatusUpdate = async () => {
+    if (!studentToUpdateStatus || !selectedStatus) return
+
+    try {
+      setIsUpdatingStatus(true)
+      const token = localStorage.getItem('supabase.auth.token')
+      const response = await fetch('/api/students/update-status', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          studentId: studentToUpdateStatus.id,
+          status: selectedStatus,
+          reason: statusReason,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: '更新失败' }))
+        throw new Error(error.error || '更新失败')
+      }
+
+      toast({
+        title: '状态更新成功',
+        description: `学生 ${studentToUpdateStatus.student_name} 的状态已更新为 ${getStudentStatusLabel(selectedStatus)}`,
+      })
+
+      setStatusDialogOpen(false)
+      setStudentToUpdateStatus(null)
+      setSelectedStatus('')
+      setStatusReason('')
+      fetchStudents(currentPage, pageSize)
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: '更新失败',
+        description: error.message,
+      })
+    } finally {
+      setIsUpdatingStatus(false)
+    }
+  }
+
+  const handleStatusCancel = () => {
+    setStatusDialogOpen(false)
+    setStudentToUpdateStatus(null)
+    setSelectedStatus('')
+    setStatusReason('')
+  }
+
   const handleConfirmEntry = async (student: Student) => {
     const code = prompt(`为学生 ${student.student_name} 设置学生编号：`)
     if (code === null || !code.trim()) return
@@ -387,15 +464,9 @@ export default function StudentsPage() {
                           )}
                         </TableCell>
                         <TableCell>
-                          {student.status === 'active' ? (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              正常
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                              {student.status || '-'}
-                            </span>
-                          )}
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStudentStatusBadgeClass(student.status)}`}>
+                            {getStudentStatusLabel(student.status)}
+                          </span>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
@@ -417,6 +488,18 @@ export default function StudentsPage() {
                               <UserCheck className="mr-2 h-4 w-4" />
                               分配班主任
                             </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openStatusDialog(student)}>
+                                  更新状态
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                             <Link href={`/dashboard/students/${student.id}/edit`}>
                               <Button variant="ghost" size="icon">
                                 <Edit className="h-4 w-4" />
@@ -585,6 +668,69 @@ export default function StudentsPage() {
                 </>
               ) : (
                 "确认分配"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 更新学生状态对话框 */}
+      <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>更新学生状态</DialogTitle>
+            <DialogDescription>
+              更新学生 <span className="font-semibold">{studentToUpdateStatus?.student_name}</span> 的状态
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="status">选择状态</Label>
+              <Select
+                value={selectedStatus}
+                onValueChange={setSelectedStatus}
+                disabled={isUpdatingStatus}
+              >
+                <SelectTrigger id="status">
+                  <SelectValue placeholder="请选择状态" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="studying">在读</SelectItem>
+                  <SelectItem value="suspended">停课</SelectItem>
+                  <SelectItem value="completed">结课</SelectItem>
+                  <SelectItem value="refunded">退费</SelectItem>
+                </SelectContent>
+              </Select>
+              {studentToUpdateStatus?.status && (
+                <p className="text-xs text-muted-foreground">
+                  当前状态: {getStudentStatusLabel(studentToUpdateStatus.status)}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reason">变更原因（可选）</Label>
+              <Textarea
+                id="reason"
+                placeholder="请输入状态变更原因"
+                value={statusReason}
+                onChange={(e) => setStatusReason(e.target.value)}
+                disabled={isUpdatingStatus}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleStatusCancel} disabled={isUpdatingStatus}>
+              取消
+            </Button>
+            <Button onClick={handleStatusUpdate} disabled={!selectedStatus || isUpdatingStatus}>
+              {isUpdatingStatus ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  更新中...
+                </>
+              ) : (
+                "确认更新"
               )}
             </Button>
           </DialogFooter>

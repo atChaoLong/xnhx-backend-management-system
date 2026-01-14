@@ -20,10 +20,32 @@ export default function LoginPage() {
 
   // 检查是否已登录
   useEffect(() => {
-    const token = localStorage.getItem('supabase.auth.token')
-    if (token) {
-      router.replace("/dashboard")
+    const checkAuth = async () => {
+      const token = localStorage.getItem('supabase.auth.token')
+      if (!token) {
+        return // 没有token，停留在登录页
+      }
+
+      // 验证token是否有效
+      try {
+        const response = await fetch('/api/auth/session', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+
+        if (response.ok) {
+          // token有效，跳转到dashboard
+          router.replace("/dashboard")
+        }
+        // token无效，停留在登录页
+      } catch (error) {
+        console.error('验证token失败:', error)
+        // 出错时停留在登录页
+      }
     }
+
+    checkAuth()
   }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {

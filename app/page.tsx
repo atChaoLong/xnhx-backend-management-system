@@ -1,23 +1,48 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 
 export default function Home() {
   const router = useRouter()
+  const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    // 检查本地是否有 token
-    const token = localStorage.getItem('supabase.auth.token')
+    const checkAuth = async () => {
+      const token = localStorage.getItem('supabase.auth.token')
 
-    if (token) {
-      // 有 token，跳转到 dashboard
-      router.replace("/dashboard")
-    } else {
-      // 没有 token，跳转到登录页
-      router.replace("/login")
+      if (!token) {
+        // 没有 token，跳转到登录页
+        router.replace("/login")
+        return
+      }
+
+      // 验证token是否有效
+      try {
+        const response = await fetch('/api/auth/session', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+
+        if (response.ok) {
+          // token有效，跳转到dashboard
+          router.replace("/dashboard")
+        } else {
+          // token无效，跳转到登录页
+          router.replace("/login")
+        }
+      } catch (error) {
+        console.error('验证token失败:', error)
+        // 出错时跳转到登录页
+        router.replace("/login")
+      } finally {
+        setChecking(false)
+      }
     }
+
+    checkAuth()
   }, [router])
 
   return (
