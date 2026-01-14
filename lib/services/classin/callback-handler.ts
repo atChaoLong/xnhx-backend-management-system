@@ -419,7 +419,7 @@ async function handleEnd(data: ClassInCallbackData): Promise<void> {
     // 1. 查找课节记录
     const { data: session, error: sessionError } = await supabaseServer
       .from('class_sessions')
-      .select('id, course_id, scheduled_duration_minutes, teacher_id, student_id, status')
+      .select('id, course_id, scheduled_duration_minutes, teacher_id, status')
       .eq('classroom_id', classId.toString())
       .maybeSingle();
 
