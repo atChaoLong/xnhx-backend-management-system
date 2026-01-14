@@ -15,8 +15,7 @@ import {
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Upload, CheckCircle2, Info } from 'lucide-react'
+import { Loader2, CheckCircle2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { DictionaryService } from '@/lib/services/dictionary'
 
@@ -315,40 +314,147 @@ export default function TeacherFormPage() {
         </Card>
 
         <Card>
-          <CardContent className="pt-6">
-            <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="space-y-6">
+          <CardContent className="p-6">
+            <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="space-y-8">
 
               {/* 基本信息 */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">基本信息</h3>
+                <h3 className="text-sm font-semibold">基本信息</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="teacher_name">
+                      老师姓名 <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="teacher_name"
+                      value={formData.teacher_name}
+                      onChange={(e) => setFormData({ ...formData, teacher_name: e.target.value })}
+                      placeholder="请输入老师姓名"
+                    />
+                  </div>
 
-                <div>
-                  <Label htmlFor="teacher_name">老师姓名 *</Label>
-                  <Input
-                    id="teacher_name"
-                    value={formData.teacher_name}
-                    onChange={(e) => setFormData({ ...formData, teacher_name: e.target.value })}
-                    placeholder="请输入老师姓名"
-                  />
+                  <div className="space-y-2">
+                    <Label>
+                      性别 <span className="text-destructive">*</span>
+                    </Label>
+                    <Select value={formData.gender} onValueChange={(value) => setFormData({ ...formData, gender: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="请选择性别" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GENDER_OPTIONS.map(option => (
+                          <SelectItem key={option} value={option}>{option}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="wechat">
+                      微信号 <span className="text-destructive">*</span>
+                    </Label>
+                    <p className="text-xs text-muted-foreground">请输入面试时填写的微信号，用于验证您的身份</p>
+                    <Input
+                      id="wechat"
+                      value={formData.wechat}
+                      onChange={(e) => setFormData({ ...formData, wechat: e.target.value })}
+                      placeholder="请输入微信号"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="classin_phone">
+                      ClassIn注册手机号 <span className="text-destructive">*</span>
+                    </Label>
+                    <p className="text-xs text-muted-foreground">用于后续开课</p>
+                    <Input
+                      id="classin_phone"
+                      value={formData.classin_phone}
+                      onChange={(e) => setFormData({ ...formData, classin_phone: e.target.value })}
+                      placeholder="请输入手机号"
+                      maxLength={11}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>
+                      是否用过ClassIn <span className="text-destructive">*</span>
+                    </Label>
+                    <Select value={formData.used_classin} onValueChange={(value) => setFormData({ ...formData, used_classin: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="请选择" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {USED_CLASSIN_OPTIONS.map(option => (
+                          <SelectItem key={option} value={option}>{option}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>
+                      是否有教资证 <span className="text-destructive">*</span>
+                    </Label>
+                    <Select value={formData.has_certificate} onValueChange={(value) => setFormData({ ...formData, has_certificate: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="请选择" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {HAS_CERTIFICATE_OPTIONS.map(option => (
+                          <SelectItem key={option} value={option}>{option}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="location">
+                      老师所在地 <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="location"
+                      value={formData.location}
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      placeholder="请输入老师所在地"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>
+                      学历 <span className="text-destructive">*</span>
+                    </Label>
+                    <Select value={formData.education} onValueChange={(value) => setFormData({ ...formData, education: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="请选择学历" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {EDUCATION_OPTIONS.map(option => (
+                          <SelectItem key={option} value={option}>{option}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="university">
+                      毕业院校 <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="university"
+                      value={formData.university}
+                      onChange={(e) => setFormData({ ...formData, university: e.target.value })}
+                      placeholder="请输入毕业院校"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <Label>性别 *</Label>
-                  <Select value={formData.gender} onValueChange={(value) => setFormData({ ...formData, gender: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="请选择性别" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {GENDER_OPTIONS.map(option => (
-                        <SelectItem key={option} value={option}>{option}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label>教授学科 *（请选择所授学科）</Label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
+                <div className="space-y-2">
+                  <Label>
+                    教授学科 <span className="text-destructive">*</span>
+                    <span className="text-xs text-muted-foreground font-normal ml-2">（请选择所授学科）</span>
+                  </Label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 border rounded-lg bg-muted/30">
                     {dictOptions.subject.map(option => (
                       <div key={option.code} className="flex items-center space-x-2">
                         <Checkbox
@@ -358,7 +464,7 @@ export default function TeacherFormPage() {
                             handleMultiSelectChange('subjects', option.label, checked as boolean)
                           }
                         />
-                        <Label htmlFor={`subject-${option.code}`} className="text-sm font-normal">
+                        <Label htmlFor={`subject-${option.code}`} className="text-sm font-normal cursor-pointer">
                           {option.label}
                         </Label>
                       </div>
@@ -366,9 +472,12 @@ export default function TeacherFormPage() {
                   </div>
                 </div>
 
-                <div>
-                  <Label>教授年级段（可多选）*（至多2个学龄段，小初或初高）</Label>
-                  <div className="grid grid-cols-3 gap-2 mt-2">
+                <div className="space-y-2">
+                  <Label>
+                    教授年级段 <span className="text-destructive">*</span>
+                    <span className="text-xs text-muted-foreground font-normal ml-2">（至多2个学龄段，小初或初高）</span>
+                  </Label>
+                  <div className="grid grid-cols-3 gap-3 p-4 border rounded-lg bg-muted/30">
                     {GRADE_LEVEL_OPTIONS.map(option => (
                       <div key={option} className="flex items-center space-x-2">
                         <Checkbox
@@ -378,208 +487,139 @@ export default function TeacherFormPage() {
                             handleMultiSelectChange('grade_levels', option, checked as boolean)
                           }
                         />
-                        <Label htmlFor={`grade-${option}`} className="text-sm font-normal">
+                        <Label htmlFor={`grade-${option}`} className="text-sm font-normal cursor-pointer">
                           {option}
                         </Label>
                       </div>
                     ))}
                   </div>
                   {formData.grade_levels.length > 2 && (
-                    <p className="text-sm text-red-500 mt-1">至多选择2个学龄段</p>
+                    <p className="text-sm text-destructive mt-1">至多选择2个学龄段</p>
                   )}
-                </div>
-
-                <div>
-                  <Label htmlFor="wechat">微信号 *（常用微信号）</Label>
-                  <Input
-                    id="wechat"
-                    value={formData.wechat}
-                    onChange={(e) => setFormData({ ...formData, wechat: e.target.value })}
-                    placeholder="请输入微信号"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="classin_phone">ClassIn注册手机号 *</Label>
-                  <p className="text-sm text-gray-500 mb-2">用于后续开课，请使用面试时填写的手机号</p>
-                  <Input
-                    id="classin_phone"
-                    value={formData.classin_phone}
-                    onChange={(e) => setFormData({ ...formData, classin_phone: e.target.value })}
-                    placeholder="请输入手机号"
-                    maxLength={11}
-                  />
-                </div>
-
-                <div>
-                  <Label>是否用过ClassIn *</Label>
-                  <Select value={formData.used_classin} onValueChange={(value) => setFormData({ ...formData, used_classin: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="请选择" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {USED_CLASSIN_OPTIONS.map(option => (
-                        <SelectItem key={option} value={option}>{option}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label>是否有教资证 *</Label>
-                  <Select value={formData.has_certificate} onValueChange={(value) => setFormData({ ...formData, has_certificate: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="请选择" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {HAS_CERTIFICATE_OPTIONS.map(option => (
-                        <SelectItem key={option} value={option}>{option}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="location">老师所在地 *</Label>
-                  <Input
-                    id="location"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    placeholder="请输入老师所在地"
-                  />
-                </div>
-
-                <div>
-                  <Label>学历 *</Label>
-                  <Select value={formData.education} onValueChange={(value) => setFormData({ ...formData, education: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="请选择学历" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {EDUCATION_OPTIONS.map(option => (
-                        <SelectItem key={option} value={option}>{option}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="university">毕业院校 *</Label>
-                  <Input
-                    id="university"
-                    value={formData.university}
-                    onChange={(e) => setFormData({ ...formData, university: e.target.value })}
-                    placeholder="请输入毕业院校"
-                  />
                 </div>
               </div>
 
               {/* 教学相关 */}
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-lg font-semibold">教学相关信息</h3>
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">教学相关信息</h3>
 
-                <div>
-                  <Label>可排课时间（多选）*</Label>
-                  <p className="text-sm text-gray-500 mb-2">大致空闲时间，排课前会跟您沟通；学期中尽量多选晚上或周末</p>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
-                    {dictOptions.free_time.map(option => (
-                      <div key={option.code} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`time-${option.code}`}
-                          checked={formData.available_times.includes(option.label)}
-                          onCheckedChange={(checked) =>
-                            handleMultiSelectChange('available_times', option.label, checked as boolean)
-                          }
-                        />
-                        <Label htmlFor={`time-${option.code}`} className="text-sm font-normal">
-                          {option.label}
-                        </Label>
-                      </div>
-                    ))}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>
+                      可排课时间 <span className="text-destructive">*</span>
+                      <span className="text-xs text-muted-foreground font-normal ml-2">（大致空闲时间，排课前会跟您沟通；学期中尽量多选晚上或周末）</span>
+                    </Label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4 border rounded-lg bg-muted/30">
+                      {dictOptions.free_time.map(option => (
+                        <div key={option.code} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`time-${option.code}`}
+                            checked={formData.available_times.includes(option.label)}
+                            onCheckedChange={(checked) =>
+                              handleMultiSelectChange('available_times', option.label, checked as boolean)
+                            }
+                          />
+                          <Label htmlFor={`time-${option.code}`} className="text-sm font-normal cursor-pointer">
+                            {option.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <Label>熟悉的教材版本（多选）*</Label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
-                    {dictOptions.textbook_version.map(option => (
-                      <div key={option.code} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`textbook-${option.code}`}
-                          checked={formData.textbook_versions.includes(option.label)}
-                          onCheckedChange={(checked) =>
-                            handleMultiSelectChange('textbook_versions', option.label, checked as boolean)
-                          }
-                        />
-                        <Label htmlFor={`textbook-${option.code}`} className="text-sm font-normal">
-                          {option.label}
-                        </Label>
-                      </div>
-                    ))}
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>
+                      熟悉的教材版本 <span className="text-destructive">*</span>
+                    </Label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 border rounded-lg bg-muted/30">
+                      {dictOptions.textbook_version.map(option => (
+                        <div key={option.code} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`textbook-${option.code}`}
+                            checked={formData.textbook_versions.includes(option.label)}
+                            onCheckedChange={(checked) =>
+                              handleMultiSelectChange('textbook_versions', option.label, checked as boolean)
+                            }
+                          />
+                          <Label htmlFor={`textbook-${option.code}`} className="text-sm font-normal cursor-pointer">
+                            {option.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <Label>带过学生地域（多选）*</Label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
-                    {dictOptions.province.map(option => (
-                      <div key={option.code} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`region-${option.code}`}
-                          checked={formData.student_regions.includes(option.label)}
-                          onCheckedChange={(checked) =>
-                            handleMultiSelectChange('student_regions', option.label, checked as boolean)
-                          }
-                        />
-                        <Label htmlFor={`region-${option.code}`} className="text-sm font-normal">
-                          {option.label}
-                        </Label>
-                      </div>
-                    ))}
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>
+                      带过学生地域 <span className="text-destructive">*</span>
+                    </Label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 border rounded-lg bg-muted/30">
+                      {dictOptions.province.map(option => (
+                        <div key={option.code} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`region-${option.code}`}
+                            checked={formData.student_regions.includes(option.label)}
+                            onCheckedChange={(checked) =>
+                              handleMultiSelectChange('student_regions', option.label, checked as boolean)
+                            }
+                          />
+                          <Label htmlFor={`region-${option.code}`} className="text-sm font-normal cursor-pointer">
+                            {option.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <Label>擅长的学生水平（多选）*</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
-                    {STUDENT_LEVEL_OPTIONS.map(option => (
-                      <div key={option} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`level-${option}`}
-                          checked={formData.student_levels.includes(option)}
-                          onCheckedChange={(checked) =>
-                            handleMultiSelectChange('student_levels', option, checked as boolean)
-                          }
-                        />
-                        <Label htmlFor={`level-${option}`} className="text-sm font-normal">
-                          {option}
-                        </Label>
-                      </div>
-                    ))}
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>
+                      擅长的学生水平 <span className="text-destructive">*</span>
+                    </Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 border rounded-lg bg-muted/30">
+                      {STUDENT_LEVEL_OPTIONS.map(option => (
+                        <div key={option} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`level-${option}`}
+                            checked={formData.student_levels.includes(option)}
+                            onCheckedChange={(checked) =>
+                              handleMultiSelectChange('student_levels', option, checked as boolean)
+                            }
+                          />
+                          <Label htmlFor={`level-${option}`} className="text-sm font-normal cursor-pointer">
+                            {option}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <Label htmlFor="teaching_years">教学年限 *</Label>
-                  <p className="text-sm text-gray-500 mb-2">填数字，单位（年）</p>
-                  <Input
-                    id="teaching_years"
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    value={formData.teaching_years}
-                    onChange={(e) => setFormData({ ...formData, teaching_years: e.target.value })}
-                    placeholder="请输入教学年限"
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="teaching_years">
+                      教学年限 <span className="text-destructive">*</span>
+                      <span className="text-xs text-muted-foreground font-normal ml-2">（单位：年）</span>
+                    </Label>
+                    <Input
+                      id="teaching_years"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={formData.teaching_years}
+                      onChange={(e) => setFormData({ ...formData, teaching_years: e.target.value })}
+                      placeholder="请输入教学年限"
+                    />
+                  </div>
                 </div>
               </div>
 
               {/* 教师简历 */}
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-lg font-semibold">教师简历</h3>
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">教师简历</h3>
 
-                <div>
-                  <Label htmlFor="teaching_style">教学特点 *（教师简历 Part-1）</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="teaching_style">
+                    教学特点 <span className="text-destructive">*</span>
+                    <span className="text-xs text-muted-foreground font-normal ml-2">（教师简历 Part-1）</span>
+                  </Label>
                   <Textarea
                     id="teaching_style"
                     value={formData.teaching_style}
@@ -589,8 +629,11 @@ export default function TeacherFormPage() {
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="teaching_experience">教学经历 *（教师简历 Part-2）</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="teaching_experience">
+                    教学经历 <span className="text-destructive">*</span>
+                    <span className="text-xs text-muted-foreground font-normal ml-2">（教师简历 Part-2）</span>
+                  </Label>
                   <Textarea
                     id="teaching_experience"
                     value={formData.teaching_experience}
@@ -600,8 +643,11 @@ export default function TeacherFormPage() {
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="success_cases">优秀学员提分案例 *（教师简历 Part-3）</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="success_cases">
+                    优秀学员提分案例 <span className="text-destructive">*</span>
+                    <span className="text-xs text-muted-foreground font-normal ml-2">（教师简历 Part-3）</span>
+                  </Label>
                   <Textarea
                     id="success_cases"
                     value={formData.success_cases}
@@ -613,12 +659,14 @@ export default function TeacherFormPage() {
               </div>
 
               {/* 文件上传 */}
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-lg font-semibold">上传文件</h3>
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">上传文件</h3>
 
-                <div>
-                  <Label>老师形象照 *</Label>
-                  <div className="mt-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>
+                      老师形象照 <span className="text-destructive">*</span>
+                    </Label>
                     <Input
                       type="file"
                       accept="image/*"
@@ -631,31 +679,29 @@ export default function TeacherFormPage() {
                       disabled={uploadingPhoto}
                     />
                     {uploadingPhoto && (
-                      <p className="text-sm text-gray-500 mt-1 flex items-center">
+                      <p className="text-sm text-muted-foreground mt-1 flex items-center">
                         <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                         上传中...
                       </p>
                     )}
                     {formData.photo_url && (
-                      <div className="mt-2">
+                      <div className="mt-2 flex items-center gap-2">
                         <img
                           src={formData.photo_url}
                           alt="形象照"
-                          className="w-32 h-32 object-cover rounded"
+                          className="w-16 h-16 object-cover rounded"
                         />
-                        <p className="text-sm text-green-600 mt-1 flex items-center">
+                        <p className="text-sm text-green-600 flex items-center">
                           <CheckCircle2 className="h-4 w-4 mr-1" />
                           已上传
                         </p>
                       </div>
                     )}
                   </div>
-                </div>
 
-                <div>
-                  <Label>提分/好评截图（选填）</Label>
-                  <p className="text-sm text-gray-500 mb-2">可上传多张图片</p>
-                  <div className="mt-2">
+                  <div className="space-y-2">
+                    <Label>提分/好评截图</Label>
+                    <p className="text-xs text-muted-foreground">可上传多张图片（选填）</p>
                     <Input
                       type="file"
                       accept="image/*"
@@ -669,21 +715,20 @@ export default function TeacherFormPage() {
                       disabled={uploadingScreenshots}
                     />
                     {uploadingScreenshots && (
-                      <p className="text-sm text-gray-500 mt-1 flex items-center">
+                      <p className="text-sm text-muted-foreground mt-1 flex items-center">
                         <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                         上传中...
                       </p>
                     )}
                     {formData.review_screenshots.length > 0 && (
-                      <div className="mt-2 grid grid-cols-4 gap-2">
+                      <div className="mt-2 flex gap-1">
                         {formData.review_screenshots.map((url, index) => (
-                          <div key={index} className="relative">
-                            <img
-                              src={url}
-                              alt={`截图 ${index + 1}`}
-                              className="w-full h-24 object-cover rounded"
-                            />
-                          </div>
+                          <img
+                            key={index}
+                            src={url}
+                            alt={`截图 ${index + 1}`}
+                            className="w-12 h-12 object-cover rounded"
+                          />
                         ))}
                       </div>
                     )}
@@ -692,10 +737,10 @@ export default function TeacherFormPage() {
               </div>
 
               {/* 备注 */}
-              <div className="space-y-4 pt-4 border-t">
-                <div>
-                  <Label htmlFor="notes">备注（选填）</Label>
-                  <p className="text-sm text-gray-500 mb-2">有其他擅长、排课偏好、或能教其他赛道等，都可以告诉我们</p>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="notes">备注</Label>
+                  <p className="text-xs text-muted-foreground">有其他擅长、排课偏好、或能教其他赛道等，都可以告诉我们（选填）</p>
                   <Textarea
                     id="notes"
                     value={formData.notes}
@@ -706,20 +751,10 @@ export default function TeacherFormPage() {
                 </div>
               </div>
 
-              {/* 提示信息 */}
-              <Alert>
-                <Info className="h-4 w-4" />
-                <AlertDescription>
-                  提交时将验证您的手机号，只有通过面试的老师才能成功提交。
-                  所有标记 * 的字段为必填项，请确保填写完整后提交。
-                </AlertDescription>
-              </Alert>
-
-              {/* 提交按钮 */}
-              <div className="flex justify-end pt-4">
+              {/* 操作按钮 */}
+              <div className="flex justify-end pt-4 border-t">
                 <Button
                   type="submit"
-                  size="lg"
                   disabled={submitting || uploadingPhoto || uploadingScreenshots}
                 >
                   {submitting ? (
