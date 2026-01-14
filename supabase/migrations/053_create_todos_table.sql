@@ -6,12 +6,12 @@ CREATE TABLE IF NOT EXISTS public.todos (
   -- 审计字段
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  created_by TEXT NOT NULL,
+  created_by UUID NOT NULL,
   completed_at TIMESTAMPTZ,
 
   -- 分配信息
-  assigned_to TEXT NOT NULL,
-  assigned_by TEXT NOT NULL,
+  assigned_to UUID NOT NULL,
+  assigned_by UUID NOT NULL,
 
   -- 待办内容
   title TEXT NOT NULL,
@@ -47,10 +47,10 @@ COMMENT ON TABLE public.todos IS '待办事项表';
 COMMENT ON COLUMN public.todos.id IS '主键ID';
 COMMENT ON COLUMN public.todos.created_at IS '创建时间';
 COMMENT ON COLUMN public.todos.updated_at IS '更新时间';
-COMMENT ON COLUMN public.todos.created_by IS '创建人用户ID';
+COMMENT ON COLUMN public.todos.created_by IS '创建人用户ID（UUID）';
 COMMENT ON COLUMN public.todos.completed_at IS '完成时间';
-COMMENT ON COLUMN public.todos.assigned_to IS '分配给谁的用户ID';
-COMMENT ON COLUMN public.todos.assigned_by IS '分配人用户ID';
+COMMENT ON COLUMN public.todos.assigned_to IS '分配给谁的用户ID（UUID）';
+COMMENT ON COLUMN public.todos.assigned_by IS '分配人用户ID（UUID）';
 COMMENT ON COLUMN public.todos.title IS '待办标题';
 COMMENT ON COLUMN public.todos.description IS '详细描述';
 COMMENT ON COLUMN public.todos.priority IS '优先级：low, medium, high, urgent';
@@ -75,21 +75,21 @@ ALTER TABLE public.todos ENABLE ROW LEVEL SECURITY;
 -- RLS 策略：用户只能看到分配给自己的待办
 CREATE POLICY "用户只能看到分配给自己的待办"
   ON public.todos FOR SELECT
-  USING (assigned_to = (SELECT id FROM auth.users WHERE id = auth.uid()));
+  USING (assigned_to = auth.uid());
 
 -- RLS 策略：用户可以更新分配给自己的待办（标记完成等）
 CREATE POLICY "用户可以更新分配给自己的待办"
   ON public.todos FOR UPDATE
-  USING (assigned_to = (SELECT id FROM auth.users WHERE id = auth.uid()))
-  WITH CHECK (assigned_to = (SELECT id FROM auth.users WHERE id = auth.uid()));
+  USING (assigned_to = auth.uid())
+  WITH CHECK (assigned_to = auth.uid());
 
 -- RLS 策略：运营和管理员可以创建待办并分配给其他人
 CREATE POLICY "运营和管理员可以创建待办"
   ON public.todos FOR INSERT
   WITH CHECK (
     -- 创建人必须是当前用户
-    created_by = (SELECT id FROM auth.users WHERE id = auth.uid())
-    AND assigned_by = (SELECT id FROM auth.users WHERE id = auth.uid())
+    created_by = auth.uid()
+    AND assigned_by = auth.uid()
   );
 
 -- RLS 策略：管理员可以查看所有待办
@@ -98,7 +98,7 @@ CREATE POLICY "管理员可以查看所有待办"
   USING (
     EXISTS (
       SELECT 1 FROM user_profiles
-      WHERE user_profiles.id = (SELECT id FROM auth.users WHERE id = auth.uid())
+      WHERE user_profiles.id = auth.uid()
       AND user_profiles.role = 'admin'
     )
   );
@@ -107,5 +107,5 @@ CREATE POLICY "管理员可以查看所有待办"
 CREATE POLICY "创建人可以删除自己的待办"
   ON public.todos FOR DELETE
   USING (
-    created_by = (SELECT id FROM auth.users WHERE id = auth.uid())
+    created_by = auth.uid()
   );
