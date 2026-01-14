@@ -32,9 +32,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { Plus, Edit, Trash2, Loader2, AlertTriangle, UserCheck, MoreHorizontal } from "lucide-react"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle, UserCheck, MoreHorizontal, DollarSign } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { StudentsService, Student } from "@/lib/services/students"
 import { useToast } from "@/hooks/use-toast"
 import { usePagination } from "@/lib/hooks/usePagination"
@@ -57,6 +58,7 @@ interface HeadTeacher {
 }
 
 export default function StudentsPage() {
+  const router = useRouter()
   const { user } = useCurrentUser()
   const [students, setStudents] = useState<Student[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -497,6 +499,10 @@ export default function StudentsPage() {
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => openStatusDialog(student)}>
                                   更新状态
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => router.push(`/dashboard/transactions/new?student_id=${student.id}`)}>
+                                  <DollarSign className="mr-2 h-4 w-4" />
+                                  退费
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>

@@ -379,6 +379,16 @@ export default function FormalOrdersPage() {
                               </Button>
                             )}
 
+                            {/* 退费按钮 */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => router.push(`/dashboard/transactions/new?student_id=${order.student_id}&order_id=${order.id}`)}
+                              title="退费"
+                            >
+                              退费
+                            </Button>
+
                             <Link href={`/dashboard/formal-orders/${order.id}/edit`}>
                               <Button variant="ghost" size="icon" title="编辑">
                                 <Edit className="h-4 w-4" />

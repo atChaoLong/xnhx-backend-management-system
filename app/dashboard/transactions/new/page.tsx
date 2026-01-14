@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useParams, useSearchParams } from "next/navigation"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,14 +11,17 @@ import { Textarea } from "@/components/ui/textarea"
 import { Loader2 } from "lucide-react"
 import { TransactionsService } from "@/lib/services/transactions"
 import { StudentsService } from "@/lib/services/students"
+import { FormalOrdersService } from "@/lib/services/formalOrders"
 import { useDictionary } from "@/lib/hooks/useDictionary"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 
 export default function NewTransactionPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoadingPrefill, setIsLoadingPrefill] = useState(false)
 
   // 字典数据
   const { items: orderTypes, loading: orderTypesLoading } = useDictionary('payment_type')
@@ -27,7 +30,7 @@ export default function NewTransactionPage() {
   const [students, setStudents] = useState<any[]>([])
 
   const [formData, setFormData] = useState({
-    creation_date: "",
+    creation_date: new Date().toISOString().split('T')[0],
     course_name: "",
     student_name: "",
     teacher_name: "",
@@ -47,14 +50,53 @@ export default function NewTransactionPage() {
     status: "pending" as 'pending' | 'processing' | 'completed' | 'rejected',
   })
 
-  // 加载列表数据
+  // 加载列表数据和预填数据
   useEffect(() => {
     const loadData = async () => {
       const studentsData = await StudentsService.getAllStudents()
       setStudents(studentsData)
+
+      // 从URL参数预填数据
+      const studentId = searchParams.get('student_id')
+      const orderId = searchParams.get('order_id')
+
+      if (studentId || orderId) {
+        setIsLoadingPrefill(true)
+        try {
+          let prefillData: any = {}
+
+          // 获取学生信息
+          if (studentId) {
+            const student = await StudentsService.getStudentById(studentId)
+            prefillData.student_name = student.student_name
+            if (student.head_teacher?.name) {
+              prefillData.class_teacher = student.head_teacher.name
+            }
+          }
+
+          // 获取订单信息
+          if (orderId) {
+            const order = await FormalOrdersService.getFormalOrderById(orderId)
+            prefillData.order_type = order.order_type
+            prefillData.original_consultant = order.consultant_teacher
+            prefillData.teacher_name = order.teacher_names?.[0] || ''
+            prefillData.unit_price = order.total_hours > 0 ? (order.payment_amount / order.total_hours).toFixed(2) : ''
+            prefillData.course_name = order.order_notes || ''
+          }
+
+          // 预设退费类型
+          prefillData.transaction_type = "退费"
+
+          setFormData(prev => ({ ...prev, ...prefillData }))
+        } catch (error) {
+          console.error('预填数据失败:', error)
+        } finally {
+          setIsLoadingPrefill(false)
+        }
+      }
     }
     loadData()
-  }, [])
+  }, [searchParams])
 
   const handleInputChange = (field: string, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -144,7 +186,12 @@ export default function NewTransactionPage() {
       <div className="flex-1 overflow-auto p-6">
         <Card className="max-w-4xl mx-auto">
           <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
+            {isLoadingPrefill ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-6">
               {/* 基本信息 */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">基本信息</h3>
@@ -423,6 +470,7 @@ export default function NewTransactionPage() {
                 </Button>
               </div>
             </form>
+            )}
           </CardContent>
         </Card>
       </div>
