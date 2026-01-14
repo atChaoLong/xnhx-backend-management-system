@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabaseServer
       .from('teachers')
-      .select('id, created_at, updated_at, name, wechat, classin_phone, subjects, grade_levels, used_classin, classin_uid, location')
+      .select('id, created_at, updated_at, name, wechat, classin_phone, subjects, grade_levels, used_classin, interview_link, classin_uid, location')
       .order('created_at', { ascending: false })
       .range(from, to)
 
@@ -113,6 +113,7 @@ export async function POST(request: NextRequest) {
       review_screenshots: body.review_screenshots || null,
       notes: body.notes || null,
       bank_card_info: body.bank_card_info || null,
+      interview_link: body.interview_link || null,
     }
 
     logger.debug('创建老师 - 准备插入的数据', { insertData })
@@ -238,7 +239,8 @@ export async function PUT(request: NextRequest) {
       'education', 'university', 'available_times', 'textbook_versions',
       'student_regions', 'student_levels', 'teaching_years',
       'teaching_style', 'success_cases',
-      'photo_url', 'review_screenshots', 'notes', 'bank_card_info'
+      'photo_url', 'review_screenshots', 'notes', 'bank_card_info',
+      'interview_link'
     ]
 
     optionalFields.forEach(field => {
