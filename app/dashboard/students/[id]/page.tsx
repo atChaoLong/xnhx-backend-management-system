@@ -31,6 +31,7 @@ import { format } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
 import { getDictionaryItems, DictionaryItem } from "@/lib/services/dictionary"
 import { getStudentStatusLabel, getStudentStatusBadgeClass } from "@/lib/utils"
+import { TransactionsService, TransactionRecord } from "@/lib/services/transactions"
 
 // 学生数据类型
 interface StudentDetail {
@@ -60,6 +61,7 @@ interface StudentDetail {
   classrooms: Classroom[]
   visitRecords: VisitRecord[]
   statusHistory: StatusHistory[]
+  transactions: TransactionRecord[]
   stats: {
     formalOrdersCount: number
     trialLessonsCount: number
@@ -67,6 +69,7 @@ interface StudentDetail {
     classroomsCount: number
     visitRecordsCount: number
     statusHistoryCount: number
+    transactionsCount: number
     totalFormalHours: number
     totalFormalAmount: number
   }
@@ -305,6 +308,16 @@ export default function StudentDetailPage() {
         statusHistory = statusHistoryResult.data || []
       }
 
+      // 获取异动记录
+      let transactions: TransactionRecord[] = []
+      try {
+        const allTransactions = await TransactionsService.getAllTransactionRecords()
+        // 根据学生姓名过滤异动记录
+        transactions = allTransactions.filter(t => t.student_name === detailResult.data.student.student_name)
+      } catch (error) {
+        console.error('获取异动记录失败:', error)
+      }
+
       // 获取回访人员信息
       const visitRecordsWithNames = await Promise.all(
         visitRecords.map(async (record: VisitRecord) => {
@@ -335,10 +348,12 @@ export default function StudentDetailPage() {
         ...detailResult.data,
         visitRecords: visitRecordsWithNames,
         statusHistory: statusHistory,
+        transactions: transactions,
         stats: {
           ...detailResult.data.stats,
           visitRecordsCount: visitRecordsWithNames.length,
           statusHistoryCount: statusHistory.length,
+          transactionsCount: transactions.length,
         },
       })
     } catch (error: any) {
@@ -449,7 +464,7 @@ export default function StudentDetailPage() {
     )
   }
 
-  const { student, orders, trialLessons, courses, classrooms, visitRecords, statusHistory, stats } = detail
+  const { student, orders, trialLessons, courses, classrooms, visitRecords, statusHistory, transactions, stats } = detail
 
   return (
     <div className="flex flex-col h-full">
@@ -463,13 +478,14 @@ export default function StudentDetailPage() {
           </Button>
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 lg:w-auto">
+          <TabsList className="grid w-full grid-cols-8 lg:w-auto">
             <TabsTrigger value="overview">概览</TabsTrigger>
             <TabsTrigger value="orders">订单 ({stats.formalOrdersCount})</TabsTrigger>
             <TabsTrigger value="courses">课程 ({stats.coursesCount})</TabsTrigger>
             <TabsTrigger value="trials">试听课 ({stats.trialLessonsCount})</TabsTrigger>
             <TabsTrigger value="classrooms">课堂 ({stats.classroomsCount})</TabsTrigger>
             <TabsTrigger value="visits">回访 ({stats.visitRecordsCount})</TabsTrigger>
+            <TabsTrigger value="transactions">异动 ({stats.transactionsCount})</TabsTrigger>
             <TabsTrigger value="history">状态变更 ({stats.statusHistoryCount})</TabsTrigger>
           </TabsList>
 
@@ -982,6 +998,71 @@ export default function StudentDetailPage() {
                             </TableCell>
                             <TableCell>
                               {record.operator_name || '未知'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 异动记录标签 */}
+          <TabsContent value="transactions" className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>异动记录</CardTitle>
+                <DollarSign className="h-5 w-5 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {transactions.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">暂无异动记录</p>
+                ) : (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>创建日期</TableHead>
+                          <TableHead>异动类型</TableHead>
+                          <TableHead>课程名称</TableHead>
+                          <TableHead>订单类型</TableHead>
+                          <TableHead>原顾问</TableHead>
+                          <TableHead>班主任</TableHead>
+                          <TableHead>退费金额</TableHead>
+                          <TableHead>状态</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {transactions.map((record) => (
+                          <TableRow key={record.id}>
+                            <TableCell className="font-medium">
+                              {record.creation_date ? format(new Date(record.creation_date), 'yyyy-MM-dd') : '-'}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">{record.transaction_type}</Badge>
+                            </TableCell>
+                            <TableCell>{record.course_name || '-'}</TableCell>
+                            <TableCell>{record.order_type || '-'}</TableCell>
+                            <TableCell>{record.original_consultant || '-'}</TableCell>
+                            <TableCell>{record.class_teacher || '-'}</TableCell>
+                            <TableCell>
+                              {record.refund_amount ? `¥${record.refund_amount}` : '-'}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  record.status === 'completed' ? 'default' :
+                                  record.status === 'processing' ? 'default' :
+                                  record.status === 'rejected' ? 'destructive' : 'secondary'
+                                }
+                              >
+                                {record.status === 'pending' ? '待处理' :
+                                 record.status === 'processing' ? '处理中' :
+                                 record.status === 'completed' ? '已完成' :
+                                 record.status === 'rejected' ? '已拒绝' : record.status}
+                              </Badge>
                             </TableCell>
                           </TableRow>
                         ))}
