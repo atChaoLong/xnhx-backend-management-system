@@ -300,7 +300,7 @@ export default function LeadsPage() {
         const err = await resp.json().catch(() => ({ error: '释放失败' }))
         throw new Error(err.error || '释放失败')
       }
-      toast({ title: '释放成功', description: '线索已放回线索池' })
+      toast({ title: '释放成功', description: '线索已丢弃' })
       fetchLeads(currentPage, pageSize)
     } catch (error: any) {
       toast({ variant: 'destructive', title: '释放失败', description: error.message || '无法释放线索' })
@@ -491,10 +491,10 @@ export default function LeadsPage() {
                                 {isReleasing === lead.id ? (
                                   <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    释放中...
+                                    丢弃中...
                                   </>
                                 ) : (
-                                  '放回线索池'
+                                  '丢弃'
                                 )}
                               </Button>
                             )}
