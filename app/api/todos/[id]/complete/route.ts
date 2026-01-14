@@ -1,9 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
-import { getCurrentProfile } from '@/app/api/auth/profile'
 
 const logger = createLogger('API:Todos:Complete')
+
+// 获取当前用户信息
+async function getCurrentProfile(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get('authorization') ||
+                       globalThis?.localStorage?.getItem('supabase.auth.token')
+    const token = authHeader?.replace('Bearer ', '')
+
+    if (!token) {
+      return null
+    }
+
+    const { data: { user }, error } = await supabaseServer.auth.getUser(token)
+    if (error || !user) {
+      return null
+    }
+
+    // 获取用户档案信息
+    const { data: profile } = await supabaseServer
+      .from('user_profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+
+    return profile
+  } catch (error) {
+    logger.error('获取用户信息失败', { error })
+    return null
+  }
+}
 
 // POST: 标记待办为完成
 export async function POST(
@@ -14,7 +43,7 @@ export async function POST(
     const { id } = await params
 
     // 获取当前用户
-    const profile = await getCurrentProfile()
+    const profile = await getCurrentProfile(request)
     if (!profile) {
       return NextResponse.json({ error: '未登录' }, { status: 401 })
     }
