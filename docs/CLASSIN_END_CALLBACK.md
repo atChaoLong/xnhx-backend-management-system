@@ -95,20 +95,46 @@
 | inout_details | JSONB | 进出课堂详情（提取） |
 | equipment_usage | JSONB | 设备使用情况（提取） |
 | screen_sharing | JSONB | 屏幕共享统计（提取） |
+| handsup_details | JSONB | 举手统计（提取） |
+| award_details | JSONB | 奖励统计（提取） |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+### class_student_participation
+
+用于存储学生参与记录（从 inoutEnd 数据提取）：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | UUID | 主键 |
+| session_id | UUID | 关联 class_sessions.id (外键) |
+| student_uid | INTEGER | 学生 UID (ClassIn) |
+| identity | INTEGER | 身份：1=学生, 2=旁听, 3=老师, 4=联席教师 |
+| total_time_seconds | BIGINT | 在教室总时长（秒） |
+| actual_duration_minutes | INTEGER | 实际参与时长（分钟） |
+| first_in_time | TIMESTAMPTZ | 首次进入教室时间 |
+| last_out_time | TIMESTAMPTZ | 最后离开教室时间 |
+| attendance_status | VARCHAR(20) | 出勤状态：absent/present/late |
+| inout_details | JSONB | 进出教室详情（JSON） |
 | created_at | TIMESTAMPTZ | 创建时间 |
 
 ## 安装步骤
 
 ### 1. 执行数据库迁移
 
-在 Supabase SQL Editor 中执行：
+在 Supabase SQL Editor 中按顺序执行以下迁移脚本：
 
 ```bash
-# 复制迁移文件内容
+# 1. 创建课堂统计表
 cat supabase/migrations/045_add_class_session_statistics.sql
+
+# 2. 创建学生参与记录表
+cat supabase/migrations/046_add_class_student_participation.sql
+
+# 3. 添加举手和奖励统计字段
+cat supabase/migrations/047_add_handsup_award_to_statistics.sql
 ```
 
-或在 Supabase Dashboard → SQL Editor 中手动执行迁移脚本。
+或在 Supabase Dashboard → SQL Editor 中手动执行这三个迁移脚本。
 
 ### 2. 验证表创建
 
@@ -130,6 +156,16 @@ ClassIn End 回调
   - ClassID: 商家ID（不用于查找）
   - CourseID: 班级ID
   - SID: 学生ID
+  - StartTime: 开始时间
+  - CloseTime: 计划结束时间
+  - RealCloseTime: 实际结束时间（可能不存在）
+    ↓
+计算实际结束时间（RealCloseTime 判断逻辑）:
+  1. 判断是否有 RealCloseTime 字段
+  2. 如果没有 RealCloseTime，使用 CloseTime
+  3. 有 RealCloseTime：
+     - RealCloseTime = 0 → 使用 CloseTime
+     - RealCloseTime != 0 → 使用 min(RealCloseTime, CloseTime)
     ↓
 查找课节记录:
   1. 通过 CourseID → courses.classin_course_id 找到课程
@@ -142,11 +178,20 @@ ClassIn End 回调
 更新课节状态:
   - status → 'completed'
   - actual_start_time
-  - actual_end_time
+  - actual_end_time (使用计算出的最终结束时间)
   - actual_duration_minutes
     ↓
+处理学生参与记录（从 inoutEnd 数据）:
+  - 遍历 inoutEnd，提取每个学生（Identity = 1）的进出记录
+  - 计算在教室总时长、首次进入、最后离开时间
+  - 判断出勤状态：
+    - 出席：参与时长 >= 课堂时长 * 50%
+    - 迟到：有参与但 < 50%
+    - 缺席：无参与记录
+  - 保存到 class_student_participation 表
+    ↓
 保存统计数据:
-  - class_session_statistics 表
+  - class_session_statistics 表（完整 Data 对象）
     ↓
 更新课程统计:
   - courses.session_count
@@ -159,8 +204,10 @@ ClassIn End 回调
 **重要说明**：
 - **ClassID**: ClassIn 提供的商家ID，**不用于查找课节**
 - **CourseID**: 班级ID，对应 `courses.classin_course_id`
+- **RealCloseTime**: 提前下课功能产生的实际结束时间，需要与 CloseTime 比较取较小值
 - 通过 `CourseID` → `courses.id` → `class_sessions.course_id` 链式查找
 - 找到 `status = 'scheduled'` 的最早课节（按 `scheduled_date` 排序）
+- 从 `inoutEnd` 数据提取学生参与记录，只保存 `Identity = 1`（学生）的记录
 
 ## 统计数据说明
 
@@ -297,11 +344,35 @@ try {
 
 1. **不使用 ClassID**: ClassID 是 ClassIn 提供给商家的ID，**不能用于查找课节**
 2. **使用 CourseID**: 通过 CourseID（班级ID）链式查找：`CourseID → courses → class_sessions`
-3. **时间戳处理**: ClassIn 使用 Unix 时间戳（秒），需要转换为 ISO 字符串
-4. **时长计算**: `actual_duration_minutes = (RealCloseTime - StartTime) / 60`
-5. **课节匹配**: 找到 `status = 'scheduled'` 的最早课节（按排课日期排序）
-6. **统计数据**: 完整保存为 JSONB，同时提取关键字段便于查询
-7. **RLS 策略**: 只有认证用户可以读写统计数据
+3. **RealCloseTime 判断逻辑**（重要）：
+   - 场景：客户端和后台增加了提前下课功能
+   - 判断步骤：
+     1. 判断是否有 RealCloseTime 字段（掉线、异常退出可能没有）
+     2. 如果没有 RealCloseTime 字段 → 使用 CloseTime
+     3. 有 RealCloseTime 字段：
+        - RealCloseTime = 0 → 使用 CloseTime
+        - RealCloseTime != 0 → 使用 min(RealCloseTime, CloseTime)
+   - 示例：
+     ```javascript
+     let finalCloseTime = closeTime;
+     if (realCloseTime !== undefined && realCloseTime !== null) {
+       if (realCloseTime === 0) {
+         finalCloseTime = closeTime;
+       } else {
+         finalCloseTime = Math.min(realCloseTime, closeTime);
+       }
+     }
+     ```
+4. **时间戳处理**: ClassIn 使用 Unix 时间戳（秒），需要转换为 ISO 字符串
+5. **时长计算**: `actual_duration_minutes = (finalCloseTime - StartTime) / 60`
+6. **课节匹配**: 找到 `status = 'scheduled'` 的最早课节（按排课日期排序）
+7. **学生参与记录**: 从 `inoutEnd` 数据提取，只保存 `Identity = 1`（学生）的记录
+8. **出勤判断**:
+   - 出席 (present)：参与时长 >= 课堂时长 × 50%
+   - 迟到 (late)：有参与但 < 50%
+   - 缺席 (absent)：无参与记录
+9. **统计数据**: 完整保存为 JSONB，同时提取关键字段便于查询
+10. **RLS 策略**: 只有认证用户可以读写统计数据
 
 ## 相关文件
 

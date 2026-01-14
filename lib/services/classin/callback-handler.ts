@@ -474,16 +474,40 @@ async function handleEnd(data: ClassInCallbackData): Promise<void> {
       classroomId: session.classroom_id
     });
 
-    // 4. 计算实际上课时长（分钟）
-    let actualDurationMinutes = 0;
-    if (startTime && realCloseTime) {
-      actualDurationMinutes = Math.round((realCloseTime - startTime) / 60);
+    // 4. 计算实际结束时间（按优先级判断）
+    let finalCloseTime = closeTime; // 默认使用 CloseTime
+
+    if (realCloseTime !== undefined && realCloseTime !== null) {
+      // 有 RealCloseTime 字段
+      if (realCloseTime === 0) {
+        // RealCloseTime = 0，使用 CloseTime
+        finalCloseTime = closeTime;
+        logger.info('RealCloseTime 为 0，使用 CloseTime', { closeTime });
+      } else {
+        // RealCloseTime != 0，比较两者，取较小的值
+        finalCloseTime = Math.min(realCloseTime, closeTime);
+        logger.info('比较 RealCloseTime 和 CloseTime，取较小值', {
+          realCloseTime,
+          closeTime,
+          finalCloseTime
+        });
+      }
+    } else {
+      // 没有 RealCloseTime 字段（可能是掉线、异常退出），使用 CloseTime
+      finalCloseTime = closeTime;
+      logger.info('没有 RealCloseTime 字段，使用 CloseTime', { closeTime });
     }
 
-    // 5. 更新课节状态
+    // 5. 计算实际上课时长（分钟）
+    let actualDurationMinutes = 0;
+    if (startTime && finalCloseTime) {
+      actualDurationMinutes = Math.round((finalCloseTime - startTime) / 60);
+    }
+
+    // 6. 更新课节状态
     const updateData: any = {
       status: 'completed',
-      actual_end_time: new Date(realCloseTime * 1000).toISOString(),
+      actual_end_time: new Date(finalCloseTime * 1000).toISOString(),
       actual_duration_minutes: actualDurationMinutes,
     };
 
@@ -505,19 +529,25 @@ async function handleEnd(data: ClassInCallbackData): Promise<void> {
     logger.info('课节状态已更新为已完成', {
       sessionId: session.id,
       actualDuration: actualDurationMinutes,
+      finalCloseTime,
     });
 
-    // 6. 保存课堂统计数据到 class_session_statistics 表
+    // 7. 通过 inoutEnd 数据匹配并保存学生参与记录
+    if (statistics && statistics.inoutEnd) {
+      await saveStudentParticipationRecords(session.id, statistics.inoutEnd, startTime, finalCloseTime);
+    }
+
+    // 8. 保存课堂统计数据到 class_session_statistics 表
     if (statistics) {
       await saveClassSessionStatistics(session.id, classId, sid, statistics);
     }
 
-    // 7. 更新课程统计信息
+    // 9. 更新课程统计信息
     if (session.course_id) {
       await updateCourseStats(session.course_id);
     }
 
-    // 8. 记录老师课时消耗
+    // 10. 记录老师课时消耗
     if (session.teacher_id && actualDurationMinutes > 0) {
       await updateTeacherHours(session.teacher_id, actualDurationMinutes);
     }
@@ -526,6 +556,7 @@ async function handleEnd(data: ClassInCallbackData): Promise<void> {
       sessionId: session.id,
       courseId: session.course_id,
       actualDurationMinutes,
+      finalCloseTime,
     });
 
   } catch (error: any) {
@@ -554,6 +585,8 @@ async function saveClassSessionStatistics(
       inout_details: statistics.inoutEnd ? JSON.stringify(statistics.inoutEnd) : null,
       equipment_usage: statistics.equipmentsEnd ? JSON.stringify(statistics.equipmentsEnd) : null,
       screen_sharing: statistics.mdscreenEnd ? JSON.stringify(statistics.mdscreenEnd) : null,
+      handsup_details: statistics.handsupEnd ? JSON.stringify(statistics.handsupEnd) : null,
+      award_details: statistics.awardEnd ? JSON.stringify(statistics.awardEnd) : null,
       created_at: new Date().toISOString(),
     };
 
@@ -572,6 +605,95 @@ async function saveClassSessionStatistics(
     }
   } catch (error: any) {
     logger.warn('保存课堂统计数据异常', { message: error.message });
+  }
+}
+
+/**
+ * 保存学生参与记录（从 inoutEnd 数据提取）
+ */
+async function saveStudentParticipationRecords(
+  sessionId: string,
+  inoutEnd: Record<string, any>,
+  startTime: number,
+  endTime: number
+): Promise<void> {
+  try {
+    const participations = [];
+
+    // 遍历每个用户（UID）
+    for (const [uid, userData] of Object.entries(inoutEnd)) {
+      const data = userData as any;
+
+      // 提取学生信息
+      const identity = data.Identity; // 1:学生, 2:旁听, 3:老师, 4:联席教师
+      const totalTime = data.Total; // 在教室总时长（秒）
+
+      // 只保存学生身份的记录（Identity = 1）
+      if (identity !== 1) {
+        continue;
+      }
+
+      // 提取进出详情
+      const details = data.Details || [];
+      const inRecords = details.filter((d: any) => d.Type === 'In');
+      const outRecords = details.filter((d: any) => d.Type === 'Out');
+
+      // 计算进入和退出时间
+      const firstInTime = inRecords.length > 0 ? inRecords[0].Time : null;
+      const lastOutTime = outRecords.length > 0 ? outRecords[outRecords.length - 1].Time : null;
+
+      // 计算实际参与时长（分钟）
+      const actualDurationMinutes = totalTime ? Math.round(totalTime / 60) : 0;
+
+      // 判断出勤状态
+      let attendanceStatus = 'absent'; // 默认：缺席
+      if (actualDurationMinutes > 0) {
+        // 如果参与时长超过课堂时长的 50%，标记为出席
+        const classDurationMinutes = endTime && startTime ? Math.round((endTime - startTime) / 60) : 0;
+        if (classDurationMinutes > 0 && actualDurationMinutes >= classDurationMinutes * 0.5) {
+          attendanceStatus = 'present'; // 出席
+        } else if (actualDurationMinutes > 0) {
+          attendanceStatus = 'late'; // 迟到或早退
+        }
+      }
+
+      participations.push({
+        session_id: sessionId,
+        student_uid: parseInt(uid),
+        identity: identity,
+        total_time_seconds: totalTime,
+        actual_duration_minutes: actualDurationMinutes,
+        attendance_status: attendanceStatus,
+        first_in_time: firstInTime ? new Date(firstInTime * 1000).toISOString() : null,
+        last_out_time: lastOutTime ? new Date(lastOutTime * 1000).toISOString() : null,
+        inout_details: JSON.stringify(details),
+        created_at: new Date().toISOString(),
+      });
+    }
+
+    if (participations.length === 0) {
+      logger.info('没有学生参与记录需要保存', { sessionId });
+      return;
+    }
+
+    // 批量插入学生参与记录
+    const { error: insertError } = await supabaseServer
+      .from('class_student_participation')
+      .insert(participations);
+
+    if (insertError) {
+      logger.warn('保存学生参与记录失败', {
+        sessionId,
+        error: insertError.message,
+      });
+    } else {
+      logger.info('学生参与记录已保存', {
+        sessionId,
+        count: participations.length,
+      });
+    }
+  } catch (error: any) {
+    logger.warn('保存学生参与记录异常', { message: error.message });
   }
 }
 
