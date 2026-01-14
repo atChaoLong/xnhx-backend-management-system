@@ -42,6 +42,9 @@ export default function TodosPage() {
   const { toast } = useToast()
   const { todos: todosPerm, user } = usePermission()
 
+  // 检查是否可以创建待办（运营或管理员）
+  const canCreateTodo = user?.role === 'admin' || user?.role === 'operator'
+
   // 分页逻辑
   const {
     currentPage,
@@ -299,7 +302,7 @@ export default function TodosPage() {
                 <Button variant="outline" onClick={() => fetchTodos(currentPage, pageSize)} disabled={isLoading}>
                   刷新
                 </Button>
-                {(todosPerm.create() || user?.role === 'operator' || user?.role === 'admin') && (
+                {canCreateTodo && (
                   <Button onClick={() => setIsCreateDialogOpen(true)}>
                     <Plus className="mr-2 h-4 w-4" />
                     创建待办
