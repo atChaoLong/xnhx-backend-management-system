@@ -57,3 +57,41 @@ export function handleDatabaseError(error: any): { message: string; status: numb
     status: 500
   }
 }
+
+/**
+ * 获取学生状态的显示名称
+ * @param status 学生状态值
+ * @returns 显示名称
+ */
+export function getStudentStatusLabel(status: string | null | undefined): string {
+  if (!status) return '未知'
+
+  const statusMap: Record<string, string> = {
+    'studying': '在读',
+    'suspended': '停课',
+    'completed': '结课',
+    'refunded': '退费',
+    'active': '在读', // 兼容旧数据
+  }
+
+  return statusMap[status] || status
+}
+
+/**
+ * 获取学生状态的徽章样式
+ * @param status 学生状态值
+ * @returns Tailwind CSS 类名
+ */
+export function getStudentStatusBadgeClass(status: string | null | undefined): string {
+  if (!status) return 'bg-gray-100 text-gray-800'
+
+  const statusClassMap: Record<string, string> = {
+    'studying': 'bg-green-100 text-green-800',
+    'suspended': 'bg-yellow-100 text-yellow-800',
+    'completed': 'bg-blue-100 text-blue-800',
+    'refunded': 'bg-red-100 text-red-800',
+    'active': 'bg-green-100 text-green-800', // 兼容旧数据
+  }
+
+  return statusClassMap[status] || 'bg-gray-100 text-gray-800'
+}

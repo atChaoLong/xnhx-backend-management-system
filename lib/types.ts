@@ -107,6 +107,23 @@ export interface TeacherCandidate {
 // ============================================
 // 学生类型
 // ============================================
+
+// 学生状态枚举
+export enum StudentStatus {
+  STUDYING = 'studying',     // 在读
+  SUSPENDED = 'suspended',  // 停课
+  COMPLETED = 'completed',   // 结课
+  REFUNDED = 'refunded'      // 退费
+}
+
+// 学生状态显示名称映射
+export const StudentStatusLabels: Record<StudentStatus, string> = {
+  [StudentStatus.STUDYING]: '在读',
+  [StudentStatus.SUSPENDED]: '停课',
+  [StudentStatus.COMPLETED]: '结课',
+  [StudentStatus.REFUNDED]: '退费',
+}
+
 export interface Student {
   id: string
   classinUid: number               // ClassIn 唯一标识符
@@ -124,7 +141,7 @@ export interface Student {
   headTeacherId?: string          // 班主任ID
   head_teacher_id?: string        // 班主任ID（数据库字段）
   head_teacher_name?: string      // 班主任姓名（数据库字段，关联查询）
-  status?: string                 // 状态
+  status?: StudentStatus | string // 学生状态
 
   // ClassIn 额外字段
   schoolUid?: number              // ClassIn 学校 UID
