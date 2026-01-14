@@ -30,6 +30,7 @@ export const RESOURCES = {
   teachers: 'teachers',              // 老师库
   dictionaries: 'dictionaries',      // 字典管理
   users: 'users',                    // 用户管理
+  todos: 'todos',                    // 待办事项
 } as const
 
 export type Resource = typeof RESOURCES[keyof typeof RESOURCES]
@@ -77,6 +78,7 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     teachers: ['view', 'create', 'edit', 'delete', 'notes'],
     dictionaries: ['view', 'create', 'edit', 'delete'],
     users: ['view', 'create', 'edit', 'delete'],
+    todos: ['view', 'create', 'edit', 'delete'], // 待办管理
   },
 
   // 运营人员：线索管理
@@ -91,7 +93,9 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     teacherCandidates: ['view'],
     teachers: ['view', 'create'],
     dictionaries: ['view'],
+    todos: ["view", "edit"],
     users: ['view'],
+    todos: ['view', 'create'], // 可以查看和创建待办（分配给销售）
   },
 
   // 销售顾问：线索跟进、学生管理、订单录入
@@ -106,7 +110,9 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     teacherCandidates: ['view'],
     teachers: ['view', 'create'],
     dictionaries: ['view'],
+    todos: ["view", "edit"],
     users: ['view'],
+    todos: ['view', 'edit'], // 可以查看和编辑（标记完成）待办
   },
 
   // 班主任：学生管理、排课、回访、续费
@@ -121,6 +127,7 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     teacherCandidates: ['view'],
     teachers: ['view'],
     dictionaries: ['view'],
+    todos: ["view", "edit"],
     users: ['view'],
   },
 
@@ -136,6 +143,7 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     teacherCandidates: ['view'],
     teachers: ['view', 'create', 'edit'],
     dictionaries: ['view'],
+    todos: ["view", "edit"],
     users: ['view'],
   },
 
@@ -151,6 +159,7 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     teacherCandidates: ['view', 'evaluate', 'uploadVideo', 'reviewVideo'],
     teachers: ['view', 'edit', 'notes'],
     dictionaries: ['view'],
+    todos: ["view", "edit"],
     users: ['view'],
   },
 
@@ -166,6 +175,7 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     teacherCandidates: ['view'],
     teachers: ['view'],
     dictionaries: ['view'],
+    todos: ["view", "edit"],
     users: ['view'],
   },
 
@@ -181,6 +191,7 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     teacherCandidates: ['view', 'create', 'edit', 'interview', 'evaluate', 'uploadVideo', 'reviewVideo'],
     teachers: ['view'],
     dictionaries: ['view'],
+    todos: ["view", "edit"],
     users: ['view'],
   },
 }
