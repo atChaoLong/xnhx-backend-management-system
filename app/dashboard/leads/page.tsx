@@ -524,7 +524,7 @@ export default function LeadsPage() {
                                 className="bg-green-600 hover:bg-green-700"
                               >
                                 <Video className="mr-2 h-4 w-4" />
-                                创建试听
+                                试听
                               </Button>
                             )}
                             {/* 运营编辑按钮 - 只有运营和管理员可以看到 */}
