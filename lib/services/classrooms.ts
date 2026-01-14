@@ -32,8 +32,35 @@ export interface DeleteClassroomParams {
   classId: number
 }
 
-export async function getClassrooms(from: number = 0, to: number = 19): Promise<{ data: Classroom[]; count: number }> {
-  const response = await api.get(`/api/classroom-classin?from=${from}&to=${to}`)
+export async function getClassrooms(
+  from: number = 0,
+  to: number = 19,
+  filters?: {
+    studentId?: string
+    dateFrom?: string
+    dateTo?: string
+    status?: string
+  }
+): Promise<{ data: Classroom[]; count: number }> {
+  const params = new URLSearchParams({
+    from: from.toString(),
+    to: to.toString(),
+  })
+
+  if (filters?.studentId) {
+    params.append('studentId', filters.studentId)
+  }
+  if (filters?.dateFrom) {
+    params.append('dateFrom', filters.dateFrom)
+  }
+  if (filters?.dateTo) {
+    params.append('dateTo', filters.dateTo)
+  }
+  if (filters?.status) {
+    params.append('status', filters.status)
+  }
+
+  const response = await api.get(`/api/classroom-classin?${params.toString()}`)
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: "获取课堂列表失败" }))
     throw new Error(error.error || "获取课堂列表失败")
