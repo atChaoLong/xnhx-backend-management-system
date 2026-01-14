@@ -6,7 +6,7 @@
 -- 创建课堂统计表
 CREATE TABLE IF NOT EXISTS public.class_session_statistics (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  session_id TEXT NOT NULL,                    -- 关联 class_sessions.id
+  session_id UUID NOT NULL,                    -- 关联 class_sessions.id
   classroom_id TEXT NOT NULL,                  -- ClassIn 课堂 ID
   student_id INTEGER,                          -- 学生 ID (ClassIn SID)
   statistics JSONB NOT NULL,                   -- 完整的统计数据 JSON
@@ -41,7 +41,7 @@ CREATE INDEX IF NOT EXISTS idx_class_session_stats_created_at
 -- 添加注释
 COMMENT ON TABLE public.class_session_statistics IS '课堂统计数据 - 存储ClassIn课堂结束回调的详细统计';
 
-COMMENT ON COLUMN public.class_session_statistics.session_id IS '关联的课节ID';
+COMMENT ON COLUMN public.class_session_statistics.session_id IS '关联的课节ID (UUID，外键关联 class_sessions.id)';
 COMMENT ON COLUMN public.class_session_statistics.classroom_id IS 'ClassIn课堂ID';
 COMMENT ON COLUMN public.class_session_statistics.student_id IS '学生ID (ClassIn SID)';
 COMMENT ON COLUMN public.class_session_statistics.statistics IS '完整的统计数据JSON，包含stageEnd, silenceEnd, screenchangeEnd等';

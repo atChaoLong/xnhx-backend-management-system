@@ -87,7 +87,7 @@
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | id | UUID | 主键 |
-| session_id | TEXT | 关联 class_sessions.id |
+| session_id | UUID | 关联 class_sessions.id (外键) |
 | classroom_id | TEXT | ClassIn 课堂 ID |
 | student_id | INTEGER | 学生 ID (ClassIn SID) |
 | statistics | JSONB | 完整统计数据 |
@@ -211,7 +211,7 @@ SELECT
   statistics->'equipmentsEnd' as equipment_stats,
   created_at
 FROM class_session_statistics
-WHERE session_id = 'your-session-id';
+WHERE session_id = 'your-session-uuid'::uuid;
 ```
 
 ### 查询某学生的课堂参与度
