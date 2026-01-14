@@ -26,10 +26,11 @@ import {
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
-import { Loader2, ArrowLeft, FileText, BookOpen, Video, User, Phone, Mail, School, Calendar, DollarSign, Clock, MessageCircle, Plus } from "lucide-react"
+import { Loader2, ArrowLeft, FileText, BookOpen, Video, User, Phone, Mail, School, Calendar, DollarSign, Clock, MessageCircle, Plus, History } from "lucide-react"
 import { format } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
 import { getDictionaryItems, DictionaryItem } from "@/lib/services/dictionary"
+import { getStudentStatusLabel, getStudentStatusBadgeClass } from "@/lib/utils"
 
 // 学生数据类型
 interface StudentDetail {
@@ -58,12 +59,14 @@ interface StudentDetail {
   courses: Course[]
   classrooms: Classroom[]
   visitRecords: VisitRecord[]
+  statusHistory: StatusHistory[]
   stats: {
     formalOrdersCount: number
     trialLessonsCount: number
     coursesCount: number
     classroomsCount: number
     visitRecordsCount: number
+    statusHistoryCount: number
     totalFormalHours: number
     totalFormalAmount: number
   }
@@ -148,6 +151,17 @@ interface Course {
   created_at: string
   updated_at: string
   order_number?: string
+}
+
+interface StatusHistory {
+  id: string
+  student_id: string
+  old_status: string | null
+  new_status: string
+  reason: string | null
+  changed_by: string | null
+  changed_at: string
+  operator_name?: string
 }
 
 // 订单类型映射
@@ -278,6 +292,19 @@ export default function StudentDetailPage() {
         visitRecords = visitResult.data || []
       }
 
+      // 获取状态变更历史
+      const statusHistoryResponse = await fetch(`/api/students/status-history?student_id=${encodeURIComponent(id)}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      let statusHistory = []
+      if (statusHistoryResponse.ok) {
+        const statusHistoryResult = await statusHistoryResponse.json()
+        statusHistory = statusHistoryResult.data || []
+      }
+
       // 获取回访人员信息
       const visitRecordsWithNames = await Promise.all(
         visitRecords.map(async (record: VisitRecord) => {
@@ -307,9 +334,11 @@ export default function StudentDetailPage() {
       setDetail({
         ...detailResult.data,
         visitRecords: visitRecordsWithNames,
+        statusHistory: statusHistory,
         stats: {
           ...detailResult.data.stats,
           visitRecordsCount: visitRecordsWithNames.length,
+          statusHistoryCount: statusHistory.length,
         },
       })
     } catch (error: any) {
@@ -420,7 +449,7 @@ export default function StudentDetailPage() {
     )
   }
 
-  const { student, orders, trialLessons, courses, classrooms, visitRecords, stats } = detail
+  const { student, orders, trialLessons, courses, classrooms, visitRecords, statusHistory, stats } = detail
 
   return (
     <div className="flex flex-col h-full">
@@ -434,13 +463,14 @@ export default function StudentDetailPage() {
           </Button>
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 lg:w-auto">
+          <TabsList className="grid w-full grid-cols-7 lg:w-auto">
             <TabsTrigger value="overview">概览</TabsTrigger>
             <TabsTrigger value="orders">订单 ({stats.formalOrdersCount})</TabsTrigger>
             <TabsTrigger value="courses">课程 ({stats.coursesCount})</TabsTrigger>
             <TabsTrigger value="trials">试听课 ({stats.trialLessonsCount})</TabsTrigger>
             <TabsTrigger value="classrooms">课堂 ({stats.classroomsCount})</TabsTrigger>
             <TabsTrigger value="visits">回访 ({stats.visitRecordsCount})</TabsTrigger>
+            <TabsTrigger value="history">状态变更 ({stats.statusHistoryCount})</TabsTrigger>
           </TabsList>
 
           {/* 概览标签 */}
@@ -892,6 +922,66 @@ export default function StudentDetailPage() {
                             <TableCell>{record.visit_personnel_name || '未知'}</TableCell>
                             <TableCell>
                               {format(new Date(record.created_at), 'yyyy-MM-dd HH:mm')}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 状态变更历史标签 */}
+          <TabsContent value="history" className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>状态变更历史</CardTitle>
+                <History className="h-5 w-5 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {statusHistory.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">暂无状态变更记录</p>
+                ) : (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>变更时间</TableHead>
+                          <TableHead>原状态</TableHead>
+                          <TableHead>新状态</TableHead>
+                          <TableHead>变更原因</TableHead>
+                          <TableHead>操作人</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {statusHistory.map((record) => (
+                          <TableRow key={record.id}>
+                            <TableCell className="font-medium">
+                              {format(new Date(record.changed_at), 'yyyy-MM-dd HH:mm')}
+                            </TableCell>
+                            <TableCell>
+                              {record.old_status ? (
+                                <Badge className={getStudentStatusBadgeClass(record.old_status)}>
+                                  {getStudentStatusLabel(record.old_status)}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={getStudentStatusBadgeClass(record.new_status)}>
+                                {getStudentStatusLabel(record.new_status)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="max-w-md">
+                              {record.reason || (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {record.operator_name || '未知'}
                             </TableCell>
                           </TableRow>
                         ))}
