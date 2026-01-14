@@ -435,13 +435,30 @@ async function handleEnd(data: ClassInCallbackData): Promise<void> {
 
     logger.info('找到课程记录', { courseId, localCourseId: course.id });
 
-    // 2. 通过 course_id 查找对应的课节记录（状态为 scheduled 且最近排课的）
+    // 2. 通过 course_id + StartTime 匹配到具体的课节记录
+    // 找到 StartTime 之前最近的一个课节（包括当天）
+    const startTimeDate = startTime ? new Date(startTime * 1000) : null;
+
+    if (!startTimeDate) {
+      logger.warn('无法确定上课时间，缺少 StartTime', { courseId });
+      return;
+    }
+
+    const startTimeISO = startTimeDate.toISOString(); // 完整 ISO 时间字符串
+
+    logger.info('查找课节，通知时间', {
+      courseId,
+      startTime: startTimeISO
+    });
+
+    // 查找通知时间之前最近的一个课节
     const { data: session, error: sessionError } = await supabaseServer
       .from('class_sessions')
-      .select('id, course_id, scheduled_duration_minutes, teacher_id, status, classroom_id, scheduled_date')
+      .select('id, course_id, scheduled_duration_minutes, teacher_id, status, classroom_id, scheduled_date, scheduled_time_start, scheduled_time_end')
       .eq('course_id', course.id)
-      .eq('status', 'scheduled')
-      .order('scheduled_date', { ascending: true })
+      .lte('scheduled_date', startTimeISO) // scheduled_date <= 通知日期
+      .order('scheduled_date', { ascending: false }) // 按日期降序
+      .order('scheduled_time_start', { ascending: false }) // 按时间降序
       .limit(1)
       .maybeSingle();
 
@@ -451,9 +468,22 @@ async function handleEnd(data: ClassInCallbackData): Promise<void> {
     }
 
     if (!session) {
-      logger.warn('未找到对应的课节记录', { courseId, courseLocalId: course.id });
+      logger.warn('未找到对应的课节记录', {
+        courseId,
+        courseLocalId: course.id,
+        startTime: startTimeISO
+      });
       return;
     }
+
+    logger.info('找到课节记录', {
+      sessionId: session.id,
+      courseId: session.course_id,
+      scheduledDate: session.scheduled_date,
+      scheduledTime: session.scheduled_time_start,
+      status: session.status,
+      classroomId: session.classroom_id
+    });
 
     // 3. 更新课节的 classroom_id（如果未设置）
     if (!session.classroom_id && classId) {
