@@ -61,124 +61,163 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "首条记录缺少 teacherName 或 studentName" }, { status: 400 })
     }
 
-    const { data: firstTeacher, error: firstTErr } = await supabaseServer
-      .from("teacher_classin")
-      .select("*")
-      .eq("name", first.teacherName)
-      .eq("is_del", 0)
-      .single()
-    if (firstTErr || !firstTeacher?.uid) {
-      return NextResponse.json({ error: `教师未绑定 ClassIn：${first.teacherName}` }, { status: 400 })
-    }
-
     const courseName = `【正式】${first.studentName} ${first.subject || ""}课`
-    const courseId = await sdk.createCourse({ courseName })
 
-    try {
-      await supabaseServer
-        .from("class_classin")
-        .upsert(
-          {
-            course_id: courseId,
-            course_name: courseName,
-            creator_uid: firstTeacher.uid,
-            creater_name: first.teacherName,
-            add_time: Math.floor(Date.now() / 1000),
-            course_state: 1,
-            sync_time: new Date().toISOString(),
-          },
-          { onConflict: "course_id" }
-        )
-    } catch (e: any) {
-      logger.warn("写入 class_classin 失败（非致命）", { message: e?.message })
+    // 1. 先检查订单是否已有课程（检查本地和 ClassIn）
+    let courseId: string | null = null
+    let localCourseId: string | null = null
+
+    const { data: existingCourse, error: fetchError } = await supabaseServer
+      .from('courses')
+      .select('id, classin_course_id, course_name')
+      .eq('order_id', orderId)
+      .maybeSingle()
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      logger.error("查询现有课程失败", { orderId, message: fetchError.message })
     }
 
-    // 创建或获取本地 course 记录（关联订单和 ClassIn 课程）
-    let localCourseId: string | null = null
-    try {
-      // 1. 先检查订单是否已有课程
-      const { data: existingCourse, error: fetchError } = await supabaseServer
-        .from('courses')
-        .select('id, classin_course_id, course_name')
-        .eq('order_id', orderId)
-        .maybeSingle()
+    const subject = order.subjects?.[0] || first.subject
+    const teacherName = order.teacher_names?.[0] || first.teacherName
+    const grade = gradeCode
 
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        logger.error("查询现有课程失败", { orderId, message: fetchError.message })
-      }
+    // 尝试查找教师ID
+    let teacherId = null
+    if (teacherName) {
+      const { data: teacherProfile } = await supabaseServer
+        .from('user_profiles')
+        .select('id')
+        .eq('name', teacherName)
+        .single()
+      teacherId = teacherProfile?.id || null
+    }
 
-      const subject = order.subjects?.[0] || first.subject
-      const teacherName = order.teacher_names?.[0] || first.teacherName
-      const grade = gradeCode
+    if (existingCourse) {
+      // 2a. 课程已存在，使用现有课程
+      localCourseId = existingCourse.id
+      courseId = existingCourse.classin_course_id
+      logger.info("使用现有课程", { orderId, localCourseId, classinCourseId: courseId })
 
-      // 尝试查找教师ID
-      let teacherId = null
-      if (teacherName) {
-        const { data: teacherProfile } = await supabaseServer
-          .from('user_profiles')
-          .select('id')
-          .eq('name', teacherName)
+      // 如果本地有课程但 ClassIn course_id 为空，需要创建
+      if (!courseId) {
+        logger.info("本地课程存在但 ClassIn 课程 ID 为空，创建新 ClassIn 课程", { localCourseId })
+
+        const { data: firstTeacher, error: firstTErr } = await supabaseServer
+          .from("teacher_classin")
+          .select("*")
+          .eq("name", first.teacherName)
+          .eq("is_del", 0)
           .single()
-        teacherId = teacherProfile?.id || null
-      }
-
-      if (existingCourse) {
-        // 2a. 课程已存在，使用现有课程
-        localCourseId = existingCourse.id
-        logger.info("使用现有课程", { orderId, localCourseId, classinCourseId: existingCourse.classin_course_id })
-
-        // 如果 ClassIn 课程 ID 不同，更新它
-        if (existingCourse.classin_course_id !== courseId) {
-          const { error: updateError } = await supabaseServer
-            .from('courses')
-            .update({
-              classin_course_id: courseId,
-              course_name: courseName,
-            })
-            .eq('id', existingCourse.id)
-
-          if (updateError) {
-            logger.warn("更新课程 ClassIn ID 失败（非致命）", { localCourseId, message: updateError.message })
-          } else {
-            logger.info("更新课程 ClassIn ID 成功", { localCourseId, oldClassinId: existingCourse.classin_course_id, newClassinId: courseId })
-          }
+        if (firstTErr || !firstTeacher?.uid) {
+          return NextResponse.json({ error: `教师未绑定 ClassIn：${first.teacherName}` }, { status: 400 })
         }
-      } else {
-        // 2b. 课程不存在，创建新课程
-        const { data: courseData, error: courseError } = await supabaseServer
+
+        courseId = await sdk.createCourse({ courseName })
+
+        // 更新本地课程的 ClassIn ID
+        const { error: updateError } = await supabaseServer
           .from('courses')
-          .insert({
-            order_id: orderId,
-            student_id: order.student_id,
+          .update({
             classin_course_id: courseId,
             course_name: courseName,
-            subject: subject,
-            grade: grade,
-            teacher_id: teacherId,
-            teacher_name: teacherName,
-            session_count: scheduleItems.length,
-            total_hours: order.total_hours || 0,
-            course_status: 'active',
-            course_consumption_info: JSON.stringify({
-              totalSessions: scheduleItems.length,
-              completedSessions: 0,
-              progress: 0,
-              lastSyncTime: new Date().toISOString(),
-            }),
-            notes: `通过批量排课创建，订单号：${order.id || ''}`,
           })
-          .select('id')
-          .single()
+          .eq('id', existingCourse.id)
 
-        if (courseError) {
-          logger.error("创建本地 course 记录失败", { orderId, courseId, message: courseError.message })
-        } else if (courseData) {
-          localCourseId = courseData.id
-          logger.info("创建本地 course 记录成功", { orderId, classinCourseId: courseId, localCourseId })
+        if (updateError) {
+          logger.warn("更新课程 ClassIn ID 失败", { localCourseId, message: updateError.message })
+        } else {
+          logger.info("更新课程 ClassIn ID 成功", { localCourseId, classinCourseId: courseId })
+        }
+
+        // 写入 class_classin 表
+        try {
+          await supabaseServer
+            .from("class_classin")
+            .upsert(
+              {
+                course_id: courseId,
+                course_name: courseName,
+                creator_uid: firstTeacher.uid,
+                creater_name: first.teacherName,
+                add_time: Math.floor(Date.now() / 1000),
+                course_state: 1,
+                sync_time: new Date().toISOString(),
+              },
+              { onConflict: "course_id" }
+            )
+        } catch (e: any) {
+          logger.warn("写入 class_classin 失败（非致命）", { message: e?.message })
         }
       }
-    } catch (e: any) {
-      logger.error("处理本地 course 记录异常（非致命）", { message: e?.message })
+    } else {
+      // 2b. 课程不存在，创建新课程
+      logger.info("课程不存在，创建新 ClassIn 课程和本地课程", { orderId })
+
+      const { data: firstTeacher, error: firstTErr } = await supabaseServer
+        .from("teacher_classin")
+        .select("*")
+        .eq("name", first.teacherName)
+        .eq("is_del", 0)
+        .single()
+      if (firstTErr || !firstTeacher?.uid) {
+        return NextResponse.json({ error: `教师未绑定 ClassIn：${first.teacherName}` }, { status: 400 })
+      }
+
+      // 创建 ClassIn 课程
+      courseId = await sdk.createCourse({ courseName })
+
+      // 写入 class_classin 表
+      try {
+        await supabaseServer
+          .from("class_classin")
+          .upsert(
+            {
+              course_id: courseId,
+              course_name: courseName,
+              creator_uid: firstTeacher.uid,
+              creater_name: first.teacherName,
+              add_time: Math.floor(Date.now() / 1000),
+              course_state: 1,
+              sync_time: new Date().toISOString(),
+            },
+            { onConflict: "course_id" }
+          )
+      } catch (e: any) {
+        logger.warn("写入 class_classin 失败（非致命）", { message: e?.message })
+      }
+
+      // 创建本地 course 记录
+      const { data: courseData, error: courseError } = await supabaseServer
+        .from('courses')
+        .insert({
+          order_id: orderId,
+          student_id: order.student_id,
+          classin_course_id: courseId,
+          course_name: courseName,
+          subject: subject,
+          grade: grade,
+          teacher_id: teacherId,
+          teacher_name: teacherName,
+          session_count: scheduleItems.length,
+          total_hours: order.total_hours || 0,
+          course_status: 'active',
+          course_consumption_info: JSON.stringify({
+            totalSessions: scheduleItems.length,
+            completedSessions: 0,
+            progress: 0,
+            lastSyncTime: new Date().toISOString(),
+          }),
+          notes: `通过批量排课创建，订单号：${order.id || ''}`,
+        })
+        .select('id')
+        .single()
+
+      if (courseError) {
+        logger.error("创建本地 course 记录失败", { orderId, courseId, message: courseError.message })
+      } else if (courseData) {
+        localCourseId = courseData.id
+        logger.info("创建本地 course 记录成功", { orderId, classinCourseId: courseId, localCourseId })
+      }
     }
 
     // 获取现有课节列表（用于检查重复）
