@@ -500,8 +500,10 @@ export default function LeadsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            {/* 运营催促按钮 - 仅运营可见且线索已分配给销售时显示 */}
-                            {user?.role === 'operator' && (lead.grab_user_id || (lead.grab_wechat && lead.grab_wechat.trim() !== '')) && (
+                            {/* 运营催促按钮 - 仅运营可见且线索已分配给销售且未添加时显示 */}
+                            {user?.role === 'operator' &&
+                             (lead.grab_user_id || (lead.grab_wechat && lead.grab_wechat.trim() !== '')) &&
+                             lead.add_status !== 'added' && (
                               <Button
                                 variant="outline"
                                 size="sm"
