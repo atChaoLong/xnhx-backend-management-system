@@ -27,11 +27,12 @@ import {
   PaginationPageSize,
   PaginationInfo,
 } from "@/components/ui/pagination"
-import { Plus, Edit, Trash2, Loader2, AlertTriangle, Video, MessageCircle } from "lucide-react"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle, Video, MessageCircle, Bell } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { LeadsService, Lead } from "@/lib/services/leads"
+import { TodosService } from "@/lib/services/todos"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { uploadChatScreenshot } from "@/lib/services/upload"
 import { useToast } from "@/hooks/use-toast"
@@ -253,6 +254,7 @@ export default function LeadsPage() {
 
   const [isGrabbing, setIsGrabbing] = useState<string | null>(null)
   const [isReleasing, setIsReleasing] = useState<string | null>(null)
+  const [isUrging, setIsUrging] = useState<string | null>(null)
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false)
   const [feedbackLead, setFeedbackLead] = useState<Lead | null>(null)
   const [feedbackStatus, setFeedbackStatus] = useState<'added' | 'not_added' | ''>('')
@@ -306,6 +308,44 @@ export default function LeadsPage() {
       toast({ variant: 'destructive', title: '释放失败', description: error.message || '无法释放线索' })
     } finally {
       setIsReleasing(null)
+    }
+  }
+
+  const handleUrgeLead = async (lead: Lead) => {
+    // 检查线索是否已分配给销售人员
+    if (!lead.grab_user_id && (!lead.grab_wechat || lead.grab_wechat.trim() === '')) {
+      toast({
+        variant: 'destructive',
+        title: '无法催促',
+        description: '该线索未分配给销售人员',
+      })
+      return
+    }
+
+    try {
+      setIsUrging(lead.id)
+
+      // 创建待办事项
+      await TodosService.createTodo({
+        assigned_to: lead.grab_user_id || '',
+        title: `尽快跟进线索：${lead.student_name || '未命名'}`,
+        description: `该线索尚未处理，请尽快联系。微信：${lead.wechat_id || '未填写'}，电话：${lead.phone || '未填写'}`,
+        priority: 'high',
+        due_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16), // 明天这个时候
+      })
+
+      toast({
+        title: '催促成功',
+        description: '已创建待办事项提醒销售人员',
+      })
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: '催促失败',
+        description: error.message || '无法创建催促待办',
+      })
+    } finally {
+      setIsUrging(null)
     }
   }
 
@@ -460,6 +500,29 @@ export default function LeadsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            {/* 运营催促按钮 - 仅运营可见且线索已分配给销售时显示 */}
+                            {user?.role === 'operator' && (lead.grab_user_id || (lead.grab_wechat && lead.grab_wechat.trim() !== '')) && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleUrgeLead(lead)}
+                                disabled={isUrging === lead.id}
+                                title="创建待办提醒销售尽快处理"
+                                className="text-orange-600 border-orange-600 hover:bg-orange-50"
+                              >
+                                {isUrging === lead.id ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    催促中...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Bell className="mr-2 h-4 w-4" />
+                                    催促
+                                  </>
+                                )}
+                              </Button>
+                            )}
                             {/* 销售抢单：仅未分配时显示 */}
                             {user?.role === 'sales' && (!lead.grab_wechat || lead.grab_wechat.trim() === '') && (
                               <Button
