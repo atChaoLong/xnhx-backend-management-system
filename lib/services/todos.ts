@@ -65,11 +65,7 @@ export const TodosService = {
    * 创建待办
    */
   async createTodo(todo: CreateTodoRequest): Promise<Todo> {
-    const response = await api.post('/api/todos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(todo),
-    })
+    const response = await api.post('/api/todos', todo)
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: '创建待办失败' }))
@@ -84,11 +80,7 @@ export const TodosService = {
    * 更新待办
    */
   async updateTodo(id: string, updates: UpdateTodoRequest): Promise<Todo> {
-    const response = await api.put('/api/todos', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, ...updates }),
-    })
+    const response = await api.put('/api/todos', { id, ...updates })
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: '更新待办失败' }))
@@ -103,10 +95,7 @@ export const TodosService = {
    * 标记待办为完成
    */
   async completeTodo(id: string): Promise<Todo> {
-    const response = await api.post(`/api/todos/${id}/complete`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    })
+    const response = await api.post(`/api/todos/${id}/complete`)
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: '标记完成失败' }))
@@ -143,11 +132,7 @@ export const TodosService = {
     due_date?: string
     metadata?: Record<string, any>
   }): Promise<Todo> {
-    const response = await api.post('/api/todos/auto', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    })
+    const response = await api.post('/api/todos/auto', params)
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: '自动创建待办失败' }))
