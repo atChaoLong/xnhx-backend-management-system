@@ -37,5 +37,12 @@ export const UserProfilesService = {
    */
   async getAllOperators(): Promise<UserProfile[]> {
     return this.getUsers('operator')
+  },
+
+  /**
+   * 获取所有用户
+   */
+  async getAllUserProfiles(): Promise<UserProfile[]> {
+    return this.getUsers()
   }
 }
