@@ -10,6 +10,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { WeeklySchedulePicker, type WeeklySchedule } from "@/components/ui/weekly-schedule-picker"
 import { Loader2, Plus, Trash2, Calendar, Clock, User, GraduationCap } from "lucide-react"
 import { FormalOrdersService } from "@/lib/services/formalOrders"
 import { StudentsService } from "@/lib/services/students"
@@ -65,6 +67,26 @@ export default function BatchSchedulePage() {
   const [selectAll, setSelectAll] = useState(false)
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
 
+  // 排课模式：单节课 vs 班级课
+  const [scheduleMode, setScheduleMode] = useState<'single' | 'class'>('single')
+
+  // 班级名称
+  const [className, setClassName] = useState('')
+
+  // 每周重复规则：每周开课时间一样 vs 每周开课时间自定义
+  const [repeatMode, setRepeatMode] = useState<'same' | 'custom'>('same')
+
+  // 每周时间配置（用于班级课自定义模式）
+  const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule>({
+    monday: null,
+    tuesday: null,
+    wednesday: null,
+    thursday: null,
+    friday: null,
+    saturday: null,
+    sunday: null,
+  })
+
   // 加载订单数据
   useEffect(() => {
     const loadData = async () => {
@@ -118,6 +140,110 @@ export default function BatchSchedulePage() {
     }
   }
 
+  // 计算课程结束时间
+  const calculateEndTime = (startTime: string, durationMinutes: number): string => {
+    const [hour, minute] = startTime.split(':').map(Number)
+    const totalMinutes = hour * 60 + minute + durationMinutes
+    const endHour = Math.floor(totalMinutes / 60)
+    const endMinute = totalMinutes % 60
+    return `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
+  }
+
+  // 生成班级课"每周一样"模式的课表
+  const generateSameWeeklySchedule = (
+    startDate: string,
+    startTime: string,
+    totalSessions: number,
+    sessionDuration: number
+  ): { date: string; startTime: string; endTime: string }[] => {
+    const sessions: { date: string; startTime: string; endTime: string }[] = []
+    const currentDate = new Date(startDate)
+
+    // 从开始日期开始，每周同一时间
+    for (let i = 0; i < totalSessions; i++) {
+      const scheduleDate = new Date(currentDate)
+      scheduleDate.setDate(scheduleDate.getDate() + i * 7)
+
+      const endTime = calculateEndTime(startTime, sessionDuration)
+      sessions.push({
+        date: format(scheduleDate, 'yyyy-MM-dd'),
+        startTime: startTime,
+        endTime: endTime,
+      })
+    }
+
+    return sessions
+  }
+
+  // 找到从指定日期开始，第一个匹配目标星期几的日期
+  const findFirstMatchingDay = (startDate: string, targetDayOfWeek: number): string => {
+    const currentDate = new Date(startDate)
+    const currentDayOfWeek = currentDate.getDay()
+
+    // 计算需要增加的天数
+    let daysToAdd = (targetDayOfWeek - currentDayOfWeek + 7) % 7
+    if (daysToAdd === 0 && currentDate.getHours() === 0) {
+      // 如果刚好是目标星期几且是当天，检查是否需要推迟到下周
+      // 这里简化处理，如果时间已过则推迟
+    }
+
+    currentDate.setDate(currentDate.getDate() + daysToAdd)
+    return format(currentDate, 'yyyy-MM-dd')
+  }
+
+  // 生成班级课"每周自定义"模式的课表
+  const generateCustomWeeklySchedule = (
+    startDate: string,
+    weeklySchedule: WeeklySchedule,
+    totalSessions: number,
+    sessionDuration: number
+  ): { date: string; startTime: string; endTime: string }[] => {
+    const sessions: { date: string; startTime: string; endTime: string }[] = []
+    const currentDate = new Date(startDate)
+
+    // 星期几映射（0=周日, 1=周一, ..., 6=周六）
+    const dayMap: Record<keyof WeeklySchedule, number> = {
+      monday: 1,
+      tuesday: 2,
+      wednesday: 3,
+      thursday: 4,
+      friday: 5,
+      saturday: 6,
+      sunday: 0,
+    }
+
+    // 防止无限循环
+    let daysChecked = 0
+    const maxDays = 365
+
+    while (sessions.length < totalSessions && daysChecked < maxDays) {
+      const dayOfWeek = currentDate.getDay()
+
+      // 检查当天是否有排课
+      for (const [dayKey, time] of Object.entries(weeklySchedule)) {
+        if (time && dayMap[dayKey as keyof WeeklySchedule] === dayOfWeek) {
+          const endTime = calculateEndTime(time, sessionDuration)
+          sessions.push({
+            date: format(currentDate, 'yyyy-MM-dd'),
+            startTime: time,
+            endTime: endTime,
+          })
+
+          // 如果已生成足够的课程，提前退出
+          if (sessions.length >= totalSessions) {
+            break
+          }
+        }
+      }
+
+      // 移动到下一天
+      currentDate.setDate(currentDate.getDate() + 1)
+      daysChecked++
+    }
+
+    return sessions
+  }
+
   // 选择订单时预览排课信息
   const handleOrderChange = async (orderId: string) => {
     setSelectedOrderId(orderId)
@@ -140,6 +266,12 @@ export default function BatchSchedulePage() {
 
       const orderWithStudent = { ...order, student_name: student.student_name }
       setSelectedOrder(orderWithStudent)
+
+      // 自动生成班级名称：学生-老师科目课
+      const teacherName = order.teacher_names?.[0] || ''
+      const subject = order.subjects?.[0] || ''
+      const autoClassName = `${student.student_name}-${teacherName}${subject}课`
+      setClassName(autoClassName)
 
       // 将订单的 frequency 转换为字典 code
       const frequencyItem = frequencies.find(f => f.label === order.frequency)
@@ -204,47 +336,51 @@ export default function BatchSchedulePage() {
                 const lastSession = sortedSessions[sortedSessions.length - 1]
                 const lastDate = lastSession.scheduled_date
 
-                // 从最后一节课的日期开始，根据频次生成后续课程
+                // 从最后一节课的日期开始，根据当前模式和频次生成后续课程
                 const { totalSessions, sessionDuration, frequency } = params
-                const daysBetween = getDaysBetweenSessions(frequency)
-
-                // 计算还需要生成多少节课（总共 - 已有）
-                const remainingSessions = totalSessions - existingSessions.length
                 const newSessions: ScheduleItem[] = []
 
-                for (let i = 0; i < remainingSessions; i++) {
-                  const scheduleDate = new Date(lastDate)
-                  scheduleDate.setDate(scheduleDate.getDate() + Math.floor((i + 1) * daysBetween))
-
-                  const sessionStartTime = startTime
-                  const [hour, minute] = startTime.split(':').map(Number)
-                  const totalMinutes = hour * 60 + minute + sessionDuration
-                  const endHour = Math.floor(totalMinutes / 60)
-                  const endMinute = totalMinutes % 60
-                  const sessionEndTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
-
-                  newSessions.push({
-                    id: `preview-${order.id}-${i}`,
-                    studentId: order.student_id,
-                    studentName: student.student_name || "未知学生",
-                    teacherId: order.teacher_names?.[0] || "",
-                    teacherName: order.teacher_names?.[0] || "未分配",
-                    subject: order.subjects?.[0] || "",
-                    date: format(scheduleDate, 'yyyy-MM-dd'),
-                    startTime: sessionStartTime,
-                    endTime: sessionEndTime,
-                    classroom: "",
+                if (scheduleMode === 'single') {
+                  // 排1节课模式：已有课节就不再生成新的
+                  setScheduleList(existingSessions)
+                  toast({
+                    title: "已加载课节列表",
+                    description: `已有 ${existingSessions.length} 节课`,
                   })
+                  return
+                } else {
+                  // 班级课模式：生成剩余课时
+                  const daysBetween = getDaysBetweenSessions(frequency)
+                  const remainingSessions = totalSessions - existingSessions.length
+
+                  for (let i = 0; i < remainingSessions; i++) {
+                    const scheduleDate = new Date(lastDate)
+                    scheduleDate.setDate(scheduleDate.getDate() + Math.floor((i + 1) * daysBetween))
+
+                    const endTime = calculateEndTime(startTime, sessionDuration)
+                    newSessions.push({
+                      id: `preview-${order.id}-${i}`,
+                      studentId: order.student_id,
+                      studentName: student.student_name || "未知学生",
+                      teacherId: order.teacher_names?.[0] || "",
+                      teacherName: order.teacher_names?.[0] || "未分配",
+                      subject: order.subjects?.[0] || "",
+                      date: format(scheduleDate, 'yyyy-MM-dd'),
+                      startTime: startTime,
+                      endTime: endTime,
+                      classroom: "",
+                    })
+                  }
+
+                  // 合并已有课节和新课节，已有课节在前
+                  setScheduleList([...existingSessions, ...newSessions])
+
+                  toast({
+                    title: "已加载课节列表",
+                    description: `已有 ${existingSessions.length} 节，新增 ${newSessions.length} 节`,
+                  })
+                  return
                 }
-
-                // 合并已有课节和新课节，已有课节在前
-                setScheduleList([...existingSessions, ...newSessions])
-
-                toast({
-                  title: "已加载课节列表",
-                  description: `已有 ${existingSessions.length} 节，新增 ${newSessions.length} 节`,
-                })
-                return
               }
             }
           }
@@ -254,34 +390,47 @@ export default function BatchSchedulePage() {
         console.warn("加载已有课节失败:", error)
       }
 
-      // 如果没有已有课节，生成所有课程
+      // 如果没有已有课节，根据当前模式生成课程
       const newSessions: ScheduleItem[] = []
       const { totalSessions, sessionDuration, frequency } = params
-      const daysBetween = getDaysBetweenSessions(frequency)
 
-      for (let i = 0; i < totalSessions; i++) {
-        const scheduleDate = new Date(startDate)
-        scheduleDate.setDate(scheduleDate.getDate() + Math.floor(i * daysBetween))
-
-        const sessionStartTime = startTime
-        const [hour, minute] = startTime.split(':').map(Number)
-        const totalMinutes = hour * 60 + minute + sessionDuration
-        const endHour = Math.floor(totalMinutes / 60)
-        const endMinute = totalMinutes % 60
-        const sessionEndTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
-
+      if (scheduleMode === 'single') {
+        // 排1节课模式：只生成一节课
+        const endTime = calculateEndTime(startTime, sessionDuration)
         newSessions.push({
-          id: `preview-${order.id}-${i}`,
+          id: `preview-${order.id}-0`,
           studentId: order.student_id,
           studentName: student.student_name || "未知学生",
           teacherId: order.teacher_names?.[0] || "",
           teacherName: order.teacher_names?.[0] || "未分配",
           subject: order.subjects?.[0] || "",
-          date: format(scheduleDate, 'yyyy-MM-dd'),
-          startTime: sessionStartTime,
-          endTime: sessionEndTime,
+          date: startDate,
+          startTime: startTime,
+          endTime: endTime,
           classroom: "",
         })
+      } else {
+        // 班级课模式：生成所有课程
+        const daysBetween = getDaysBetweenSessions(frequency)
+
+        for (let i = 0; i < totalSessions; i++) {
+          const scheduleDate = new Date(startDate)
+          scheduleDate.setDate(scheduleDate.getDate() + Math.floor(i * daysBetween))
+
+          const endTime = calculateEndTime(startTime, sessionDuration)
+          newSessions.push({
+            id: `preview-${order.id}-${i}`,
+            studentId: order.student_id,
+            studentName: student.student_name || "未知学生",
+            teacherId: order.teacher_names?.[0] || "",
+            teacherName: order.teacher_names?.[0] || "未分配",
+            subject: order.subjects?.[0] || "",
+            date: format(scheduleDate, 'yyyy-MM-dd'),
+            startTime: startTime,
+            endTime: endTime,
+            classroom: "",
+          })
+        }
       }
 
       setScheduleList(newSessions)
@@ -314,6 +463,21 @@ export default function BatchSchedulePage() {
     if (!selectedOrder || !selectedOrderId) return
 
     try {
+      // 班级课模式验证
+      if (scheduleMode === 'class') {
+        if (repeatMode === 'custom') {
+          const selectedDays = Object.values(weeklySchedule).filter((v): v is string => v !== null)
+          if (selectedDays.length === 0) {
+            toast({
+              variant: "destructive",
+              title: "请选择上课时间",
+              description: "请至少选择一天的课程时间",
+            })
+            return
+          }
+        }
+      }
+
       // 加载已有的课节
       let existingSessions: ScheduleItem[] = []
       let lastDate = editableParams.startDate
@@ -355,38 +519,63 @@ export default function BatchSchedulePage() {
         console.warn("加载已有课节失败:", error)
       }
 
-      // 根据当前参数生成新课节
-      const { totalSessions, sessionDuration, frequency, startDate, startTime } = editableParams
-      const daysBetween = getDaysBetweenSessions(frequency)
-      const remainingSessions = totalSessions - existingSessions.length
-      const newSessions: ScheduleItem[] = []
+      const { totalSessions, sessionDuration, startDate, startTime } = editableParams
+      let newSessions: ScheduleItem[] = []
 
-      // 从最后一节课（或开始日期）开始生成
-      const baseDate = existingSessions.length > 0 ? lastDate : startDate
+      // 根据排课模式生成新课节
+      if (scheduleMode === 'single') {
+        // 排1节课模式：只生成一节课
+        const baseDate = existingSessions.length > 0 ? lastDate : startDate
 
-      for (let i = 0; i < remainingSessions; i++) {
-        const scheduleDate = new Date(baseDate)
-        scheduleDate.setDate(scheduleDate.getDate() + Math.floor((i + 1) * daysBetween))
-
-        const sessionStartTime = startTime
-        const [hour, minute] = startTime.split(':').map(Number)
-        const totalMinutes = hour * 60 + minute + sessionDuration
-        const endHour = Math.floor(totalMinutes / 60)
-        const endMinute = totalMinutes % 60
-        const sessionEndTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
-
+        const endTime = calculateEndTime(startTime, sessionDuration)
         newSessions.push({
-          id: `preview-${selectedOrder.id}-${Date.now()}-${i}`,
+          id: `preview-${selectedOrder.id}-${Date.now()}`,
           studentId: selectedOrder.student_id,
           studentName: selectedOrder.student_name || "未知学生",
           teacherId: selectedOrder.teacher_names?.[0] || "",
           teacherName: selectedOrder.teacher_names?.[0] || "未分配",
           subject: selectedOrder.subjects?.[0] || "",
-          date: format(scheduleDate, 'yyyy-MM-dd'),
-          startTime: sessionStartTime,
-          endTime: sessionEndTime,
+          date: baseDate,
+          startTime: startTime,
+          endTime: endTime,
           classroom: "",
         })
+      } else {
+        // 班级课模式：生成所有课时
+        const remainingSessions = totalSessions - existingSessions.length
+        const baseDate = existingSessions.length > 0 ? lastDate : startDate
+
+        if (repeatMode === 'same') {
+          // 每周开课时间一样
+          const scheduleData = generateSameWeeklySchedule(baseDate, startTime, remainingSessions, sessionDuration)
+          newSessions = scheduleData.map((session, i) => ({
+            id: `preview-${selectedOrder.id}-${Date.now()}-${i}`,
+            studentId: selectedOrder.student_id,
+            studentName: selectedOrder.student_name || "未知学生",
+            teacherId: selectedOrder.teacher_names?.[0] || "",
+            teacherName: selectedOrder.teacher_names?.[0] || "未分配",
+            subject: selectedOrder.subjects?.[0] || "",
+            date: session.date,
+            startTime: session.startTime,
+            endTime: session.endTime,
+            classroom: "",
+          }))
+        } else {
+          // 每周开课时间自定义
+          const scheduleData = generateCustomWeeklySchedule(baseDate, weeklySchedule, remainingSessions, sessionDuration)
+          newSessions = scheduleData.map((session, i) => ({
+            id: `preview-${selectedOrder.id}-${Date.now()}-${i}`,
+            studentId: selectedOrder.student_id,
+            studentName: selectedOrder.student_name || "未知学生",
+            teacherId: selectedOrder.teacher_names?.[0] || "",
+            teacherName: selectedOrder.teacher_names?.[0] || "未分配",
+            subject: selectedOrder.subjects?.[0] || "",
+            date: session.date,
+            startTime: session.startTime,
+            endTime: session.endTime,
+            classroom: "",
+          }))
+        }
       }
 
       // 合并已有课节和新课节
@@ -569,17 +758,8 @@ export default function BatchSchedulePage() {
                 </div>
 
                 {selectedOrder && (
-                  <div className="mt-4 p-4 bg-muted rounded-lg space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium text-sm">订单信息</h4>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={regenerateSchedule}
-                      >
-                        重新生成
-                      </Button>
-                    </div>
+                  <div className="mt-4 p-4 bg-muted rounded-lg">
+                    <h4 className="font-medium text-sm mb-2">订单信息</h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div>
                         <span className="text-muted-foreground">学生姓名：</span>
@@ -599,63 +779,27 @@ export default function BatchSchedulePage() {
                       </div>
                       <div>
                         <span className="text-muted-foreground">开课日期：</span>
-                        <Input
-                          type="date"
-                          value={editableParams.startDate}
-                          onChange={(e) => setEditableParams(p => ({ ...p, startDate: e.target.value }))}
-                          className="h-7 w-32 inline-block align-middle ml-1"
-                        />
+                        <span className="font-medium">
+                          {selectedOrder.official_start_time
+                            ? format(new Date(selectedOrder.official_start_time), 'yyyy-MM-dd')
+                            : '-'}
+                        </span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">开课时间：</span>
-                        <Input
-                          type="time"
-                          value={editableParams.startTime}
-                          onChange={(e) => setEditableParams(p => ({ ...p, startTime: e.target.value }))}
-                          className="h-7 w-24 inline-block align-middle ml-1"
-                        />
+                        <span className="font-medium">
+                          {selectedOrder.official_start_time
+                            ? format(new Date(selectedOrder.official_start_time), 'HH:mm')
+                            : '-'}
+                        </span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">总课时：</span>
-                        <Input
-                          type="number"
-                          min={1}
-                          max={100}
-                          value={editableParams.totalSessions}
-                          onChange={(e) => setEditableParams(p => ({ ...p, totalSessions: parseInt(e.target.value) || 1 }))}
-                          className="h-7 w-20 inline-block align-middle ml-1"
-                        />
+                        <span className="font-medium">{selectedOrder.total_sessions || '-'}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">课时时长：</span>
-                        <Input
-                          type="number"
-                          min={15}
-                          max={300}
-                          step={15}
-                          value={editableParams.sessionDuration}
-                          onChange={(e) => setEditableParams(p => ({ ...p, sessionDuration: parseInt(e.target.value) || 60 }))}
-                          className="h-7 w-20 inline-block align-middle ml-1"
-                        />
-                        <span className="text-muted-foreground ml-1">分钟</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">课程频次：</span>
-                        <Select
-                          value={editableParams.frequency}
-                          onValueChange={(value) => setEditableParams(p => ({ ...p, frequency: value }))}
-                        >
-                          <SelectTrigger className="h-7 w-28 inline-block ml-1">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {frequencies.map((freq) => (
-                              <SelectItem key={freq.code} value={freq.code}>
-                                {freq.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <span className="font-medium">{selectedOrder.session_duration || '-'} 分钟</span>
                       </div>
                     </div>
                   </div>
@@ -663,6 +807,184 @@ export default function BatchSchedulePage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* 排课设置 Card */}
+          {selectedOrder && (
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-6">
+                  <Calendar className="h-5 w-5 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold">排课设置</h3>
+                </div>
+
+                {/* 排课模式选择 */}
+                <div className="mb-6">
+                  <Label className="text-sm font-medium mb-3 block">选择排课模式</Label>
+                  <RadioGroup value={scheduleMode} onValueChange={(value: 'single' | 'class') => setScheduleMode(value)} className="flex gap-4">
+                    <div className="flex items-center space-x-2 border rounded-lg p-4 flex-1 hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value="single" id="single" className="border-primary" />
+                      <div className="flex-1">
+                        <Label htmlFor="single" className="cursor-pointer font-medium">排1节课</Label>
+                        <p className="text-xs text-muted-foreground mt-1">使用固定频次批量创建课程</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 border rounded-lg p-4 flex-1 hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value="class" id="class" className="border-primary" />
+                      <div className="flex-1">
+                        <Label htmlFor="class" className="cursor-pointer font-medium">班级课</Label>
+                        <p className="text-xs text-muted-foreground mt-1">自定义每周上课时间</p>
+                      </div>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {/* 单节课模式配置 */}
+                {scheduleMode === 'single' && (
+                  <div className="border-t pt-6 space-y-4">
+                    {/* 班级名称 */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">班级名称</Label>
+                        <Input
+                          placeholder="请输入班级名称"
+                          value={className}
+                          onChange={(e) => setClassName(e.target.value)}
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">开课日期</Label>
+                        <Input
+                          type="date"
+                          value={editableParams.startDate}
+                          onChange={(e) => setEditableParams(p => ({ ...p, startDate: e.target.value }))}
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">开课时间</Label>
+                        <Input
+                          type="time"
+                          value={editableParams.startTime}
+                          onChange={(e) => setEditableParams(p => ({ ...p, startTime: e.target.value }))}
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">课时时长（分钟）</Label>
+                        <Input
+                          type="number"
+                          min={15}
+                          max={300}
+                          step={15}
+                          value={editableParams.sessionDuration}
+                          onChange={(e) => setEditableParams(p => ({ ...p, sessionDuration: parseInt(e.target.value) || 60 }))}
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">备注</Label>
+                        <Input placeholder="可选" className="h-9" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 班级课模式配置 */}
+                {scheduleMode === 'class' && (
+                  <div className="border-t pt-6 space-y-6">
+                    {/* 班级基本信息 - 按照图片布局 */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">班级名称</Label>
+                        <Input
+                          placeholder="请输入班级名称"
+                          value={className}
+                          onChange={(e) => setClassName(e.target.value)}
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">开课日期</Label>
+                        <Input
+                          type="date"
+                          value={editableParams.startDate}
+                          onChange={(e) => setEditableParams(p => ({ ...p, startDate: e.target.value }))}
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">开课时间</Label>
+                        <Input
+                          type="time"
+                          value={editableParams.startTime}
+                          onChange={(e) => setEditableParams(p => ({ ...p, startTime: e.target.value }))}
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">课时时长（分钟）</Label>
+                        <Input
+                          type="number"
+                          min={15}
+                          max={300}
+                          step={15}
+                          value={editableParams.sessionDuration}
+                          onChange={(e) => setEditableParams(p => ({ ...p, sessionDuration: parseInt(e.target.value) || 60 }))}
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">总课时</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={50}
+                          value={editableParams.totalSessions}
+                          onChange={(e) => setEditableParams(p => ({ ...p, totalSessions: parseInt(e.target.value) || 1 }))}
+                          className="h-9"
+                          placeholder="最大50"
+                        />
+                      </div>
+                    </div>
+
+                    {/* 每周重复规则 */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-semibold">每周重复规则</Label>
+                      <RadioGroup value={repeatMode} onValueChange={(value: 'same' | 'custom') => setRepeatMode(value)} className="flex gap-6">
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="same" id="same" />
+                          <Label htmlFor="same" className="cursor-pointer">每周开课时间一样</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="custom" id="custom" />
+                          <Label htmlFor="custom" className="cursor-pointer">每周开课时间自定义</Label>
+                        </div>
+                      </RadioGroup>
+
+                      {repeatMode === 'custom' && (
+                        <div className="pt-3">
+                          <WeeklySchedulePicker
+                            value={weeklySchedule}
+                            onChange={setWeeklySchedule}
+                            label=""
+                            defaultStartTime={editableParams.startTime}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 底部操作按钮 */}
+                <div className="mt-6 pt-6 border-t">
+                  <Button onClick={regenerateSchedule}>
+                    重新生成课表
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* 排课列表区 */}
           {scheduleList.length > 0 && (
