@@ -101,9 +101,9 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
   // 销售顾问：线索跟进、学生管理、订单录入
   sales: {
     leads: ['view', 'feedback', 'convert', 'assign'], // 授予分配权限（抢单/释放），不授予 edit
-    trialLessons: ['view', 'create', 'edit', 'matchTeacher', 'confirmTime', 'convert'], // 添加 matchTeacher - 销售可以匹配老师
+    trialLessons: ['view', 'create', 'edit', 'matchTeacher', 'confirmTeacher', 'confirmTime', 'addLink', 'convert'], // 添加 confirmTeacher, addLink - 销售可以确认老师和开课
     students: ['view', 'create', 'edit'],
-    formalOrders: ['view', 'create', 'edit'],
+    formalOrders: ['view', 'create', 'edit', 'addLink'], // 添加 addLink - 销售可以为正式订单开课
     classSessions: ['view'],
     courses: ['view'],
     transactions: ['view'],
