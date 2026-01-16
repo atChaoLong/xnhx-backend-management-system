@@ -188,6 +188,7 @@ export async function POST(request: NextRequest) {
       trial_time: body.trial_time,
       trial_duration: parseFloat(body.trial_duration),
       phone: body.phone.trim(),
+      channel: body.channel?.trim() || '',
       trial_amount: body.trial_amount !== undefined ? parseFloat(body.trial_amount) : null,
       payment_proof: body.payment_proof.trim(),
       urgency_level: body.urgency_level || null,

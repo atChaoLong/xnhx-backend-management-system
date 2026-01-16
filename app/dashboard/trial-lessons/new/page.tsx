@@ -51,6 +51,7 @@ export default function NewTrialLessonPage() {
 
     // 联系信息
     phone: "",
+    channel: "",
 
     // 财务信息
     trial_amount: "",
@@ -124,7 +125,8 @@ export default function NewTrialLessonPage() {
       { field: 'trial_subject', name: '试听学科' },
       { field: 'trial_time', name: '试听时间' },
       { field: 'trial_duration', name: '试听时长' },
-      { field: 'phone', name: '手机号' },
+      { field: 'phone', name: '手机或邮箱' },
+      { field: 'channel', name: '渠道' },
       { field: 'payment_proof', name: '付款凭证' },
     ]
 
@@ -173,6 +175,7 @@ export default function NewTrialLessonPage() {
         trial_time: formData.trial_time,
         trial_duration: parseFloat(formData.trial_duration),
         phone: formData.phone.trim(),
+        channel: formData.channel.trim(),
         trial_amount: formData.trial_amount ? parseFloat(formData.trial_amount) : undefined,
         payment_proof: paymentProofUrl,
         notes: formData.notes.trim() || undefined,
@@ -247,17 +250,32 @@ export default function NewTrialLessonPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="phone">
-                    手机号 <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="phone"
-                    placeholder="请输入手机号"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
-                    required
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">
+                      手机或邮箱 <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="phone"
+                      placeholder="请输入手机号或邮箱"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange("phone", e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="channel">
+                      渠道 <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="channel"
+                      placeholder="请输入渠道"
+                      value={formData.channel}
+                      onChange={(e) => handleInputChange("channel", e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 

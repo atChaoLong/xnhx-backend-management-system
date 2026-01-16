@@ -199,7 +199,6 @@ export default function EditTrialLessonPage() {
       { field: 'trial_time', name: '试听时间' },
       { field: 'trial_duration', name: '试听时长' },
       { field: 'phone', name: '手机号' },
-      { field: 'channel', name: '渠道' },
       { field: 'payment_proof', name: '付款凭证' },
     ]
 
@@ -364,15 +363,12 @@ export default function EditTrialLessonPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="channel">
-                      渠道 <span className="text-destructive">*</span>
-                    </Label>
+                    <Label htmlFor="channel">渠道</Label>
                     <Input
                       id="channel"
                       placeholder="请输入渠道"
                       value={formData.channel}
                       onChange={(e) => handleInputChange("channel", e.target.value)}
-                      required
                     />
                   </div>
                 </div>
