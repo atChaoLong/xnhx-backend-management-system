@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
         }
 
         // 创建 ClassIn 课堂
-        const classroomName = course.course_name || `【正式】${studentName} ${raw.subject || ''}课`
+        const classroomName = course.course_name || `${studentName} ${raw.subject || ''}课`
         const startTime = new Date(`${raw.date}T${raw.startTime}`)
         const endTime = new Date(`${raw.date}T${raw.endTime}`)
 

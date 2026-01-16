@@ -17,7 +17,7 @@ interface SchedulePayloadItem {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { items, orderId } = body || {}
+    const { items, orderId, className } = body || {}
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: "请求体缺少 items 或为空" }, { status: 400 })
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "首条记录缺少 teacherName 或 studentName" }, { status: 400 })
     }
 
-    const courseName = `【正式】${first.studentName} ${first.subject || ""}课`
+    const courseName = className?.trim() || `${first.studentName} ${first.subject || ""}课`
 
     // 1. 先检查订单是否已有课程（检查本地和 ClassIn）
     let courseId: string | null = null

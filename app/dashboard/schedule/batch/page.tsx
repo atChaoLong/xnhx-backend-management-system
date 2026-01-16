@@ -683,6 +683,7 @@ export default function BatchSchedulePage() {
     try {
       const payload = {
         orderId: selectedOrderId,
+        className: className,
         items: newSessions.map(item => ({
           studentName: item.studentName,
           teacherName: item.teacherName,
