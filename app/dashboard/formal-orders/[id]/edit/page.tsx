@@ -11,10 +11,12 @@ import { Loader2 } from "lucide-react"
 import { FormalOrdersService, FormalOrder, generateOrderNumber } from "@/lib/services/formalOrders"
 import { TeachersService } from "@/lib/services/teachers"
 import { StudentsService } from "@/lib/services/students"
+import { UserProfilesService } from "@/lib/services/userProfiles"
 import { useDictionary } from "@/lib/hooks/useDictionary"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { Textarea } from "@/components/ui/textarea"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 
 export default function EditFormalOrderPage() {
   const router = useRouter()
@@ -29,7 +31,6 @@ export default function EditFormalOrderPage() {
   // 字典数据
   const { items: orderTypes, loading: orderTypesLoading } = useDictionary('order_type')
   const { items: paymentChannels, loading: paymentChannelsLoading } = useDictionary('payment_channel')
-  const { items: consultants, loading: consultantsLoading } = useDictionary('consultant')
   const { items: sessionDurations, loading: sessionDurationsLoading } = useDictionary('class_duration')
   const { items: fixedModes, loading: fixedModesLoading } = useDictionary('fixed_mode')
   const { items: frequencies, loading: frequenciesLoading } = useDictionary('class_frequency')
@@ -38,6 +39,8 @@ export default function EditFormalOrderPage() {
   // 列表数据
   const [teachers, setTeachers] = useState<any[]>([])
   const [students, setStudents] = useState<any[]>([])
+  const [consultants, setConsultants] = useState<{ id: string; name: string }[]>([])
+  const [previousOrders, setPreviousOrders] = useState<any[]>([])
 
   // 多选
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
@@ -90,7 +93,7 @@ export default function EditFormalOrderPage() {
           consultant_teacher: data.consultant_teacher || "",
           order_notes: data.order_notes || "",
           total_sessions: data.total_sessions?.toString() || "",
-          session_duration: data.session_duration?.toString() || "",
+          session_duration: data.session_duration?.toString() + "min" || "",
           fixed_mode: data.fixed_mode || "",
           frequency: data.frequency || "",
           official_start_time: data.official_start_time ? new Date(data.official_start_time).toISOString().slice(0, 16) : "",
@@ -121,15 +124,43 @@ export default function EditFormalOrderPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId])
 
+  // 匹配 session_duration（等字典和订单都加载完成后）
+  useEffect(() => {
+    if (order && sessionDurations.length > 0 && order.session_duration) {
+      const match = sessionDurations.find(d => {
+        const durationNum = parseInt(d.code.replace('min', ''))
+        return durationNum === order.session_duration
+      })
+      if (match) {
+        setFormData((prev) => ({ ...prev, session_duration: match.code }))
+      }
+    }
+  }, [order, sessionDurations])
+
   // 加载列表数据
   useEffect(() => {
     const loadData = async () => {
-      const [teachersData, studentsData] = await Promise.all([
+      const [teachersData, studentsData, salesData, headTeachersData, ordersResult] = await Promise.all([
         TeachersService.getAllTeachers(),
         StudentsService.getAllStudents(),
+        UserProfilesService.getUsers('sales'),
+        UserProfilesService.getUsers('head_teacher'),
+        FormalOrdersService.getFormalOrders({
+          from: 0,
+          to: 999,
+        }),
       ])
       setTeachers(teachersData)
       setStudents(studentsData)
+
+      // 合并销售和班主任为 consultants
+      const mergedConsultants = [
+        ...(salesData || []).map(u => ({ id: u.id, name: u.name })),
+        ...(headTeachersData || []).map(u => ({ id: u.id, name: u.name })),
+      ]
+      setConsultants(mergedConsultants)
+
+      setPreviousOrders(ordersResult || [])
     }
     loadData()
   }, [])
@@ -298,26 +329,17 @@ export default function EditFormalOrderPage() {
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">订单基本信息</h3>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="student_id">
-                      选择学生 <span className="text-destructive">*</span>
-                    </Label>
-                    <select
-                      id="student_id"
-                      value={formData.student_id}
-                      onChange={(e) => handleInputChange("student_id", e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                      required
-                    >
-                      <option value="">请选择学生</option>
-                      {students.map((student) => (
-                        <option key={student.id} value={student.id}>
-                          {student.student_name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <SearchableSelect
+                    id="student_id"
+                    label="选择学生"
+                    required
+                    placeholder="搜索学生姓名..."
+                    value={formData.student_id}
+                    onChange={(id, name) => handleInputChange("student_id", id)}
+                    options={students.map((s) => ({ id: s.id, name: s.student_name }))}
+                    loading={students.length === 0}
+                  />
 
                   <div className="space-y-2">
                     <Label htmlFor="order_number">订单号</Label>
@@ -331,7 +353,7 @@ export default function EditFormalOrderPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="order_type">
                       订单类型 <span className="text-destructive">*</span>
@@ -354,7 +376,7 @@ export default function EditFormalOrderPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="consultant_teacher">
-                      签约顾问/班主任 <span className="text-destructive">*</span>
+                      销售/班主任 <span className="text-destructive">*</span>
                     </Label>
                     <select
                       id="consultant_teacher"
@@ -363,10 +385,10 @@ export default function EditFormalOrderPage() {
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                       required
                     >
-                      <option value="">请选择签约顾问/班主任</option>
-                      {consultants.map((consultant) => (
-                        <option key={consultant.id} value={consultant.label}>
-                          {consultant.label}
+                      <option value="">请选择销售或班主任</option>
+                      {consultants.map((c) => (
+                        <option key={c.id} value={c.name}>
+                          {c.name}
                         </option>
                       ))}
                     </select>
@@ -389,25 +411,19 @@ export default function EditFormalOrderPage() {
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">课程安排</h3>
 
-                <div className="space-y-2">
-                  <Label htmlFor="teacher_name">
-                    老师姓名 <span className="text-destructive">*</span>
-                  </Label>
-                  <select
-                    id="teacher_name"
-                    value={formData.teacher_name}
-                    onChange={(e) => handleInputChange("teacher_name", e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                    required
-                  >
-                    <option value="">请选择老师</option>
-                    {teachers.map((teacher) => (
-                      <option key={teacher.id} value={teacher.teacher_name}>
-                        {teacher.teacher_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <SearchableSelect
+                  id="teacher_name"
+                  label="老师姓名"
+                  required
+                  placeholder="搜索老师姓名..."
+                  value={formData.teacher_name?.trim()}
+                  onChange={(id, name) => handleInputChange("teacher_name", name?.trim())}
+                  options={teachers.map((t) => ({
+                    id: t.name?.trim() || t.id,
+                    name: t.name?.trim() || "-",
+                  }))}
+                  loading={teachers.length === 0}
+                />
 
                 <div className="space-y-2">
                   <Label>
@@ -437,7 +453,7 @@ export default function EditFormalOrderPage() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="total_sessions">
                       总课时数 <span className="text-destructive">*</span>
@@ -473,7 +489,7 @@ export default function EditFormalOrderPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="fixed_mode">
                       固定模式 <span className="text-destructive">*</span>
@@ -519,7 +535,7 @@ export default function EditFormalOrderPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="official_start_time">
                       正式上课时间 <span className="text-destructive">*</span>
@@ -552,7 +568,7 @@ export default function EditFormalOrderPage() {
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">费用信息</h3>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="total_hours">
                       总课时(小时) <span className="text-destructive">*</span>
@@ -589,7 +605,7 @@ export default function EditFormalOrderPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="payment_amount">
                       付款金额 <span className="text-destructive">*</span>
@@ -621,7 +637,7 @@ export default function EditFormalOrderPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="payment_proof">
                       付款凭证URL <span className="text-destructive">*</span>

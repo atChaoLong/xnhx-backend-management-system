@@ -17,6 +17,7 @@ import { UserProfilesService } from "@/lib/services/userProfiles"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { Textarea } from "@/components/ui/textarea"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 
 export default function NewFormalOrderPage() {
   const router = useRouter()
@@ -247,25 +248,16 @@ export default function NewFormalOrderPage() {
                 <h3 className="text-sm font-semibold">订单基本信息</h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="student_id">
-                      选择学生 <span className="text-destructive">*</span>
-                    </Label>
-                    <select
-                      id="student_id"
-                      value={formData.student_id}
-                      onChange={(e) => handleInputChange("student_id", e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                      required
-                    >
-                      <option value="">请选择学生</option>
-                      {students.map((student) => (
-                        <option key={student.id} value={student.id}>
-                          {student.student_name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <SearchableSelect
+                    id="student_id"
+                    label="选择学生"
+                    required
+                    placeholder="搜索学生姓名..."
+                    value={formData.student_id}
+                    onChange={(id, name) => handleInputChange("student_id", id)}
+                    options={students.map((s) => ({ id: s.id, name: s.student_name }))}
+                    loading={students.length === 0}
+                  />
 
                   <div className="space-y-2">
                     <Label htmlFor="order_number">订单号</Label>
@@ -383,25 +375,19 @@ export default function NewFormalOrderPage() {
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">课程安排</h3>
 
-                <div className="space-y-2">
-                  <Label htmlFor="teacher_name">
-                    老师姓名 <span className="text-destructive">*</span>
-                  </Label>
-                  <select
-                    id="teacher_name"
-                    value={formData.teacher_name}
-                    onChange={(e) => handleInputChange("teacher_name", e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                    required
-                  >
-                    <option value="">请选择老师</option>
-                    {teachers.map((teacher) => (
-                      <option key={teacher.id} value={(teacher as any).teacher_name || ""}>
-                        {(teacher as any).teacher_name || "-"}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <SearchableSelect
+                  id="teacher_name"
+                  label="老师姓名"
+                  required
+                  placeholder="搜索老师姓名..."
+                  value={formData.teacher_name?.trim()}
+                  onChange={(id, name) => handleInputChange("teacher_name", name?.trim())}
+                  options={teachers.map((t) => ({
+                    id: t.name?.trim() || t.id,
+                    name: t.name?.trim() || "-",
+                  }))}
+                  loading={teachers.length === 0}
+                />
 
                 <div className="space-y-2">
                   <Label>
