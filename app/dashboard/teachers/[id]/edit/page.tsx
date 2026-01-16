@@ -128,7 +128,7 @@ export default function EditTeacherPage() {
     try {
       const payload = {
         id: teacherId,
-        teacher_name: formData.teacher_name.trim(),
+        name: formData.teacher_name.trim(),
         gender: formData.gender,
         wechat: formData.wechat.trim(),
         classin_phone: formData.classin_phone.trim(),
@@ -139,10 +139,10 @@ export default function EditTeacherPage() {
         has_certificate: formData.has_certificate,
         education: formData.education,
         university: formData.university,
-        teaching_years: formData.teaching_years ? parseInt(formData.teaching_years) : undefined,
-        teaching_style: formData.teaching_style || undefined,
-        success_cases: formData.success_cases || undefined,
-        notes: formData.notes || undefined,
+        teaching_years: formData.teaching_years ? parseInt(formData.teaching_years) : null,
+        teaching_style: formData.teaching_style || null,
+        success_cases: formData.success_cases || null,
+        notes: formData.notes || null,
       }
 
       await TeachersService.updateTeacher(payload)
