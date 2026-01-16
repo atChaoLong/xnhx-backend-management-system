@@ -71,7 +71,24 @@ export default function BatchSchedulePage() {
       try {
         const orderData = await FormalOrdersService.getAllFormalOrders()
         // 只显示进行中的订单
-        setOrders(orderData.filter((order: any) => order.status === 'active'))
+        const activeOrders = orderData.filter((order: any) => order.status === 'active')
+
+        // 为每个订单加载学生信息
+        const ordersWithStudentNames = await Promise.all(
+          activeOrders.map(async (order: any) => {
+            if (!order.student_name && order.student_id) {
+              try {
+                const student = await StudentsService.getStudentById(order.student_id)
+                return { ...order, student_name: student.student_name }
+              } catch (error) {
+                return order
+              }
+            }
+            return order
+          })
+        )
+
+        setOrders(ordersWithStudentNames)
       } catch (error: any) {
         toast({
           variant: "destructive",
@@ -545,7 +562,7 @@ export default function BatchSchedulePage() {
                     <option value="">请选择正式订单</option>
                     {orders.map((order) => (
                       <option key={order.id} value={order.id}>
-                        {order.order_number} - {order.student_name} ({order.subjects?.join(', ')})
+                        {order.student_name || '-'} - {order.teacher_names?.[0] || '-'} - {order.subjects?.[0] || '-'} - {order.order_number}
                       </option>
                     ))}
                   </select>
