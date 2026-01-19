@@ -328,8 +328,8 @@ export default function LeadsPage() {
       // 创建待办事项
       await TodosService.createTodo({
         assigned_to: lead.grab_user_id || '',
-        title: `尽快跟进线索：${lead.student_name || '未命名'}`,
-        description: `该线索尚未处理，请尽快联系。微信：${lead.wechat_id || '未填写'}，电话：${lead.phone || '未填写'}`,
+        title: `尽快跟进线索：${lead.report_number || '未命名'}`,
+        description: `该线索尚未处理，请尽快联系。家长微信：${lead.parent_wechat || '未填写'}`,
         priority: 'high',
         due_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16), // 明天这个时候
       })
@@ -439,11 +439,11 @@ export default function LeadsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="sticky left-0 z-30 bg-background w-[140px] min-w-[140px]">报单序号</TableHead>
+                    <TableHead className="sticky left-[140px] z-30 bg-background w-[140px] min-w-[140px]">咨询学科</TableHead>
                     <TableHead>录单日期</TableHead>
-                    <TableHead>报单序号</TableHead>
                     <TableHead>小红书账号来源</TableHead>
                     <TableHead>年级</TableHead>
-                    <TableHead>咨询学科</TableHead>
                     <TableHead>地域</TableHead>
                     <TableHead>添加方式</TableHead>
                     <TableHead>家长微信</TableHead>
@@ -466,19 +466,21 @@ export default function LeadsPage() {
                   ) : leads.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
-                        暂无数据，点击"新增线索"开始添加
+                        暂无数据，点击&quot;新增线索&quot;开始添加
                       </TableCell>
                     </TableRow>
                   ) : (
                     leads.map((lead) => (
                       <TableRow key={lead.id}>
+                        <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 font-medium w-[140px] min-w-[140px]">{lead.report_number || "-"}</TableCell>
+                        <TableCell className="sticky left-[140px] z-20 bg-background group-hover:bg-muted/50 w-[140px] min-w-[140px]">
+                          {formatSubjects(lead.subject_codes)}
+                        </TableCell>
                         <TableCell>
                           {lead.entry_date ? format(new Date(lead.entry_date), "yyyy-MM-dd") : "-"}
                         </TableCell>
-                        <TableCell className="font-medium">{lead.report_number || "-"}</TableCell>
                         <TableCell>{getLabel(lead.xhs_source, dictMaps.sources)}</TableCell>
                         <TableCell>{getLabel(lead.grade_code, dictMaps.grades)}</TableCell>
-                        <TableCell>{formatSubjects(lead.subject_codes)}</TableCell>
                         <TableCell>{getLabel(lead.region_ip, dictMaps.regions)}</TableCell>
                         <TableCell>{getLabel(lead.add_method_code, dictMaps.addMethods)}</TableCell>
                         <TableCell>{lead.parent_wechat || "-"}</TableCell>

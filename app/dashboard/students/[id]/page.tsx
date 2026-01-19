@@ -651,11 +651,11 @@ export default function StudentDetailPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="sticky left-0 z-30 bg-background w-[140px] min-w-[140px]">科目</TableHead>
                           <TableHead>订单号</TableHead>
                           <TableHead>订单类型</TableHead>
                           <TableHead>签约顾问</TableHead>
                           <TableHead>老师</TableHead>
-                          <TableHead>科目</TableHead>
                           <TableHead>总课时</TableHead>
                           <TableHead>金额</TableHead>
                           <TableHead>状态</TableHead>
@@ -665,6 +665,9 @@ export default function StudentDetailPage() {
                       <TableBody>
                         {orders.map((order) => (
                           <TableRow key={order.id}>
+                            <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 w-[140px] min-w-[140px]">
+                              {order.subjects.join(', ')}
+                            </TableCell>
                             <TableCell className="font-medium">{order.order_number || '-'}</TableCell>
                             <TableCell>
                               <Badge variant="secondary">
@@ -673,7 +676,6 @@ export default function StudentDetailPage() {
                             </TableCell>
                             <TableCell>{order.consultant_teacher}</TableCell>
                             <TableCell>{order.teacher_names.join(', ')}</TableCell>
-                            <TableCell>{order.subjects.join(', ')}</TableCell>
                             <TableCell>{order.total_hours} 小时</TableCell>
                             <TableCell>¥{order.payment_amount.toLocaleString()}</TableCell>
                             <TableCell>
@@ -708,9 +710,9 @@ export default function StudentDetailPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="sticky left-0 z-30 bg-background w-[140px] min-w-[140px]">学科</TableHead>
                           <TableHead>订单号</TableHead>
                           <TableHead>课程名称</TableHead>
-                          <TableHead>学科</TableHead>
                           <TableHead>教师</TableHead>
                           <TableHead>课时数</TableHead>
                           <TableHead>总时长</TableHead>
@@ -725,9 +727,11 @@ export default function StudentDetailPage() {
                           const consumption = parseConsumptionInfo(course.course_consumption_info)
                           return (
                             <TableRow key={course.id}>
+                              <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 w-[140px] min-w-[140px]">
+                                {course.subject || '-'}
+                              </TableCell>
                               <TableCell className="font-medium">{course.order_number || '-'}</TableCell>
                               <TableCell>{course.course_name || '-'}</TableCell>
-                              <TableCell>{course.subject || '-'}</TableCell>
                               <TableCell>{course.teacher_name || '-'}</TableCell>
                               <TableCell>{consumption.totalSessions || course.session_count || 0}</TableCell>
                               <TableCell>{course.total_hours || 0} 小时</TableCell>
@@ -784,10 +788,10 @@ export default function StudentDetailPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>孩子称呼</TableHead>
+                          <TableHead className="sticky left-0 z-30 bg-background w-[160px] min-w-[160px]">孩子称呼</TableHead>
+                          <TableHead className="sticky left-[160px] z-30 bg-background w-[140px] min-w-[140px]">试听科目</TableHead>
                           <TableHead>地区</TableHead>
                           <TableHead>年级</TableHead>
-                          <TableHead>试听科目</TableHead>
                           <TableHead>试听时间</TableHead>
                           <TableHead>时长</TableHead>
                           <TableHead>匹配老师</TableHead>
@@ -799,10 +803,14 @@ export default function StudentDetailPage() {
                       <TableBody>
                         {trialLessons.map((lesson) => (
                           <TableRow key={lesson.id}>
-                            <TableCell className="font-medium">{lesson.child_name}</TableCell>
+                            <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 font-medium w-[160px] min-w-[160px]">
+                              {lesson.child_name}
+                            </TableCell>
+                            <TableCell className="sticky left-[160px] z-20 bg-background group-hover:bg-muted/50 w-[140px] min-w-[140px]">
+                              {lesson.trial_subject}
+                            </TableCell>
                             <TableCell>{lesson.region}</TableCell>
                             <TableCell>{lesson.grade}</TableCell>
-                            <TableCell>{lesson.trial_subject}</TableCell>
                             <TableCell>{format(new Date(lesson.trial_time), 'yyyy-MM-dd HH:mm')}</TableCell>
                             <TableCell>{lesson.trial_duration} 分钟</TableCell>
                             <TableCell>{lesson.matched_teacher || '-'}</TableCell>
@@ -907,9 +915,9 @@ export default function StudentDetailPage() {
                           <TableHead>回访日期</TableHead>
                           <TableHead>回访方式</TableHead>
                           <TableHead>家长态度</TableHead>
-                          <TableHead>回访备注</TableHead>
                           <TableHead>回访人员</TableHead>
                           <TableHead>创建时间</TableHead>
+                          <TableHead>回访备注</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -932,12 +940,12 @@ export default function StudentDetailPage() {
                                 <span className="text-muted-foreground">-</span>
                               )}
                             </TableCell>
-                            <TableCell className="max-w-md truncate">
-                              {record.visit_notes}
-                            </TableCell>
                             <TableCell>{record.visit_personnel_name || '未知'}</TableCell>
                             <TableCell>
                               {format(new Date(record.created_at), 'yyyy-MM-dd HH:mm')}
+                            </TableCell>
+                            <TableCell className="max-w-xs truncate" title={record.visit_notes || ''}>
+                              {record.visit_notes || '-'}
                             </TableCell>
                           </TableRow>
                         ))}

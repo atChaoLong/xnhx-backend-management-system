@@ -1126,18 +1126,16 @@ export default function BatchSchedulePage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-12">
+                        <TableHead className="sticky left-0 z-30 bg-background w-12">
                           <Checkbox
                             checked={selectAll}
                             onCheckedChange={handleSelectAll}
                           />
                         </TableHead>
-                        <TableHead className="w-16">序号</TableHead>
+                        <TableHead className="sticky left-12 z-30 bg-background w-16">序号</TableHead>
                         <TableHead>日期</TableHead>
                         <TableHead>时间段</TableHead>
-                        <TableHead>学生</TableHead>
                         <TableHead>老师</TableHead>
-                        <TableHead>科目</TableHead>
                         <TableHead>教室</TableHead>
                         <TableHead className="w-24 text-right">操作</TableHead>
                       </TableRow>
@@ -1153,14 +1151,14 @@ export default function BatchSchedulePage() {
                             key={item.id}
                             className={isExisting ? "bg-green-50" : ""}
                           >
-                            <TableCell>
+                            <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50">
                               <Checkbox
                                 checked={selectedItems.has(item.id)}
                                 onCheckedChange={() => !isExisting && handleSelectItem(item.id)}
                                 disabled={isExisting}
                               />
                             </TableCell>
-                            <TableCell className="font-medium">
+                            <TableCell className="sticky left-12 z-20 bg-background group-hover:bg-muted/50 font-medium">
                               {index + 1}
                               {isExisting && (
                                 <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
@@ -1198,30 +1196,9 @@ export default function BatchSchedulePage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <User className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm">{item.studentName}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
                               <GraduationCap className="h-4 w-4 text-muted-foreground" />
                               <span className="text-sm">{item.teacherName}</span>
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <select
-                              value={item.subject}
-                              onChange={(e) => updateScheduleItem(item.id, 'subject', e.target.value)}
-                              className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
-                              disabled={isExisting}
-                            >
-                              <option value="">请选择</option>
-                              {subjects.map((subject) => (
-                                <option key={subject.code} value={subject.label}>
-                                  {subject.label}
-                                </option>
-                              ))}
-                            </select>
                           </TableCell>
                           <TableCell>
                             <Input

@@ -232,10 +232,10 @@ export default function TeacherCandidatesPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>姓名</TableHead>
+                    <TableHead className="sticky left-0 z-30 bg-background w-[140px] min-w-[140px]">姓名</TableHead>
+                    <TableHead className="sticky left-[140px] z-30 bg-background w-[140px] min-w-[140px]">科目</TableHead>
                     <TableHead>微信号</TableHead>
                     <TableHead>年级</TableHead>
-                    <TableHead>科目</TableHead>
                     <TableHead>面试日期</TableHead>
                     <TableHead>候选人状态</TableHead>
                     <TableHead className="text-right">操作</TableHead>
@@ -245,7 +245,7 @@ export default function TeacherCandidatesPage() {
                   {candidates.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                        暂无数据，点击"新增面试"开始添加
+                        暂无数据，点击&quot;新增面试&quot;开始添加
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -253,14 +253,14 @@ export default function TeacherCandidatesPage() {
                       const status = calculateCandidateStatus(candidate)
                       return (
                         <TableRow key={candidate.id}>
-                          <TableCell className="font-medium">{candidate.name || "-"}</TableCell>
-                          <TableCell>{candidate.wechat_id || "-"}</TableCell>
-                          <TableCell>{candidate.grade_level || "-"}</TableCell>
-                          <TableCell>
+                          <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 font-medium w-[140px] min-w-[140px]">{candidate.name || "-"}</TableCell>
+                          <TableCell className="sticky left-[140px] z-20 bg-background group-hover:bg-muted/50 w-[140px] min-w-[140px]">
                             {candidate.subjects_taught && candidate.subjects_taught.length > 0
                               ? candidate.subjects_taught.join(", ")
                               : "-"}
                           </TableCell>
+                          <TableCell>{candidate.wechat_id || "-"}</TableCell>
+                          <TableCell>{candidate.grade_level || "-"}</TableCell>
                           <TableCell>
                             {candidate.interview_date
                               ? format(new Date(candidate.interview_date), 'yyyy-MM-dd')

@@ -427,8 +427,8 @@ export default function StudentsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>学生编号</TableHead>
-                    <TableHead>学生姓名</TableHead>
+                    <TableHead className="sticky left-0 z-30 bg-background w-[180px] min-w-[180px]">学生姓名</TableHead>
+                    <TableHead className="sticky left-[180px] z-30 bg-background w-[140px] min-w-[140px]">学生编号</TableHead>
                     <TableHead>手机号</TableHead>
                     <TableHead>ClassIn初始密码</TableHead>
                     <TableHead>ClassIn UID</TableHead>
@@ -441,17 +441,19 @@ export default function StudentsPage() {
                     {students.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        暂无数据，点击"新增学生"开始添加
+                        暂无数据，点击&quot;新增学生&quot;开始添加
                       </TableCell>
                     </TableRow>
                   ) : (
                     students.map((student) => (
                       <TableRow key={student.id}>
-                        <TableCell className="font-medium">{student.student_code || "-"}</TableCell>
-                        <TableCell>
+                        <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 font-medium w-[180px] min-w-[180px]">
                           <Link href={`/dashboard/students/${student.id}`} className="hover:underline font-medium text-primary">
                             {student.student_name || "-"}
                           </Link>
+                        </TableCell>
+                        <TableCell className="sticky left-[180px] z-20 bg-background group-hover:bg-muted/50 w-[140px] min-w-[140px]">
+                          {student.student_code || "-"}
                         </TableCell>
                         <TableCell>{student.parent_phone || "-"}</TableCell>
                         <TableCell>{student.classin_initial_password || "-"}</TableCell>

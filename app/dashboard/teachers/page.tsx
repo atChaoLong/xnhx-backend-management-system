@@ -238,10 +238,10 @@ export default function TeachersPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>姓名</TableHead>
+                    <TableHead className="sticky left-0 z-30 bg-background w-[140px] min-w-[140px]">姓名</TableHead>
+                    <TableHead className="sticky left-[140px] z-30 bg-background w-[140px] min-w-[140px]">学科</TableHead>
                     <TableHead>微信</TableHead>
                     <TableHead>ClassIn手机号</TableHead>
-                    <TableHead>学科</TableHead>
                     <TableHead>年级段</TableHead>
                     <TableHead>是否用过ClassIn</TableHead>
                     <TableHead>ClassIn UID</TableHead>
@@ -255,16 +255,18 @@ export default function TeachersPage() {
                   {teachers.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                        暂无数据，点击"新增老师"开始添加
+                        暂无数据，点击&quot;新增老师&quot;开始添加
                       </TableCell>
                     </TableRow>
                   ) : (
                     teachers.map((teacher) => (
                       <TableRow key={teacher.id}>
-                        <TableCell className="font-medium">{teacher.name || "-"}</TableCell>
+                        <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 font-medium w-[140px] min-w-[140px]">{teacher.name || "-"}</TableCell>
+                        <TableCell className="sticky left-[140px] z-20 bg-background group-hover:bg-muted/50 w-[140px] min-w-[140px]">
+                          {Array.isArray(teacher.subjects) ? teacher.subjects.join(', ') : '-'}
+                        </TableCell>
                         <TableCell>{teacher.wechat || "-"}</TableCell>
                         <TableCell>{teacher.classin_phone || "-"}</TableCell>
-                        <TableCell>{Array.isArray(teacher.subjects) ? teacher.subjects.join(', ') : '-'}</TableCell>
                         <TableCell>{Array.isArray(teacher.grade_levels) ? teacher.grade_levels.join(', ') : '-'}</TableCell>
                         <TableCell>{teacher.used_classin ? '是' : '否'}</TableCell>
                         <TableCell>{teacher.classin_uid ?? "-"}</TableCell>

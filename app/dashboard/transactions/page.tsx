@@ -216,8 +216,8 @@ export default function TransactionsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="sticky left-0 z-30 bg-background w-[180px] min-w-[180px]">学生姓名</TableHead>
                     <TableHead>创建日期</TableHead>
-                    <TableHead>学生姓名</TableHead>
                     <TableHead>异动类型</TableHead>
                     <TableHead>退费金额</TableHead>
                     <TableHead>退费原因</TableHead>
@@ -229,16 +229,18 @@ export default function TransactionsPage() {
                   {transactions.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                        暂无数据，点击"新增异动记录"开始添加
+                        暂无数据，点击&quot;新增异动记录&quot;开始添加
                       </TableCell>
                     </TableRow>
                   ) : (
                     transactions.map((transaction) => (
                       <TableRow key={transaction.id}>
-                        <TableCell className="font-medium">
+                        <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 font-medium w-[180px] min-w-[180px]">
+                          {transaction.student_name || "-"}
+                        </TableCell>
+                        <TableCell>
                           {transaction.creation_date ? format(new Date(transaction.creation_date), 'yyyy-MM-dd') : "-"}
                         </TableCell>
-                        <TableCell>{transaction.student_name || "-"}</TableCell>
                         <TableCell>{transaction.transaction_type || "-"}</TableCell>
                         <TableCell>{transaction.refund_amount ? `¥${transaction.refund_amount}` : "-"}</TableCell>
                         <TableCell className="max-w-md truncate">{transaction.refund_reason || "-"}</TableCell>
@@ -296,6 +298,7 @@ export default function TransactionsPage() {
                       <PaginationItem>
                         <PaginationPrevious
                           onClick={goToPreviousPage}
+                          disabled={!canGoPrevious}
                           className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
                         />
                       </PaginationItem>
@@ -312,6 +315,7 @@ export default function TransactionsPage() {
                             <PaginationLink
                               onClick={() => goToPage(page)}
                               isActive={page === currentPage}
+                              disabled={false}
                               className="cursor-pointer"
                             >
                               {page}
@@ -322,6 +326,7 @@ export default function TransactionsPage() {
                       <PaginationItem>
                         <PaginationNext
                           onClick={goToNextPage}
+                          disabled={!canGoNext}
                           className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
                         />
                       </PaginationItem>

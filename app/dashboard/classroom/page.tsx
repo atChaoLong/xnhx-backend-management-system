@@ -247,8 +247,8 @@ export default function ClassroomPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>课堂ID</TableHead>
-                    <TableHead>课堂名称</TableHead>
+                    <TableHead className="sticky left-0 z-30 bg-background w-[120px] min-w-[120px]">课堂ID</TableHead>
+                    <TableHead className="sticky left-[120px] z-30 bg-background w-[200px] min-w-[200px]">课堂名称</TableHead>
                     <TableHead>班级名称</TableHead>
                     <TableHead>开始时间</TableHead>
                     <TableHead>结束时间</TableHead>
@@ -264,8 +264,8 @@ export default function ClassroomPage() {
                   ) : (
                     classrooms.map((c) => (
                       <TableRow key={c.class_id}>
-                        <TableCell className="font-medium">{c.class_id}</TableCell>
-                        <TableCell>{c.name}</TableCell>
+                        <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 font-medium w-[120px] min-w-[120px]">{c.class_id}</TableCell>
+                        <TableCell className="sticky left-[120px] z-20 bg-background group-hover:bg-muted/50 w-[200px] min-w-[200px]">{c.name}</TableCell>
                         <TableCell>{c.course_name || "-"}</TableCell>
                         <TableCell>{c.start_time ? new Date(c.start_time * 1000).toLocaleString() : "-"}</TableCell>
                         <TableCell>{c.end_time ? new Date(c.end_time * 1000).toLocaleString() : "-"}</TableCell>
@@ -295,7 +295,7 @@ export default function ClassroomPage() {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>确认删除</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    确定要删除课节 "{c.name}" 吗？此操作不可撤销。
+                                    确定要删除课节 &quot;{c.name}&quot; 吗？此操作不可撤销。
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>

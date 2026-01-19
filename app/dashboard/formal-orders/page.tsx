@@ -307,9 +307,9 @@ export default function FormalOrdersPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>订单号</TableHead>
+                    <TableHead className="sticky left-0 z-30 bg-background w-[160px] min-w-[160px]">订单号</TableHead>
+                    <TableHead className="sticky left-[160px] z-30 bg-background w-[140px] min-w-[140px]">学科</TableHead>
                     <TableHead>老师</TableHead>
-                    <TableHead>学科</TableHead>
                     <TableHead>订单类型</TableHead>
                     <TableHead>总课时数</TableHead>
                     <TableHead>付款金额</TableHead>
@@ -331,15 +331,17 @@ export default function FormalOrdersPage() {
                   ) : orders.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
-                        暂无数据，点击"新增正式订单"开始添加
+                        暂无数据，点击&quot;新增正式订单&quot;开始添加
                       </TableCell>
                     </TableRow>
                   ) : (
                     orders.map((order) => (
                       <TableRow key={order.id}>
-                        <TableCell className="font-medium">{order.order_number || "-"}</TableCell>
+                        <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 font-medium w-[160px] min-w-[160px]">{order.order_number || "-"}</TableCell>
+                        <TableCell className="sticky left-[160px] z-20 bg-background group-hover:bg-muted/50 w-[140px] min-w-[140px]">
+                          {order.subjects?.join(', ') || "-"}
+                        </TableCell>
                         <TableCell>{order.teacher_names?.join(', ') || "-"}</TableCell>
-                        <TableCell>{order.subjects?.join(', ') || "-"}</TableCell>
                         <TableCell>{order.order_type || "-"}</TableCell>
                         <TableCell>{order.total_sessions || "-"}</TableCell>
                         <TableCell>{order.payment_amount || "-"}</TableCell>
@@ -435,6 +437,7 @@ export default function FormalOrdersPage() {
                         <PaginationPrevious
                           onClick={goToPreviousPage}
                           className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                          disabled={!canGoPrevious}
                         />
                       </PaginationItem>
                       {getPageRange().map((page, index) => {
@@ -447,10 +450,11 @@ export default function FormalOrdersPage() {
                         }
                         return (
                           <PaginationItem key={page}>
-                            <PaginationLink
+                          <PaginationLink
                               onClick={() => goToPage(page)}
                               isActive={page === currentPage}
                               className="cursor-pointer"
+                              disabled={false}
                             >
                               {page}
                             </PaginationLink>
@@ -461,6 +465,7 @@ export default function FormalOrdersPage() {
                         <PaginationNext
                           onClick={goToNextPage}
                           className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                          disabled={!canGoNext}
                         />
                       </PaginationItem>
                     </PaginationContent>

@@ -505,8 +505,8 @@ export default function TrialLessonsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>孩子称呼</TableHead>
-                    <TableHead>试听科目</TableHead>
+                    <TableHead className="sticky left-0 z-30 bg-background w-[160px] min-w-[160px]">孩子称呼</TableHead>
+                    <TableHead className="sticky left-[160px] z-30 bg-background w-[140px] min-w-[140px]">试听科目</TableHead>
                     <TableHead>年级</TableHead>
                     <TableHead>地域</TableHead>
                     <TableHead>试听时间</TableHead>
@@ -520,8 +520,8 @@ export default function TrialLessonsPage() {
                     <TableHead>确认教师</TableHead>
                     <TableHead>学生类型</TableHead>
                     <TableHead>紧急程度</TableHead>
-                    <TableHead>备注</TableHead>
                     <TableHead>状态</TableHead>
+                    <TableHead>备注</TableHead>
                     <TableHead className="text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -536,16 +536,18 @@ export default function TrialLessonsPage() {
                   ) : lessons.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={18} className="text-center py-8 text-muted-foreground">
-                        暂无数据，点击"新增试听课程"开始添加
+                        暂无数据，点击&quot;新增试听课程&quot;开始添加
                       </TableCell>
                     </TableRow>
                   ) : (
                     lessons.map((lesson) => (
                       <TableRow key={lesson.id}>
-                        <TableCell className="font-medium">
+                        <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 font-medium w-[160px] min-w-[160px]">
                           {lesson.child_name || "-"}
                         </TableCell>
-                        <TableCell>{getLabelByCode(lesson.trial_subject || "", 'subjects')}</TableCell>
+                        <TableCell className="sticky left-[160px] z-20 bg-background group-hover:bg-muted/50 w-[140px] min-w-[140px]">
+                          {getLabelByCode(lesson.trial_subject || "", 'subjects')}
+                        </TableCell>
                         <TableCell>{getLabelByCode(lesson.grade || "", 'grades')}</TableCell>
                         <TableCell>{getLabelByCode(lesson.region || "", 'regions')}</TableCell>
                         <TableCell>
@@ -573,11 +575,6 @@ export default function TrialLessonsPage() {
                             </span>
                           )}
                           {!lesson.urgency_level && "-"}
-                        </TableCell>
-                        <TableCell className="max-w-xs">
-                          <div className="truncate" title={lesson.notes || ""}>
-                            {lesson.notes || "-"}
-                          </div>
                         </TableCell>
                         <TableCell>
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getLessonStatusBadge(lesson.lesson_status)}`}>
@@ -703,6 +700,9 @@ export default function TrialLessonsPage() {
                               )}
                             </Button>
                           </div>
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate" title={lesson.notes || ""}>
+                          {lesson.notes || "-"}
                         </TableCell>
                       </TableRow>
                     ))
