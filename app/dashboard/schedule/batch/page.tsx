@@ -63,6 +63,9 @@ export default function BatchSchedulePage() {
   // 排课列表
   const [scheduleList, setScheduleList] = useState<ScheduleItem[]>([])
 
+  // 已创建的课节数量
+  const [existingSessionsCount, setExistingSessionsCount] = useState(0)
+
   // 全选
   const [selectAll, setSelectAll] = useState(false)
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
@@ -248,6 +251,7 @@ export default function BatchSchedulePage() {
   const handleOrderChange = async (orderId: string) => {
     setSelectedOrderId(orderId)
     setScheduleList([])
+    setExistingSessionsCount(0)
     setSelectedItems(new Set())
 
     if (!orderId) {
@@ -343,6 +347,7 @@ export default function BatchSchedulePage() {
                 if (scheduleMode === 'single') {
                   // 排1节课模式：已有课节就不再生成新的
                   setScheduleList(existingSessions)
+                  setExistingSessionsCount(existingSessions.length)
                   toast({
                     title: "已加载课节列表",
                     description: `已有 ${existingSessions.length} 节课`,
@@ -374,6 +379,7 @@ export default function BatchSchedulePage() {
 
                   // 合并已有课节和新课节，已有课节在前
                   setScheduleList([...existingSessions, ...newSessions])
+                  setExistingSessionsCount(existingSessions.length)
 
                   toast({
                     title: "已加载课节列表",
@@ -580,6 +586,7 @@ export default function BatchSchedulePage() {
 
       // 合并已有课节和新课节
       setScheduleList([...existingSessions, ...newSessions])
+      setExistingSessionsCount(existingSessions.length)
 
       toast({
         title: "已重新生成排课列表",
@@ -598,7 +605,16 @@ export default function BatchSchedulePage() {
 
   // 删除排课项
   const removeScheduleItem = (id: string) => {
+    const item = scheduleList.find(i => i.id === id)
+    const isExisting = item && !item.id.startsWith('preview-') && !item.id.startsWith('schedule-') && !item.id.startsWith('manual-')
+
     setScheduleList(scheduleList.filter(item => item.id !== id))
+
+    // 如果删除的是已创建的课节，更新计数
+    if (isExisting) {
+      setExistingSessionsCount(prev => Math.max(0, prev - 1))
+    }
+
     setSelectedItems(prev => {
       const newSet = new Set(prev)
       newSet.delete(id)
@@ -608,7 +624,21 @@ export default function BatchSchedulePage() {
 
   // 批量删除选中的项
   const removeSelectedItems = () => {
+    // 计算要删除的已创建课节数量
+    const existingCountToRemove = scheduleList.filter(item =>
+      selectedItems.has(item.id) &&
+      !item.id.startsWith('preview-') &&
+      !item.id.startsWith('schedule-') &&
+      !item.id.startsWith('manual-')
+    ).length
+
     setScheduleList(scheduleList.filter(item => !selectedItems.has(item.id)))
+
+    // 更新已创建课节数量
+    if (existingCountToRemove > 0) {
+      setExistingSessionsCount(prev => Math.max(0, prev - existingCountToRemove))
+    }
+
     setSelectedItems(new Set())
     setSelectAll(false)
   }
@@ -775,10 +805,6 @@ export default function BatchSchedulePage() {
                         <span className="font-medium">{selectedOrder.teacher_names?.join(', ')}</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">排课模式：</span>
-                        <span className="font-medium">{selectedOrder.fixed_mode}</span>
-                      </div>
-                      <div>
                         <span className="text-muted-foreground">开课日期：</span>
                         <span className="font-medium">
                           {selectedOrder.official_start_time
@@ -787,20 +813,12 @@ export default function BatchSchedulePage() {
                         </span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">开课时间：</span>
-                        <span className="font-medium">
-                          {selectedOrder.official_start_time
-                            ? format(new Date(selectedOrder.official_start_time), 'HH:mm')
-                            : '-'}
-                        </span>
-                      </div>
-                      <div>
                         <span className="text-muted-foreground">总课时：</span>
                         <span className="font-medium">{selectedOrder.total_sessions || '-'}</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">课时时长：</span>
-                        <span className="font-medium">{selectedOrder.session_duration || '-'} 分钟</span>
+                        <span className="text-muted-foreground">剩余课时：</span>
+                        <span className="font-medium">{editableParams.totalSessions ? (editableParams.totalSessions - existingSessionsCount) : selectedOrder.total_sessions || '-'}</span>
                       </div>
                     </div>
                   </div>
