@@ -10,7 +10,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
 import { FormalOrdersService, NewFormalOrder, generateOrderNumber } from "@/lib/services/formalOrders"
 import { TeachersService } from "@/lib/services/teachers"
-import { StudentsService } from "@/lib/services/students"
+import { StudentsService, generateStudentCode } from "@/lib/services/students"
+import { DictionaryService } from "@/lib/services/dictionary"
 import { useDictionary } from "@/lib/hooks/useDictionary"
 import { LeadsService } from "@/lib/services/leads"
 import { UserProfilesService } from "@/lib/services/userProfiles"
@@ -18,6 +19,13 @@ import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { Textarea } from "@/components/ui/textarea"
 import { SearchableSelect } from "@/components/ui/searchable-select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export default function NewFormalOrderPage() {
   const router = useRouter()
@@ -28,6 +36,9 @@ export default function NewFormalOrderPage() {
   const { items: orderTypes, loading: orderTypesLoading } = useDictionary('order_type')
   const { items: paymentChannels, loading: paymentChannelsLoading } = useDictionary('payment_channel')
   const { items: subjects, loading: subjectsLoading } = useDictionary('subject')
+  const [grades, setGrades] = useState<Array<{ code: string; label: string }>>([])
+  const [regions, setRegions] = useState<Array<{ code: string; label: string }>>([])
+  const [isLoadingDict, setIsLoadingDict] = useState(true)
 
   // 列表数据
   const [teachers, setTeachers] = useState<any[]>([])
@@ -48,6 +59,12 @@ export default function NewFormalOrderPage() {
     lead_id: "",
     previous_order_id: "",
     teacher_name: "", // 单选老师
+
+    // 手动录入的学生信息
+    student_name: "",
+    student_grade: "",
+    student_region: "",
+    parent_phone: "",
 
     // 订单基本信息
     order_number: "",
@@ -70,13 +87,14 @@ export default function NewFormalOrderPage() {
   // 加载列表数据
   useEffect(() => {
     const loadData = async () => {
-      const [teachersData, studentsData, salesData, headTeachersData, leadsResult, ordersResult] = await Promise.all([
+      const [teachersData, studentsData, salesData, headTeachersData, leadsResult, ordersResult, dicts] = await Promise.all([
         TeachersService.getAllTeachers(),
         StudentsService.getAllStudents(),
         UserProfilesService.getUsers('sales'),
         UserProfilesService.getUsers('head_teacher'),
         LeadsService.getLeads(),
         FormalOrdersService.getAllFormalOrders(),
+        DictionaryService.getAllDictionaries(),
       ])
       setTeachers(teachersData)
       setStudents(studentsData)
@@ -87,12 +105,47 @@ export default function NewFormalOrderPage() {
       setConsultants(mergedConsultants)
       setLeads(leadsResult.data || [])
       setPreviousOrders(ordersResult || [])
+      setGrades(dicts.grade || [])
+      setRegions(dicts.province || [])
+      setIsLoadingDict(false)
     }
     loadData()
   }, [])
 
   const handleInputChange = (field: string, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  // 处理学生选择，自动填充学生信息
+  const handleStudentSelect = async (studentId: string) => {
+    setFormData((prev) => ({ ...prev, student_id: studentId }))
+
+    // 如果选择了学生，自动填充学生信息
+    if (studentId) {
+      try {
+        const student = await StudentsService.getStudentById(studentId)
+        setFormData((prev) => ({
+          ...prev,
+          student_id: student.id,
+          student_name: student.student_name || '',
+          student_grade: student.grade_code || '',
+          student_region: student.region || '',
+          parent_phone: student.parent_phone || '',
+        }))
+      } catch (error) {
+        console.error('加载学生信息失败:', error)
+      }
+    } else {
+      // 清空选择时，清空学生信息
+      setFormData((prev) => ({
+        ...prev,
+        student_id: '',
+        student_name: '',
+        student_grade: '',
+        student_region: '',
+        parent_phone: '',
+      }))
+    }
   }
 
   // 处理学科多选
@@ -110,13 +163,37 @@ export default function NewFormalOrderPage() {
     e.preventDefault()
 
     // 验证必填字段
-    if (!formData.student_id) {
+    // 学生信息验证：如果选择了学生就使用，否则必须手动录入
+    const hasSelectedStudent = formData.student_id && formData.student_id.trim() !== ''
+    const hasManualInput = formData.student_name?.trim() || formData.parent_phone?.trim()
+
+    if (!hasSelectedStudent && !hasManualInput) {
       toast({
         variant: "destructive",
         title: "验证失败",
-        description: "请选择学生",
+        description: "请选择学生或手动录入学生信息",
       })
       return
+    }
+
+    // 如果手动录入，验证必填字段
+    if (!hasSelectedStudent || hasManualInput) {
+      if (!formData.student_name?.trim()) {
+        toast({
+          variant: "destructive",
+          title: "验证失败",
+          description: "请输入学生姓名",
+        })
+        return
+      }
+      if (!formData.parent_phone?.trim()) {
+        toast({
+          variant: "destructive",
+          title: "验证失败",
+          description: "请输入家长电话",
+        })
+        return
+      }
     }
 
     if (!formData.teacher_name) {
@@ -177,8 +254,54 @@ export default function NewFormalOrderPage() {
     setIsSubmitting(true)
 
     try {
+      // 判断是否需要创建新学生
+      let studentId = formData.student_id
+      const hasManualInput = formData.student_name?.trim() && formData.parent_phone?.trim()
+
+      // 如果有手动输入的信息，创建或更新学生
+      if (hasManualInput) {
+        try {
+          // 如果没有选择学生，创建新学生
+          if (!studentId) {
+            const newStudent = await StudentsService.createStudent({
+              student_code: generateStudentCode(),
+              student_name: formData.student_name.trim(),
+              grade_code: formData.student_grade?.trim() || undefined,
+              region: formData.student_region?.trim() || '',
+              parent_phone: formData.parent_phone.trim(),
+            })
+            studentId = newStudent.id
+            toast({
+              title: "学生创建成功",
+              description: `已为学生 ${formData.student_name} 创建资料`,
+            })
+          } else {
+            // 如果选择了学生但有手动输入，更新学生信息
+            await StudentsService.updateStudent({
+              id: studentId,
+              student_name: formData.student_name.trim(),
+              grade_code: formData.student_grade?.trim() || undefined,
+              region: formData.student_region?.trim() || '',
+              parent_phone: formData.parent_phone.trim(),
+            })
+            toast({
+              title: "学生信息更新成功",
+              description: `已更新学生 ${formData.student_name} 的信息`,
+            })
+          }
+        } catch (error: any) {
+          toast({
+            variant: "destructive",
+            title: "学生操作失败",
+            description: error.message || "无法处理学生资料",
+          })
+          setIsSubmitting(false)
+          return
+        }
+      }
+
       const payload: NewFormalOrder = {
-        student_id: formData.student_id,
+        student_id: studentId,
         order_number: formData.order_number.trim() || generateOrderNumber(),
         order_type: formData.order_type,
         consultant_teacher: formData.consultant_teacher,
@@ -230,18 +353,103 @@ export default function NewFormalOrderPage() {
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">订单基本信息</h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* 学生选择（可选） */}
+                <div className="space-y-2">
+                  <Label htmlFor="student_id" className="text-sm font-medium">
+                    选择学生（可选，可手动录入）
+                  </Label>
                   <SearchableSelect
                     id="student_id"
-                    label="选择学生"
-                    required
                     placeholder="搜索学生姓名..."
                     value={formData.student_id}
-                    onChange={(id, name) => handleInputChange("student_id", id)}
+                    onChange={(id, name) => handleStudentSelect(id)}
                     options={students.map((s) => ({ id: s.id, name: s.student_name }))}
                     loading={students.length === 0}
                   />
+                  <p className="text-xs text-muted-foreground">可选择已有学生，或直接在下方手动录入信息</p>
+                </div>
 
+                {/* 学生信息输入（始终显示） */}
+                <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+                  <h4 className="text-sm font-medium">学生信息</h4>
+
+                  {isLoadingDict ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="student_name">
+                            学生姓名 <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="student_name"
+                            placeholder="请输入学生姓名"
+                            value={formData.student_name}
+                            onChange={(e) => handleInputChange("student_name", e.target.value)}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="parent_phone">
+                            家长电话 <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="parent_phone"
+                            type="tel"
+                            placeholder="请输入家长电话"
+                            value={formData.parent_phone}
+                            onChange={(e) => handleInputChange("parent_phone", e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="student_grade">年级</Label>
+                          <Select
+                            value={formData.student_grade}
+                            onValueChange={(value) => handleInputChange("student_grade", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="选择年级" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {grades.map((grade) => (
+                                <SelectItem key={grade.code} value={grade.code}>
+                                  {grade.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="student_region">地域</Label>
+                          <Select
+                            value={formData.student_region}
+                            onValueChange={(value) => handleInputChange("student_region", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="选择地域" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {regions.map((region) => (
+                                <SelectItem key={region.code} value={region.code}>
+                                  {region.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="order_number">订单号</Label>
                     <Input

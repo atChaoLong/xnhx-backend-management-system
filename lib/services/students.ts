@@ -7,6 +7,23 @@
 import { api } from '@/lib/fetch'
 
 /**
+ * 生成学生学号
+ * 格式: S + YYYYMMDDHHmm + RRRR (17位)
+ * 示例: S2025102711401160
+ */
+export function generateStudentCode(): string {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const hour = String(now.getHours()).padStart(2, '0')
+  const minute = String(now.getMinutes()).padStart(2, '0')
+  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
+
+  return `S${year}${month}${day}${hour}${minute}${random}`
+}
+
+/**
  * 学生类型定义
  */
 export interface Student {
@@ -146,4 +163,5 @@ export const StudentsService = {
   createStudent,
   updateStudent,
   deleteStudent,
+  generateStudentCode,
 }
