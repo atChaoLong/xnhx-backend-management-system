@@ -27,9 +27,6 @@ export default function NewFormalOrderPage() {
   // 字典数据
   const { items: orderTypes, loading: orderTypesLoading } = useDictionary('order_type')
   const { items: paymentChannels, loading: paymentChannelsLoading } = useDictionary('payment_channel')
-  const { items: sessionDurations, loading: sessionDurationsLoading } = useDictionary('class_duration')
-  const { items: fixedModes, loading: fixedModesLoading } = useDictionary('fixed_mode')
-  const { items: frequencies, loading: frequenciesLoading } = useDictionary('class_frequency')
   const { items: subjects, loading: subjectsLoading } = useDictionary('subject')
 
   // 列表数据
@@ -57,14 +54,6 @@ export default function NewFormalOrderPage() {
     order_type: "",
     consultant_teacher: "",
     order_notes: "",
-
-    // 课程安排
-    total_sessions: "",
-    session_duration: "",
-    fixed_mode: "",
-    frequency: "",
-    official_start_time: "",
-    first_class_time: "",
 
     // 费用信息
     total_hours: "",
@@ -198,12 +187,6 @@ export default function NewFormalOrderPage() {
         previous_order_id: formData.previous_order_id || undefined,
         teacher_names: [formData.teacher_name], // 单选老师转为数组
         subjects: selectedSubjects,
-        total_sessions: parseInt(formData.total_sessions),
-        session_duration: parseFloat(formData.session_duration),
-        fixed_mode: formData.fixed_mode,
-        frequency: formData.frequency,
-        official_start_time: formData.official_start_time,
-        first_class_time: formData.first_class_time,
         total_hours: parseFloat(formData.total_hours),
         payment_channel: formData.payment_channel,
         payment_amount: parseFloat(formData.payment_amount),
@@ -417,115 +400,6 @@ export default function NewFormalOrderPage() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="total_sessions">
-                      总课时数 <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="total_sessions"
-                      type="number"
-                      placeholder="请输入总课时数"
-                      value={formData.total_sessions}
-                      onChange={(e) => handleInputChange("total_sessions", e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="session_duration">
-                      单课时长(小时) <span className="text-destructive">*</span>
-                    </Label>
-                    <select
-                      id="session_duration"
-                      value={formData.session_duration}
-                      onChange={(e) => handleInputChange("session_duration", e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                      required
-                    >
-                      <option value="">请选择单课时长</option>
-                      {sessionDurations.map((duration) => (
-                        <option key={duration.id} value={duration.code}>
-                          {duration.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="fixed_mode">
-                      固定模式 <span className="text-destructive">*</span>
-                    </Label>
-                    <select
-                      id="fixed_mode"
-                      value={formData.fixed_mode}
-                      onChange={(e) => handleInputChange("fixed_mode", e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                      required
-                    >
-                      <option value="">请选择固定模式</option>
-                      {fixedModes.length > 0 ? (
-                        fixedModes.map((mode) => (
-                          <option key={mode.id} value={mode.label}>
-                            {mode.label}
-                          </option>
-                        ))
-                      ) : (
-                        <option value="">请先配置固定模式选项</option>
-                      )}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="frequency">
-                      频次 <span className="text-destructive">*</span>
-                    </Label>
-                    <select
-                      id="frequency"
-                      value={formData.frequency}
-                      onChange={(e) => handleInputChange("frequency", e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                      required
-                    >
-                      <option value="">请选择频次</option>
-                      {frequencies.map((freq) => (
-                        <option key={freq.id} value={freq.label}>
-                          {freq.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="official_start_time">
-                      正式上课时间 <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="official_start_time"
-                      type="datetime-local"
-                      value={formData.official_start_time}
-                      onChange={(e) => handleInputChange("official_start_time", e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="first_class_time">
-                      首次课时间 <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="first_class_time"
-                      type="datetime-local"
-                      value={formData.first_class_time}
-                      onChange={(e) => handleInputChange("first_class_time", e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
               </div>
 
               {/* 费用信息 */}

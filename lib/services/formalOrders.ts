@@ -51,12 +51,6 @@ export interface NewFormalOrder {
   // 课程安排
   teacher_names: string[]
   subjects: string[]
-  total_sessions: number
-  session_duration: number
-  fixed_mode: string
-  frequency: string
-  official_start_time: string
-  first_class_time: string
 
   // 费用信息
   total_hours: number

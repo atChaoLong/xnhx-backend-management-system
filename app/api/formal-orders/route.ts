@@ -140,54 +140,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!body.total_sessions || isNaN(body.total_sessions)) {
-      logger.error('创建正式订单失败 - 总课时数无效', { body })
-      return NextResponse.json(
-        { error: '总课时数不能为空' },
-        { status: 400 }
-      )
-    }
-
-    if (!body.session_duration || isNaN(body.session_duration)) {
-      logger.error('创建正式订单失败 - 单课时长无效', { body })
-      return NextResponse.json(
-        { error: '单课时长不能为空' },
-        { status: 400 }
-      )
-    }
-
-    if (!body.fixed_mode || typeof body.fixed_mode !== 'string' || !body.fixed_mode.trim()) {
-      logger.error('创建正式订单失败 - 固定模式为空', { body })
-      return NextResponse.json(
-        { error: '固定模式不能为空' },
-        { status: 400 }
-      )
-    }
-
-    if (!body.frequency || typeof body.frequency !== 'string' || !body.frequency.trim()) {
-      logger.error('创建正式订单失败 - 频次为空', { body })
-      return NextResponse.json(
-        { error: '频次不能为空' },
-        { status: 400 }
-      )
-    }
-
-    if (!body.official_start_time || typeof body.official_start_time !== 'string' || !body.official_start_time.trim()) {
-      logger.error('创建正式订单失败 - 正式上课时间为空', { body })
-      return NextResponse.json(
-        { error: '正式上课时间不能为空' },
-        { status: 400 }
-      )
-    }
-
-    if (!body.first_class_time || typeof body.first_class_time !== 'string' || !body.first_class_time.trim()) {
-      logger.error('创建正式订单失败 - 首次课时间为空', { body })
-      return NextResponse.json(
-        { error: '首次课时间不能为空' },
-        { status: 400 }
-      )
-    }
-
     if (!body.total_hours || isNaN(body.total_hours)) {
       logger.error('创建正式订单失败 - 总课时(小时)无效', { body })
       return NextResponse.json(
@@ -246,12 +198,13 @@ export async function POST(request: NextRequest) {
       previous_order_id: body.previous_order_id || null,
       teacher_names: body.teacher_names,
       subjects: body.subjects,
-      total_sessions: parseInt(body.total_sessions),
-      session_duration: parseFloat(body.session_duration),
-      fixed_mode: body.fixed_mode.trim(),
-      frequency: body.frequency.trim(),
-      official_start_time: body.official_start_time,
-      first_class_time: body.first_class_time,
+      // 设置默认值以保持数据库兼容性
+      total_sessions: 0, // 默认值，后续通过排课更新
+      session_duration: 1, // 默认1小时
+      fixed_mode: '未设置', // 默认值
+      frequency: '1_per_week', // 默认每周一次
+      official_start_time: new Date().toISOString(), // 默认当前时间
+      first_class_time: new Date().toISOString(), // 默认当前时间
       total_hours: parseFloat(body.total_hours),
       payment_channel: body.payment_channel.trim(),
       payment_amount: parseFloat(body.payment_amount),

@@ -63,8 +63,8 @@ export default function BatchSchedulePage() {
   // 排课列表
   const [scheduleList, setScheduleList] = useState<ScheduleItem[]>([])
 
-  // 已创建的课节数量
-  const [existingSessionsCount, setExistingSessionsCount] = useState(0)
+  // 已扣课时（小时）
+  const [existingHoursCount, setExistingHoursCount] = useState(0)
 
   // 全选
   const [selectAll, setSelectAll] = useState(false)
@@ -251,7 +251,7 @@ export default function BatchSchedulePage() {
   const handleOrderChange = async (orderId: string) => {
     setSelectedOrderId(orderId)
     setScheduleList([])
-    setExistingSessionsCount(0)
+    setExistingHoursCount(0)
     setSelectedItems(new Set())
 
     if (!orderId) {
@@ -297,7 +297,7 @@ export default function BatchSchedulePage() {
 
       // 初始化可编辑参数
       const params = {
-        totalSessions: order.total_sessions || 1,
+        totalSessions: order.total_hours || 1,
         sessionDuration: order.session_duration || 60,
         frequency: frequencyCode,
         startDate: startDate,
@@ -336,6 +336,12 @@ export default function BatchSchedulePage() {
                   classroom: session.classroom_id || "",
                 }))
 
+                // 计算已扣课时（累加所有课节的时长，分钟转小时）
+                const totalExistingMinutes = sortedSessions.reduce((sum: number, session: any) => {
+                  return sum + (session.scheduled_duration_minutes || 0)
+                }, 0)
+                const totalExistingHours = Math.round((totalExistingMinutes / 60) * 100) / 100 // 保留两位小数
+
                 // 获取最后一节课的日期
                 const lastSession = sortedSessions[sortedSessions.length - 1]
                 const lastDate = lastSession.scheduled_date
@@ -347,10 +353,10 @@ export default function BatchSchedulePage() {
                 if (scheduleMode === 'single') {
                   // 排1节课模式：已有课节就不再生成新的
                   setScheduleList(existingSessions)
-                  setExistingSessionsCount(existingSessions.length)
+                  setExistingHoursCount(totalExistingHours)
                   toast({
                     title: "已加载课节列表",
-                    description: `已有 ${existingSessions.length} 节课`,
+                    description: `已有 ${existingSessions.length} 节课，共 ${totalExistingHours} 小时`,
                   })
                   return
                 } else {
@@ -379,11 +385,11 @@ export default function BatchSchedulePage() {
 
                   // 合并已有课节和新课节，已有课节在前
                   setScheduleList([...existingSessions, ...newSessions])
-                  setExistingSessionsCount(existingSessions.length)
+                  setExistingHoursCount(totalExistingHours)
 
                   toast({
                     title: "已加载课节列表",
-                    description: `已有 ${existingSessions.length} 节，新增 ${newSessions.length} 节`,
+                    description: `已有 ${existingSessions.length} 节，共 ${totalExistingHours} 小时，新增 ${newSessions.length} 节`,
                   })
                   return
                 }
@@ -487,6 +493,7 @@ export default function BatchSchedulePage() {
       // 加载已有的课节
       let existingSessions: ScheduleItem[] = []
       let lastDate = editableParams.startDate
+      let totalExistingHours = 0 // 已扣课时（小时）
 
       try {
         const courseResp = await api.get(`/api/courses/by-order/${selectedOrderId}`)
@@ -514,6 +521,14 @@ export default function BatchSchedulePage() {
                   endTime: session.scheduled_time_end || "",
                   classroom: session.classroom_id || "",
                 }))
+
+                // 计算已扣课时（累加所有课节的时长，分钟转小时）
+                if (sortedSessions.length > 0) {
+                  const totalExistingMinutes = sortedSessions.reduce((sum: number, session: any) => {
+                    return sum + (session.scheduled_duration_minutes || 0)
+                  }, 0)
+                  totalExistingHours = Math.round((totalExistingMinutes / 60) * 100) / 100
+                }
 
                 const lastSession = sortedSessions[sortedSessions.length - 1]
                 lastDate = lastSession.scheduled_date
@@ -586,7 +601,7 @@ export default function BatchSchedulePage() {
 
       // 合并已有课节和新课节
       setScheduleList([...existingSessions, ...newSessions])
-      setExistingSessionsCount(existingSessions.length)
+      setExistingHoursCount(totalExistingHours)
 
       toast({
         title: "已重新生成排课列表",
@@ -610,9 +625,10 @@ export default function BatchSchedulePage() {
 
     setScheduleList(scheduleList.filter(item => item.id !== id))
 
-    // 如果删除的是已创建的课节，更新计数
-    if (isExisting) {
-      setExistingSessionsCount(prev => Math.max(0, prev - 1))
+    // 如果删除的是已创建的课节，重新计算已扣课时
+    if (isExisting && selectedOrder) {
+      // 异步重新计算已扣课时
+      recalculateExistingHours()
     }
 
     setSelectedItems(prev => {
@@ -622,21 +638,50 @@ export default function BatchSchedulePage() {
     })
   }
 
+  // 重新计算已扣课时
+  const recalculateExistingHours = async () => {
+    if (!selectedOrder) return
+
+    try {
+      const courseResp = await api.get(`/api/courses/by-order/${selectedOrder.id}`)
+      if (courseResp.ok) {
+        const courseData = await courseResp.json()
+        if (courseData.data) {
+          const sessionsResp = await api.get(`/api/class-sessions?course_id=${courseData.data.id}`)
+          if (sessionsResp.ok) {
+            const sessionsData = await sessionsResp.json()
+            if (sessionsData.data && sessionsData.data.length > 0) {
+              const totalExistingMinutes = sessionsData.data.reduce((sum: number, session: any) => {
+                return sum + (session.scheduled_duration_minutes || 0)
+              }, 0)
+              const totalExistingHours = Math.round((totalExistingMinutes / 60) * 100) / 100
+              setExistingHoursCount(totalExistingHours)
+            } else {
+              setExistingHoursCount(0)
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('重新计算已扣课时失败:', error)
+    }
+  }
+
   // 批量删除选中的项
   const removeSelectedItems = () => {
-    // 计算要删除的已创建课节数量
-    const existingCountToRemove = scheduleList.filter(item =>
+    // 检查是否删除了已创建的课节
+    const hasExisting = scheduleList.some(item =>
       selectedItems.has(item.id) &&
       !item.id.startsWith('preview-') &&
       !item.id.startsWith('schedule-') &&
       !item.id.startsWith('manual-')
-    ).length
+    )
 
     setScheduleList(scheduleList.filter(item => !selectedItems.has(item.id)))
 
-    // 更新已创建课节数量
-    if (existingCountToRemove > 0) {
-      setExistingSessionsCount(prev => Math.max(0, prev - existingCountToRemove))
+    // 如果删除了已创建的课节，重新计算已扣课时
+    if (hasExisting) {
+      recalculateExistingHours()
     }
 
     setSelectedItems(new Set())
@@ -814,11 +859,15 @@ export default function BatchSchedulePage() {
                       </div>
                       <div>
                         <span className="text-muted-foreground">总课时：</span>
-                        <span className="font-medium">{selectedOrder.total_sessions || '-'}</span>
+                        <span className="font-medium">{selectedOrder.total_hours || '-'}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">剩余课时：</span>
-                        <span className="font-medium">{editableParams.totalSessions ? (editableParams.totalSessions - existingSessionsCount) : selectedOrder.total_sessions || '-'}</span>
+                        <span className="font-medium">
+                          {selectedOrder.total_hours
+                            ? (selectedOrder.total_hours - existingHoursCount).toFixed(2)
+                            : '-'}
+                        </span>
                       </div>
                     </div>
                   </div>
