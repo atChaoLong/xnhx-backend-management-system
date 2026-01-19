@@ -131,6 +131,8 @@ export default function NewFormalOrderPage() {
           student_grade: student.grade_code || '',
           student_region: student.region || '',
           parent_phone: student.parent_phone || '',
+          // 清空关联的旧订单（因为之前选择的可能不属于这个学生）
+          previous_order_id: '',
         }))
       } catch (error) {
         console.error('加载学生信息失败:', error)
@@ -144,6 +146,7 @@ export default function NewFormalOrderPage() {
         student_grade: '',
         student_region: '',
         parent_phone: '',
+        previous_order_id: '',
       }))
     }
   }
@@ -504,30 +507,10 @@ export default function NewFormalOrderPage() {
                   </div>
                 </div>
 
-                {/* 关联信息（紧贴订单类型下方） */}
-                <div className="space-y-4">
-                {(String(formData.order_type) === 'new' || String(formData.order_type) === 'extend') && (
-                    <div className="space-y-2">
-                      <Label htmlFor="lead_id">
-                        关联线索 <span className="text-destructive">*</span>
-                      </Label>
-                      <select
-                        id="lead_id"
-                        value={formData.lead_id}
-                        onChange={(e) => handleInputChange("lead_id", e.target.value)}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                        required
-                      >
-                        <option value="">请选择线索</option>
-                        {leads.map((lead) => (
-                          <option key={lead.id} value={lead.id}>
-                            {lead.report_number || lead.parent_wechat || lead.id}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  {String(formData.order_type) === 'renew' && (
+                {/* 关联信息 - 只有续费才显示关联订单 */}
+                {(formData.order_type.includes('续') || formData.order_type.toLowerCase().includes('renew')) && (
+                  <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
+
                     <div className="space-y-2">
                       <Label htmlFor="previous_order_id">
                         关联之前订单 <span className="text-destructive">*</span>
@@ -540,15 +523,27 @@ export default function NewFormalOrderPage() {
                         required
                       >
                         <option value="">请选择之前订单</option>
-                        {previousOrders.map((order) => (
-                          <option key={order.id} value={order.id}>
-                            {order.order_number}
-                          </option>
-                        ))}
+                        {previousOrders
+                          .filter(order => !formData.student_id || order.student_id === formData.student_id)
+                          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                          .map((order) => {
+                            const studentName = students.find(s => s.id === order.student_id)?.student_name || '未知学生'
+                            const date = order.created_at ? new Date(order.created_at).toLocaleDateString('zh-CN') : ''
+                            return (
+                              <option key={order.id} value={order.id}>
+                                {order.order_number} - {studentName} - {order.total_hours || 0}课时 - {date}
+                              </option>
+                            )
+                          })}
                       </select>
+                      <p className="text-xs text-muted-foreground">
+                        {formData.student_id
+                          ? "显示该学生的历史订单"
+                          : "请先选择学生，将只显示该学生的历史订单"}
+                      </p>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="order_notes">订单备注</Label>

@@ -97,16 +97,7 @@ export async function POST(request: NextRequest) {
     }
 
     const orderType = String(body.order_type).trim()
-    const isRenew = orderType === 'renew'
-    const isNewOrExpand = orderType === 'new' || orderType === 'extend'
-
-    if (isNewOrExpand && (!body.lead_id || typeof body.lead_id !== 'string')) {
-      logger.error('创建正式订单失败 - 新签/扩课需要关联线索', { body })
-      return NextResponse.json(
-        { error: '新签/扩课必须选择关联线索' },
-        { status: 400 }
-      )
-    }
+    const isRenew = orderType === 'renew' || orderType.includes('续')
 
     if (isRenew && (!body.previous_order_id || typeof body.previous_order_id !== 'string')) {
       logger.error('创建正式订单失败 - 续费需要关联之前订单', { body })

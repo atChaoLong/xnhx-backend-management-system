@@ -424,6 +424,9 @@ export interface FormalOrder {
   studentId: string
   orderNumber: string           // 自动生成
 
+  leadId?: string              // 关联线索ID
+  previousOrderId?: string     // 关联之前订单ID（续费订单）
+
   teacherNames: string[]
   subjects: string[]
 

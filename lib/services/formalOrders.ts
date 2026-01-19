@@ -7,6 +7,8 @@ export interface FormalOrder {
 
   // 关联字段
   student_id: string
+  lead_id?: string
+  previous_order_id?: string
 
   // 订单基本信息
   order_number: string

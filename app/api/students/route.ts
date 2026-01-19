@@ -302,15 +302,38 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const updatePayload = {
-      student_number: updateData.student_number?.trim() || null,
+    // 构建更新 payload，只包含提供的字段
+    const updatePayload: any = {
       student_name: updateData.student_name.trim(),
-      grade_code: updateData.grade_code || null,
-      region: updateData.region || null,
-      school: updateData.school?.trim() || null,
-      parent_phone: updateData.parent_phone?.trim() || null,
-      head_teacher_id: updateData.head_teacher_id || null,
-      status: updateData.status || 'active',
+    }
+
+    // 可选字段：只在提供时才更新
+    if (updateData.student_code !== undefined) {
+      updatePayload.student_code = updateData.student_code.trim() || ''
+    }
+    if (updateData.grade_code !== undefined) {
+      updatePayload.grade_code = updateData.grade_code || null
+    }
+    if (updateData.region !== undefined) {
+      updatePayload.region = updateData.region || null
+    }
+    if (updateData.school !== undefined) {
+      updatePayload.school = updateData.school?.trim() || null
+    }
+    if (updateData.parent_phone !== undefined) {
+      updatePayload.parent_phone = updateData.parent_phone?.trim() || null
+    }
+    if (updateData.head_teacher_id !== undefined) {
+      updatePayload.head_teacher_id = updateData.head_teacher_id || null
+    }
+    if (updateData.status !== undefined) {
+      updatePayload.status = updateData.status || 'active'
+    }
+    if (updateData.classin_uid !== undefined) {
+      updatePayload.classin_uid = updateData.classin_uid || null
+    }
+    if (updateData.classin_initial_password !== undefined) {
+      updatePayload.classin_initial_password = updateData.classin_initial_password || null
     }
 
     logger.debug('更新学生 - 准备更新的数据', { id, updatePayload })

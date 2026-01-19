@@ -52,6 +52,7 @@ export interface NewStudent {
   parent_phone?: string
   status?: string
   classin_initial_password?: string
+  classin_uid?: number
   grade_code?: string
   region?: string
   school?: string
