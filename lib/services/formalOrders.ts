@@ -10,6 +10,11 @@ export interface FormalOrder {
   lead_id?: string
   previous_order_id?: string
 
+  // 学生信息（关联查询）
+  students?: {
+    student_name: string
+  }
+
   // 订单基本信息
   order_number: string
   order_type: string

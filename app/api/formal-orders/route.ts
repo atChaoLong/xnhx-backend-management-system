@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     // 如果提供了ID，查询单个正式订单
     if (id) {
-      const { data, error } = await supabaseServer
+      const { data: order, error } = await supabaseServer
         .from('formal_orders')
         .select('*')
         .eq('id', id)
@@ -31,6 +31,20 @@ export async function GET(request: NextRequest) {
         )
       }
 
+      // 查询学生信息
+      let data = order
+      if (order.student_id) {
+        const { data: student } = await supabaseServer
+          .from('students')
+          .select('student_name')
+          .eq('id', order.student_id)
+          .single()
+
+        if (student) {
+          data = { ...order, students: student }
+        }
+      }
+
       logger.debug('获取正式订单成功', { id })
       return NextResponse.json({ data })
     }
@@ -41,7 +55,7 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact', head: true })
 
     // 分页查询数据，按首次课时间降序排序
-    const { data, error } = await supabaseServer
+    const { data: orders, error } = await supabaseServer
       .from('formal_orders')
       .select('*')
       .order('first_class_time', { ascending: false })
@@ -54,6 +68,32 @@ export async function GET(request: NextRequest) {
         { error: error.message },
         { status: 400 }
       )
+    }
+
+    // 批量查询学生信息
+    let data = orders || []
+    if (data.length > 0) {
+      const studentIds = data
+        .map(order => order.student_id)
+        .filter(id => id) // 过滤掉空值
+
+      if (studentIds.length > 0) {
+        const { data: students } = await supabaseServer
+          .from('students')
+          .select('id, student_name')
+          .in('id', studentIds)
+
+        // 创建学生ID到学生信息的映射
+        const studentMap = new Map(
+          (students || []).map(s => [s.id, s])
+        )
+
+        // 合并学生信息到订单数据
+        data = data.map(order => ({
+          ...order,
+          students: order.student_id ? studentMap.get(order.student_id) : null
+        }))
+      }
     }
 
     logger.debug('获取正式订单列表成功', { count: data?.length || 0 })

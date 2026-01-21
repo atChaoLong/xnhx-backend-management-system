@@ -290,6 +290,9 @@ export default function FormalOrdersPage() {
                         <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 font-medium w-[160px] min-w-[160px]">{order.order_number || "-"}</TableCell>
                         <TableCell className="sticky left-[160px] z-20 bg-background group-hover:bg-muted/50 w-[140px] min-w-[140px]">
                           {order.subjects?.join(', ') || "-"}
+                          {order.students?.student_name && (
+                            <span className="ml-2 text-muted-foreground">({order.students.student_name})</span>
+                          )}
                         </TableCell>
                         <TableCell>{order.teacher_names?.join(', ') || "-"}</TableCell>
                         <TableCell>{order.order_type || "-"}</TableCell>
