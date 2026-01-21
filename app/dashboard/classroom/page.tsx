@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Header } from "@/components/dashboard/header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { ScrollableTable } from "@/components/ui/scrollable-table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { SearchableSelect } from "@/components/ui/searchable-select"
@@ -147,11 +148,11 @@ export default function ClassroomPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       <Header title="课堂管理" description="展示所有课程" />
-      <div className="flex-1 overflow-auto p-6">
-        <Card>
-          <CardContent className="p-6">
+      <div className="flex-1 overflow-hidden p-6">
+        <Card className="h-full flex flex-col">
+          <CardContent className="flex-1 flex flex-col p-6 overflow-hidden">
             {/* 筛选条件 */}
             <div className="mb-6 grid grid-cols-1 md:grid-cols-1 gap-4">
               <div className="flex items-center gap-2">
@@ -178,7 +179,7 @@ export default function ClassroomPage() {
               </div>
             </div>
 
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-6 flex-shrink-0">
               <div>
                 <h3 className="text-lg font-semibold">课程列表</h3>
                 <p className="text-sm text-muted-foreground">共 {totalCount} 个课程</p>
@@ -188,8 +189,8 @@ export default function ClassroomPage() {
               </div>
             </div>
 
-            <div className="rounded-md border">
-              <Table>
+            <ScrollableTable>
+              <Table className="border-0">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="sticky left-0 z-30 bg-background w-[200px] min-w-[200px]">课程名称</TableHead>
@@ -260,9 +261,9 @@ export default function ClassroomPage() {
                   )}
                 </TableBody>
               </Table>
-            </div>
+            </ScrollableTable>
 
-            <div className="mt-6 flex items-center justify-between">
+            <div className="mt-6 flex items-center justify-between flex-shrink-0">
               <div className="text-sm text-muted-foreground">
                 共 {totalCount} 个课程
               </div>

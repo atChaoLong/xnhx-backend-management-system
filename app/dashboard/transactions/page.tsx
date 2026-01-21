@@ -5,6 +5,7 @@ import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { ScrollableTable } from "@/components/ui/scrollable-table"
 import {
   Dialog,
   DialogContent,
@@ -180,16 +181,16 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       <Header
         title="异动记录管理"
         description="管理退费异动记录"
       />
 
-      <div className="flex-1 overflow-auto p-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex justify-between items-center mb-6">
+      <div className="flex-1 overflow-hidden p-6">
+        <Card className="h-full flex flex-col">
+          <CardContent className="flex-1 flex flex-col p-6 overflow-hidden">
+            <div className="flex justify-between items-center mb-6 flex-shrink-0">
               <div>
                 <h3 className="text-lg font-semibold">异动记录列表</h3>
                 <PaginationInfo
@@ -212,8 +213,8 @@ export default function TransactionsPage() {
               </div>
             </div>
 
-            <div className="rounded-md border">
-              <Table>
+            <ScrollableTable>
+              <Table className="border-0">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="sticky left-0 z-30 bg-background w-[180px] min-w-[180px]">学生姓名</TableHead>
@@ -278,9 +279,9 @@ export default function TransactionsPage() {
                   )}
                 </TableBody>
               </Table>
-            </div>
+            </ScrollableTable>
 
-            <div className="mt-6 flex items-center justify-between">
+            <div className="mt-6 flex items-center justify-between flex-shrink-0">
                 <PaginationInfo
                   currentPage={currentPage}
                   totalPages={totalPages}

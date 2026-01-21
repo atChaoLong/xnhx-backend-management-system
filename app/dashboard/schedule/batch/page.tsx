@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { ScrollableTable } from "@/components/ui/scrollable-table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -796,7 +797,7 @@ export default function BatchSchedulePage() {
 
   if (isLoading && orders.length === 0) {
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full overflow-hidden">
         <Header title="批量排课" description="从正式订单批量创建课程" />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -806,7 +807,7 @@ export default function BatchSchedulePage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       <Header title="批量排课" description="从正式订单批量创建课程" />
 
       <div className="flex-1 overflow-auto p-6">
@@ -1122,8 +1123,8 @@ export default function BatchSchedulePage() {
                   <p className="text-sm mt-2">请选择订单，系统将自动生成排课列表</p>
                 </div>
               ) : (
-                <div className="rounded-md border">
-                  <Table>
+                <ScrollableTable>
+                  <Table className="border-0">
                     <TableHeader>
                       <TableRow>
                         <TableHead className="sticky left-0 z-30 bg-background w-12">
@@ -1225,7 +1226,7 @@ export default function BatchSchedulePage() {
                       })}
                     </TableBody>
                   </Table>
-                </div>
+                </ScrollableTable>
               )}
             </CardContent>
           </Card>
