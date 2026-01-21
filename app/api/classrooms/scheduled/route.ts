@@ -21,7 +21,8 @@ export async function GET(request: NextRequest) {
       query = query.eq('student_id', studentId)
     }
 
-    // 按创建时间降序排序
+    // 数据库层面复合排序：先按学生ID升序，再按创建时间降序
+    query = query.order('student_id', { ascending: true })
     query = query.order('created_at', { ascending: false })
 
     const { data: courses, error: coursesError } = await query
