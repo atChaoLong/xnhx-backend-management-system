@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
       openState: body.openState,
       recordState: body.recordState,
       recordType: body.recordType,
+      seatNum: body.seatNum || 2, // 默认一对一（1v1）
     })
 
     return NextResponse.json({

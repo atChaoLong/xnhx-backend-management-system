@@ -290,6 +290,7 @@ export async function POST(request: NextRequest) {
             openState: 0,
             recordState: 1,
             recordType: 0,
+            seatNum: 2, // 一对一（1v1）
           })
 
           logger.info("创建 ClassIn 课堂成功", {

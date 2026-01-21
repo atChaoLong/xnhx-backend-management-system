@@ -142,7 +142,8 @@ export async function POST(request: NextRequest) {
       liveState: 1,
       openState: 1,
       recordState: 1,
-      recordType: 0
+      recordType: 0,
+      seatNum: 2, // 一对一（1v1）
     })
 
     classId = classroomResult.classId

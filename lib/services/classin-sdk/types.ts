@@ -51,6 +51,7 @@ export interface CreateClassroomParams {
   openState?: number
   recordState?: number
   recordType?: number
+  seatNum?: number // 台上人数（包含老师）：2=1v1一对一，7=1v6默认值
 }
 
 export interface AddCourseStudentParams {
