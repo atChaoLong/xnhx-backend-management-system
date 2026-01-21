@@ -10,13 +10,22 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
 import { FormalOrdersService, FormalOrder, generateOrderNumber } from "@/lib/services/formalOrders"
 import { TeachersService } from "@/lib/services/teachers"
-import { StudentsService } from "@/lib/services/students"
-import { UserProfilesService } from "@/lib/services/userProfiles"
+import { StudentsService, generateStudentCode } from "@/lib/services/students"
+import { DictionaryService } from "@/lib/services/dictionary"
 import { useDictionary } from "@/lib/hooks/useDictionary"
+import { LeadsService } from "@/lib/services/leads"
+import { UserProfilesService } from "@/lib/services/userProfiles"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { Textarea } from "@/components/ui/textarea"
 import { SearchableSelect } from "@/components/ui/searchable-select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export default function EditFormalOrderPage() {
   const router = useRouter()
@@ -31,38 +40,42 @@ export default function EditFormalOrderPage() {
   // 字典数据
   const { items: orderTypes, loading: orderTypesLoading } = useDictionary('order_type')
   const { items: paymentChannels, loading: paymentChannelsLoading } = useDictionary('payment_channel')
-  const { items: sessionDurations, loading: sessionDurationsLoading } = useDictionary('class_duration')
-  const { items: fixedModes, loading: fixedModesLoading } = useDictionary('fixed_mode')
-  const { items: frequencies, loading: frequenciesLoading } = useDictionary('class_frequency')
   const { items: subjects, loading: subjectsLoading } = useDictionary('subject')
+  const [grades, setGrades] = useState<Array<{ code: string; label: string }>>([])
+  const [regions, setRegions] = useState<Array<{ code: string; label: string }>>([])
+  const [isLoadingDict, setIsLoadingDict] = useState(true)
 
   // 列表数据
   const [teachers, setTeachers] = useState<any[]>([])
   const [students, setStudents] = useState<any[]>([])
-  const [consultants, setConsultants] = useState<{ id: string; name: string }[]>([])
+  const [leads, setLeads] = useState<any[]>([])
   const [previousOrders, setPreviousOrders] = useState<any[]>([])
+  const [consultants, setConsultants] = useState<{ id: string; name: string }[]>([])
 
   // 多选
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
 
+  // 文件上传
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+
   const [formData, setFormData] = useState({
     // 关联字段
     student_id: "",
+    lead_id: "",
+    previous_order_id: "",
     teacher_name: "", // 单选老师
+
+    // 手动录入的学生信息
+    student_name: "",
+    student_grade: "",
+    student_region: "",
+    parent_phone: "",
 
     // 订单基本信息
     order_number: "",
     order_type: "",
     consultant_teacher: "",
     order_notes: "",
-
-    // 课程安排
-    total_sessions: "",
-    session_duration: "",
-    fixed_mode: "",
-    frequency: "",
-    official_start_time: "",
-    first_class_time: "",
 
     // 费用信息
     total_hours: "",
@@ -87,17 +100,17 @@ export default function EditFormalOrderPage() {
         // 设置表单数据
         setFormData({
           student_id: data.student_id || "",
-          teacher_name: data.teacher_names?.[0] || "", // 取第一个老师
+          lead_id: data.lead_id || "",
+          previous_order_id: data.previous_order_id || "",
+          teacher_name: data.teacher_names?.[0] || "",
+          student_name: "", // 编辑时从学生数据加载
+          student_grade: "",
+          student_region: "",
+          parent_phone: "",
           order_number: data.order_number || "",
           order_type: data.order_type || "",
           consultant_teacher: data.consultant_teacher || "",
           order_notes: data.order_notes || "",
-          total_sessions: data.total_sessions?.toString() || "",
-          session_duration: data.session_duration?.toString() + "min" || "",
-          fixed_mode: data.fixed_mode || "",
-          frequency: data.frequency || "",
-          official_start_time: data.official_start_time ? new Date(data.official_start_time).toISOString().slice(0, 16) : "",
-          first_class_time: data.first_class_time ? new Date(data.first_class_time).toISOString().slice(0, 16) : "",
           total_hours: data.total_hours?.toString() || "",
           payment_channel: data.payment_channel || "",
           payment_amount: data.payment_amount?.toString() || "",
@@ -109,6 +122,22 @@ export default function EditFormalOrderPage() {
 
         // 设置多选数组
         setSelectedSubjects(data.subjects || [])
+
+        // 如果有学生ID，加载学生信息填充到表单
+        if (data.student_id) {
+          try {
+            const studentData = await StudentsService.getStudentById(data.student_id)
+            setFormData((prev) => ({
+              ...prev,
+              student_name: studentData.student_name || "",
+              student_grade: studentData.grade_code || "",
+              student_region: studentData.region || "",
+              parent_phone: studentData.parent_phone || "",
+            }))
+          } catch (error) {
+            console.error("加载学生信息失败:", error)
+          }
+        }
       } catch (error: any) {
         toast({
           variant: "destructive",
@@ -121,34 +150,19 @@ export default function EditFormalOrderPage() {
     }
 
     fetchOrder()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId])
-
-  // 匹配 session_duration（等字典和订单都加载完成后）
-  useEffect(() => {
-    if (order && sessionDurations.length > 0 && order.session_duration) {
-      const match = sessionDurations.find(d => {
-        const durationNum = parseInt(d.code.replace('min', ''))
-        return durationNum === order.session_duration
-      })
-      if (match) {
-        setFormData((prev) => ({ ...prev, session_duration: match.code }))
-      }
-    }
-  }, [order, sessionDurations])
 
   // 加载列表数据
   useEffect(() => {
     const loadData = async () => {
-      const [teachersData, studentsData, salesData, headTeachersData, ordersResult] = await Promise.all([
+      const [teachersData, studentsData, salesData, headTeachersData, leadsResult, ordersResult, dicts] = await Promise.all([
         TeachersService.getAllTeachers(),
         StudentsService.getAllStudents(),
         UserProfilesService.getUsers('sales'),
         UserProfilesService.getUsers('head_teacher'),
-        FormalOrdersService.getFormalOrders({
-          from: 0,
-          to: 999,
-        }),
+        LeadsService.getLeads(),
+        FormalOrdersService.getAllFormalOrders(),
+        DictionaryService.getAllDictionaries(),
       ])
       setTeachers(teachersData)
       setStudents(studentsData)
@@ -160,13 +174,60 @@ export default function EditFormalOrderPage() {
       ]
       setConsultants(mergedConsultants)
 
+      setLeads(leadsResult?.data || [])
       setPreviousOrders(ordersResult || [])
+
+      // 提取年级和地域字典（dicts 是对象，不是数组）
+      const gradeItems = dicts?.['grade'] || []
+      const regionItems = dicts?.['region'] || []
+
+      setGrades(gradeItems.map(item => ({ code: item.code, label: item.label })))
+      setRegions(regionItems.map(item => ({ code: item.code, label: item.label })))
+
+      setIsLoadingDict(false)
     }
     loadData()
   }, [])
 
   const handleInputChange = (field: string, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  // 处理学生选择
+  const handleStudentSelect = async (studentId: string) => {
+    setFormData((prev) => ({ ...prev, student_id: studentId }))
+
+    if (!studentId) {
+      // 清空学生信息
+      setFormData((prev) => ({
+        ...prev,
+        student_id: "",
+        student_name: "",
+        student_grade: "",
+        student_region: "",
+        parent_phone: "",
+      }))
+      return
+    }
+
+    // 加载学生详细信息
+    try {
+      const studentData = await StudentsService.getStudentById(studentId)
+      setFormData((prev) => ({
+        ...prev,
+        student_name: studentData.student_name || "",
+        student_grade: studentData.grade_code || "",
+        student_region: studentData.region || "",
+        parent_phone: studentData.parent_phone || "",
+      }))
+    } catch (error) {
+      console.error("加载学生信息失败:", error)
+      toast({
+        variant: "destructive",
+        title: "加载失败",
+        description: "无法加载学生信息",
+      })
+    }
   }
 
   // 处理学科多选
@@ -182,16 +243,6 @@ export default function EditFormalOrderPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    // 验证必填字段
-    if (!formData.student_id) {
-      toast({
-        variant: "destructive",
-        title: "验证失败",
-        description: "请选择学生",
-      })
-      return
-    }
 
     if (!formData.teacher_name) {
       toast({
@@ -211,58 +262,107 @@ export default function EditFormalOrderPage() {
       return
     }
 
-    const requiredFields = [
-      { field: 'order_type', name: '订单类型' },
-      { field: 'consultant_teacher', name: '签约顾问' },
-      { field: 'total_sessions', name: '总课时数' },
-      { field: 'session_duration', name: '单课时长' },
-      { field: 'fixed_mode', name: '固定模式' },
-      { field: 'frequency', name: '频次' },
-      { field: 'official_start_time', name: '正式上课时间' },
-      { field: 'first_class_time', name: '首次课时间' },
-      { field: 'total_hours', name: '总课时(小时)' },
-      { field: 'payment_channel', name: '付款渠道' },
-      { field: 'payment_amount', name: '付款金额' },
-      { field: 'hourly_rate', name: '小时单价' },
-      { field: 'payment_proof', name: '付款凭证' },
-      { field: 'payment_time', name: '付费时间' },
-    ]
+    if (!formData.order_type) {
+      toast({
+        variant: "destructive",
+        title: "验证失败",
+        description: "请选择订单类型",
+      })
+      return
+    }
 
-    for (const { field, name } of requiredFields) {
-      const value = formData[field as keyof typeof formData]
-      if (!value || (typeof value === 'string' && !value.trim())) {
-        toast({
-          variant: "destructive",
-          title: "验证失败",
-          description: `请输入${name}`,
-        })
-        return
-      }
+    if (!formData.consultant_teacher) {
+      toast({
+        variant: "destructive",
+        title: "验证失败",
+        description: "请选择签约顾问",
+      })
+      return
+    }
+
+    const isRenew = String(formData.order_type) === 'renew'
+    const isNewOrExpand = String(formData.order_type) === 'new' || String(formData.order_type) === 'extend'
+    if (isNewOrExpand && !formData.lead_id) {
+      toast({
+        variant: "destructive",
+        title: "验证失败",
+        description: "新签/扩课必须选择关联线索",
+      })
+      return
+    }
+    if (isRenew && !formData.previous_order_id) {
+      toast({
+        variant: "destructive",
+        title: "验证失败",
+        description: "续费必须选择之前的订单",
+      })
+      return
     }
 
     setIsSubmitting(true)
 
     try {
+      // 判断是否需要创建/更新学生
+      let studentId = formData.student_id
+      const hasManualInput = formData.student_name?.trim() && formData.parent_phone?.trim()
+
+      if (hasManualInput) {
+        try {
+          if (!studentId) {
+            // 创建新学生
+            const newStudent = await StudentsService.createStudent({
+              student_code: generateStudentCode(),
+              student_name: formData.student_name.trim(),
+              grade_code: formData.student_grade?.trim() || undefined,
+              region: formData.student_region?.trim() || '',
+              parent_phone: formData.parent_phone.trim(),
+            })
+            studentId = newStudent.id
+            toast({
+              title: "学生创建成功",
+              description: `已为学生 ${formData.student_name} 创建资料`,
+            })
+          } else {
+            // 更新现有学生信息
+            await StudentsService.updateStudent({
+              id: studentId,
+              student_name: formData.student_name.trim(),
+              grade_code: formData.student_grade?.trim() || undefined,
+              region: formData.student_region?.trim() || '',
+              parent_phone: formData.parent_phone.trim(),
+            })
+            toast({
+              title: "学生信息更新成功",
+              description: `已更新学生 ${formData.student_name} 的信息`,
+            })
+          }
+        } catch (error: any) {
+          toast({
+            variant: "destructive",
+            title: "学生操作失败",
+            description: error.message || "无法处理学生资料",
+          })
+          setIsSubmitting(false)
+          return
+        }
+      }
+
       const payload = {
         id: orderId,
-        student_id: formData.student_id.trim(),
+        student_id: studentId || formData.student_id,
         order_number: formData.order_number.trim() || generateOrderNumber(),
-        order_type: formData.order_type.trim(),
-        consultant_teacher: formData.consultant_teacher.trim(),
+        order_type: formData.order_type,
+        consultant_teacher: formData.consultant_teacher,
         order_notes: formData.order_notes.trim() || undefined,
-        teacher_names: [formData.teacher_name], // 单选老师转为数组
+        lead_id: formData.lead_id || undefined,
+        previous_order_id: formData.previous_order_id || undefined,
+        teacher_names: [formData.teacher_name],
         subjects: selectedSubjects,
-        total_sessions: parseInt(formData.total_sessions),
-        session_duration: parseFloat(formData.session_duration),
-        fixed_mode: formData.fixed_mode.trim(),
-        frequency: formData.frequency.trim(),
-        official_start_time: formData.official_start_time,
-        first_class_time: formData.first_class_time,
         total_hours: parseFloat(formData.total_hours),
-        payment_channel: formData.payment_channel.trim(),
+        payment_channel: formData.payment_channel,
         payment_amount: parseFloat(formData.payment_amount),
         hourly_rate: parseFloat(formData.hourly_rate),
-        payment_proof: formData.payment_proof.trim(),
+        payment_proof: formData.payment_proof,
         payment_time: formData.payment_time,
         status: formData.status,
       }
@@ -329,18 +429,103 @@ export default function EditFormalOrderPage() {
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">订单基本信息</h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* 学生选择（可选） */}
+                <div className="space-y-2">
+                  <Label htmlFor="student_id" className="text-sm font-medium">
+                    选择学生（可选，可手动录入）
+                  </Label>
                   <SearchableSelect
                     id="student_id"
-                    label="选择学生"
-                    required
                     placeholder="搜索学生姓名..."
                     value={formData.student_id}
-                    onChange={(id, name) => handleInputChange("student_id", id)}
+                    onChange={(id, name) => handleStudentSelect(id)}
                     options={students.map((s) => ({ id: s.id, name: s.student_name }))}
                     loading={students.length === 0}
                   />
+                  <p className="text-xs text-muted-foreground">可选择已有学生，或直接在下方手动录入信息</p>
+                </div>
 
+                {/* 学生信息输入（始终显示） */}
+                <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+                  <h4 className="text-sm font-medium">学生信息</h4>
+
+                  {isLoadingDict ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="student_name">
+                            学生姓名 <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="student_name"
+                            placeholder="请输入学生姓名"
+                            value={formData.student_name}
+                            onChange={(e) => handleInputChange("student_name", e.target.value)}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="parent_phone">
+                            家长电话 <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="parent_phone"
+                            type="tel"
+                            placeholder="请输入家长电话"
+                            value={formData.parent_phone}
+                            onChange={(e) => handleInputChange("parent_phone", e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="student_grade">年级</Label>
+                          <Select
+                            value={formData.student_grade}
+                            onValueChange={(value) => handleInputChange("student_grade", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="选择年级" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {grades.map((grade) => (
+                                <SelectItem key={grade.code} value={grade.code}>
+                                  {grade.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="student_region">地域</Label>
+                          <Select
+                            value={formData.student_region}
+                            onValueChange={(value) => handleInputChange("student_region", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="选择地域" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {regions.map((region) => (
+                                <SelectItem key={region.code} value={region.code}>
+                                  {region.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="order_number">订单号</Label>
                     <Input
@@ -394,6 +579,67 @@ export default function EditFormalOrderPage() {
                     </select>
                   </div>
                 </div>
+
+                {/* 关联信息 - 根据订单类型显示 */}
+                {(formData.order_type.includes('新') || formData.order_type.includes('扩') || formData.order_type.toLowerCase().includes('new') || formData.order_type.toLowerCase().includes('extend')) && (
+                  <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="lead_id">
+                        关联线索 <span className="text-destructive">*</span>
+                      </Label>
+                      <select
+                        id="lead_id"
+                        value={formData.lead_id}
+                        onChange={(e) => handleInputChange("lead_id", e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                        required
+                      >
+                        <option value="">请选择线索</option>
+                        {leads.map((lead) => (
+                          <option key={lead.id} value={lead.id}>
+                            {lead.student_name} - {lead.parent_phone}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {(formData.order_type.includes('续') || formData.order_type.toLowerCase().includes('renew')) && (
+                  <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="previous_order_id">
+                        关联之前订单 <span className="text-destructive">*</span>
+                      </Label>
+                      <select
+                        id="previous_order_id"
+                        value={formData.previous_order_id}
+                        onChange={(e) => handleInputChange("previous_order_id", e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                        required
+                      >
+                        <option value="">请选择之前订单</option>
+                        {previousOrders
+                          .filter(order => !formData.student_id || order.student_id === formData.student_id)
+                          .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+                          .map((order) => {
+                            const studentName = students.find(s => s.id === order.student_id)?.student_name || '未知学生'
+                            const date = order.created_at ? new Date(order.created_at).toLocaleDateString('zh-CN') : ''
+                            return (
+                              <option key={order.id} value={order.id}>
+                                {order.order_number} - {studentName} - {order.total_hours || 0}课时 - {date}
+                              </option>
+                            )
+                          })}
+                      </select>
+                      <p className="text-xs text-muted-foreground">
+                        {formData.student_id
+                          ? "显示该学生的历史订单"
+                          : "请先选择学生，将只显示该学生的历史订单"}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="order_notes">订单备注</Label>
@@ -451,116 +697,6 @@ export default function EditFormalOrderPage() {
                   {selectedSubjects.length === 0 && (
                     <p className="text-xs text-destructive">至少选择一个学科</p>
                   )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="total_sessions">
-                      总课时数 <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="total_sessions"
-                      type="number"
-                      placeholder="请输入总课时数"
-                      value={formData.total_sessions}
-                      onChange={(e) => handleInputChange("total_sessions", e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="session_duration">
-                      单课时长(小时) <span className="text-destructive">*</span>
-                    </Label>
-                    <select
-                      id="session_duration"
-                      value={formData.session_duration}
-                      onChange={(e) => handleInputChange("session_duration", e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                      required
-                    >
-                      <option value="">请选择单课时长</option>
-                      {sessionDurations.map((duration) => (
-                        <option key={duration.id} value={duration.code}>
-                          {duration.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="fixed_mode">
-                      固定模式 <span className="text-destructive">*</span>
-                    </Label>
-                    <select
-                      id="fixed_mode"
-                      value={formData.fixed_mode}
-                      onChange={(e) => handleInputChange("fixed_mode", e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                      required
-                    >
-                      <option value="">请选择固定模式</option>
-                      {fixedModes.length > 0 ? (
-                        fixedModes.map((mode) => (
-                          <option key={mode.id} value={mode.label}>
-                            {mode.label}
-                          </option>
-                        ))
-                      ) : (
-                        <option value="">请先配置固定模式选项</option>
-                      )}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="frequency">
-                      频次 <span className="text-destructive">*</span>
-                    </Label>
-                    <select
-                      id="frequency"
-                      value={formData.frequency}
-                      onChange={(e) => handleInputChange("frequency", e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                      required
-                    >
-                      <option value="">请选择频次</option>
-                      {frequencies.map((freq) => (
-                        <option key={freq.id} value={freq.label}>
-                          {freq.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="official_start_time">
-                      正式上课时间 <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="official_start_time"
-                      type="datetime-local"
-                      value={formData.official_start_time}
-                      onChange={(e) => handleInputChange("official_start_time", e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="first_class_time">
-                      首次课时间 <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="first_class_time"
-                      type="datetime-local"
-                      value={formData.first_class_time}
-                      onChange={(e) => handleInputChange("first_class_time", e.target.value)}
-                      required
-                    />
-                  </div>
                 </div>
               </div>
 
