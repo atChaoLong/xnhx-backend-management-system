@@ -41,7 +41,6 @@ export default function FormalOrdersPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
-  const [isCreatingClass, setIsCreatingClass] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null)
   const { toast } = useToast()
@@ -126,8 +125,8 @@ export default function FormalOrdersPage() {
     setOrderToDelete(null)
   }
 
-  // 快捷开课（教务操作）
-  const handleQuickCreateClass = async (order: FormalOrder) => {
+  // 快捷开课（教务操作）- 跳转到排课管理页面
+  const handleQuickCreateClass = (order: FormalOrder) => {
     // 检查必要字段
     if (!order.teacher_names || order.teacher_names.length === 0) {
       toast({
@@ -138,76 +137,26 @@ export default function FormalOrdersPage() {
       return
     }
 
-    if (!order.first_class_time) {
+    if (!order.student_id) {
       toast({
         variant: "destructive",
         title: "无法开课",
-        description: "请先确定首次上课时间",
+        description: "订单缺少学生信息",
       })
       return
     }
 
-    try {
-      setIsCreatingClass(order.id)
+    // 跳转到批量排课页面，携带订单信息
+    const params = new URLSearchParams({
+      order_id: order.id,
+      student_id: order.student_id,
+      teacher_name: order.teacher_names[0],
+      subjects: order.subjects?.join(',') || '',
+      total_hours: order.total_hours?.toString() || '',
+      from: 'formal_order',
+    })
 
-      // 获取第一个老师的 ClassIn UID
-      const teacherResponse = await fetch('/api/teachers/classin')
-      const { data: teachers } = await teacherResponse.json()
-      const teacher = teachers.find((t: any) => t.teacher_name === order.teacher_names[0])
-
-      if (!teacher || !teacher.classin_uid) {
-        toast({
-          variant: "destructive",
-          title: "无法开课",
-          description: `老师"${order.teacher_names[0]}"未绑定 ClassIn 账号`,
-        })
-        return
-      }
-
-      // 调用 ClassIn SDK 创建课室
-      const classResponse = await fetch('/api/classin-sdk/classroom', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token')}`
-        },
-        body: JSON.stringify({
-          courseId: process.env.NEXT_PUBLIC_CLASSIN_DEFAULT_COURSE_ID || 'default_course',
-          unitId: process.env.NEXT_PUBLIC_CLASSIN_DEFAULT_UNIT_ID || 'default_unit',
-          name: `${order.order_number}正式课`,
-          teacherUid: teacher.classin_uid,
-          startTime: new Date(order.first_class_time).getTime() / 1000, // 转为秒级时间戳
-          endTime: new Date(new Date(order.first_class_time).getTime() + (order.session_duration || 120) * 60 * 1000).getTime() / 1000,
-        })
-      })
-
-      if (!classResponse.ok) {
-        const error = await classResponse.json()
-        throw new Error(error.error || '创建课室失败')
-      }
-
-      const { data: classroom } = await classResponse.json()
-
-      // 更新订单备注，保存课室链接
-      await FormalOrdersService.updateFormalOrder({
-        ...order,
-        order_notes: `${order.order_notes || ''}\n\n课室链接：${classroom.liveUrl || classroom.url || ''}`.trim(),
-      })
-
-      toast({
-        title: "开课成功",
-        description: "课室已创建，链接已保存到订单备注",
-      })
-      fetchOrders()
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "开课失败",
-        description: error.message || "无法创建课室",
-      })
-    } finally {
-      setIsCreatingClass(null)
-    }
+    router.push(`/dashboard/schedule/batch?${params.toString()}`)
   }
 
   // 获取状态标签样式
@@ -367,18 +316,11 @@ export default function FormalOrdersPage() {
                                 variant="default"
                                 size="sm"
                                 onClick={() => handleQuickCreateClass(order)}
-                                disabled={isCreatingClass === order.id}
                                 className="bg-purple-600 hover:bg-purple-700"
-                                title="创建ClassIn课室"
+                                title="跳转到排课管理页面"
                               >
-                                {isCreatingClass === order.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <>
-                                    <CheckCircle className="mr-1 h-4 w-4" />
-                                    开课
-                                  </>
-                                )}
+                                <CheckCircle className="mr-1 h-4 w-4" />
+                                开课
                               </Button>
                             )}
 

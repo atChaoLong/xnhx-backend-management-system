@@ -115,6 +115,29 @@ export default function BatchSchedulePage() {
         )
 
         setOrders(ordersWithStudentNames)
+
+        // 检查 URL 参数，自动选择订单
+        const params = new URLSearchParams(window.location.search)
+        const orderId = params.get('order_id')
+
+        if (orderId) {
+          const targetOrder = ordersWithStudentNames.find((o: any) => o.id === orderId)
+          if (targetOrder) {
+            setSelectedOrderId(orderId)
+            setSelectedOrder(targetOrder)
+
+            // 自动填充参数
+            setEditableParams((prev) => ({
+              ...prev,
+              totalSessions: targetOrder.total_hours || 0,
+            }))
+
+            toast({
+              title: "已自动选择订单",
+              description: `订单：${targetOrder.order_number}`,
+            })
+          }
+        }
       } catch (error: any) {
         toast({
           variant: "destructive",
