@@ -190,7 +190,22 @@ export default function EditFormalOrderPage() {
   }, [])
 
   const handleInputChange = (field: string, value: string | number) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    setFormData((prev) => {
+      const newData = { ...prev, [field]: value }
+
+      // 自动计算小时单价：当总课时或付款金额变化时
+      if (field === 'total_hours' || field === 'payment_amount') {
+        const hours = parseFloat(String(newData.total_hours))
+        const amount = parseFloat(String(newData.payment_amount))
+
+        // 只有当两个字段都有值时才计算
+        if (!isNaN(hours) && hours > 0 && !isNaN(amount) && amount > 0) {
+          newData.hourly_rate = (amount / hours).toFixed(2)
+        }
+      }
+
+      return newData
+    })
   }
 
   // 处理学生选择
@@ -765,11 +780,14 @@ export default function EditFormalOrderPage() {
                       id="hourly_rate"
                       type="number"
                       step="0.01"
-                      placeholder="请输入小时单价"
+                      placeholder="自动计算或手动输入"
                       value={formData.hourly_rate}
                       onChange={(e) => handleInputChange("hourly_rate", e.target.value)}
                       required
                     />
+                    <p className="text-xs text-muted-foreground">
+      根据总课时和付款金额自动计算，也可手动编辑
+                    </p>
                   </div>
                 </div>
 
