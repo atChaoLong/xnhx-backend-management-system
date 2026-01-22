@@ -25,6 +25,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Loader2, ArrowLeft, Calendar, Clock, User, BookOpen, Play, CheckCircle, XCircle, Plus, Trash2, Edit, RefreshCw } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
 import { format } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
 import { zhCN } from "date-fns/locale"
@@ -124,6 +125,11 @@ export default function CourseDetailPage() {
   const [course, setCourse] = useState<CourseDetail | null>(null)
   const [sessions, setSessions] = useState<ClassSession[]>([])
   const [isLoading, setIsLoading] = useState(true)
+
+  // 批量删除状态
+  const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set())
+  const [selectAll, setSelectAll] = useState(false)
+  const [batchDeleteDialogOpen, setBatchDeleteDialogOpen] = useState(false)
 
   // 对话框状态
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -388,6 +394,73 @@ export default function CourseDetailPage() {
     }
   }
 
+  // 全选/取消全选
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedSessionIds(new Set())
+    } else {
+      setSelectedSessionIds(new Set(sessions.map(s => s.id)))
+    }
+    setSelectAll(!selectAll)
+  }
+
+  // 选择单个课节
+  const handleSelectSession = (sessionId: string) => {
+    setSelectedSessionIds(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(sessionId)) {
+        newSet.delete(sessionId)
+      } else {
+        newSet.add(sessionId)
+      }
+      return newSet
+    })
+  }
+
+  // 批量删除
+  const handleBatchDelete = async (deleteClassIn: boolean) => {
+    if (selectedSessionIds.size === 0) return
+
+    try {
+      setIsOperating(true)
+      const token = localStorage.getItem('supabase.auth.token')
+
+      // 并发删除所有选中的课节
+      const deletePromises = Array.from(selectedSessionIds).map(sessionId =>
+        fetch(`/api/class-sessions?id=${sessionId}&delete_classin=${deleteClassIn}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` },
+        })
+      )
+
+      const results = await Promise.allSettled(deletePromises)
+
+      // 统计结果
+      const successful = results.filter(r => r.status === 'fulfilled').length
+      const failed = results.filter(r => r.status === 'rejected').length
+
+      toast({
+        title: "批量删除完成",
+        description: `成功删除 ${successful} 个课节${failed > 0 ? `，失败 ${failed} 个` : ''}`,
+        variant: failed > 0 ? 'destructive' : 'default',
+      })
+
+      setBatchDeleteDialogOpen(false)
+      setSelectedSessionIds(new Set())
+      setSelectAll(false)
+      fetchSessions()
+      fetchCourseDetail()
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "批量删除失败",
+        description: error.message,
+      })
+    } finally {
+      setIsOperating(false)
+    }
+  }
+
   if (isLoading || !course) {
     return (
       <div className="flex flex-col h-full">
@@ -513,14 +586,27 @@ export default function CourseDetailPage() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button onClick={handleSync} variant="outline" size="sm" disabled={isOperating}>
+              {/* 隐藏同步状态和添加课节按钮 */}
+              {/* <Button onClick={handleSync} variant="outline" size="sm" disabled={isOperating}>
                 <RefreshCw className={`mr-2 h-4 w-4 ${isOperating ? 'animate-spin' : ''}`} />
                 同步状态
-              </Button>
-              <Button onClick={() => setAddDialogOpen(true)} size="sm" disabled={isOperating}>
+              </Button> */}
+              {/* <Button onClick={() => setAddDialogOpen(true)} size="sm" disabled={isOperating}>
                 <Plus className="mr-2 h-4 w-4" />
                 添加课节
-              </Button>
+              </Button> */}
+
+              {selectedSessionIds.size > 0 && (
+                <Button
+                  onClick={() => setBatchDeleteDialogOpen(true)}
+                  variant="destructive"
+                  size="sm"
+                  disabled={isOperating}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  批量删除 ({selectedSessionIds.size})
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -531,6 +617,12 @@ export default function CourseDetailPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-12">
+                        <Checkbox
+                          checked={selectAll}
+                          onCheckedChange={handleSelectAll}
+                        />
+                      </TableHead>
                       <TableHead className="w-16">序号</TableHead>
                       <TableHead>课节名称</TableHead>
                       <TableHead>上课日期</TableHead>
@@ -546,6 +638,12 @@ export default function CourseDetailPage() {
                       const sessionStatus = STATUS_MAP[session.status] || STATUS_MAP['scheduled']
                       return (
                         <TableRow key={session.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedSessionIds.has(session.id)}
+                              onCheckedChange={() => handleSelectSession(session.id)}
+                            />
+                          </TableCell>
                           <TableCell className="font-medium">第{session.session_number}节</TableCell>
                           <TableCell>{session.session_name || '-'}</TableCell>
                           <TableCell>
@@ -671,6 +769,34 @@ export default function CourseDetailPage() {
             </Button>
             <Button onClick={handleEdit} disabled={isOperating}>
               {isOperating ? '保存中...' : '保存'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 批量删除确认对话框 */}
+      <Dialog open={batchDeleteDialogOpen} onOpenChange={setBatchDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>批量删除课节</DialogTitle>
+            <DialogDescription>
+              确定要删除选中的 {selectedSessionIds.size} 节课吗？
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => handleBatchDelete(false)}
+              disabled={isOperating}
+            >
+              仅删除本地记录
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => handleBatchDelete(true)}
+              disabled={isOperating}
+            >
+              同时删除 ClassIn 课堂
             </Button>
           </DialogFooter>
         </DialogContent>
