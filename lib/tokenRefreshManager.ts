@@ -127,21 +127,20 @@ class TokenRefreshManager {
 
     try {
       const sessionStr = localStorage.getItem('supabase.auth.session')
-      if (!sessionStr) {
-        // 兼容老格式
-        const oldToken = localStorage.getItem('supabase.auth.token')
-        if (oldToken) {
-          return {
-            access_token: oldToken,
-            refresh_token: '',
-            expires_at: 0,
-            user: null
-          }
-        }
+
+      if (sessionStr) {
+        return JSON.parse(sessionStr)
+      }
+
+      // 兼容老格式：只有 access_token
+      const oldToken = localStorage.getItem('supabase.auth.token')
+      if (oldToken) {
+        logger.info('检测到老格式 token（无 refresh_token）')
+        // 老格式无法刷新，返回 null
         return null
       }
 
-      return JSON.parse(sessionStr)
+      return null
     } catch (error) {
       logger.error('解析 session 失败', { error })
       return null
