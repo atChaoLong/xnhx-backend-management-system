@@ -147,20 +147,20 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     users: ['view'],
   },
 
-  // 教务：试听老师匹配、课时核对
+  // 教务：全部权限
   academic_affairs: {
-    leads: ['view'],
-    trialLessons: ['view', 'edit', 'matchTeacher', 'confirmTeacher', 'confirmTime', 'addLink'],
-    students: ['view', 'manageHours'],
-    formalOrders: ['view', 'addLink'], // 添加 addLink - 教务可以为正式订单开课
-    classSessions: ['view'],
-    courses: ['view'],
-    transactions: ['view', 'verifyHours'],
-    teacherCandidates: ['view', 'evaluate', 'uploadVideo', 'reviewVideo'],
-    teachers: ['view', 'edit', 'notes'],
-    dictionaries: ['view'],
-    todos: ["view", "edit"],
-    users: ['view'],
+    leads: ['view', 'create', 'edit', 'delete'],
+    trialLessons: ['view', 'create', 'edit', 'delete'],
+    students: ['view', 'create', 'edit', 'delete'],
+    formalOrders: ['view', 'create', 'edit', 'delete'],
+    classSessions: ['view', 'create', 'edit', 'delete'],
+    courses: ['view', 'create', 'edit', 'delete'],
+    transactions: ['view', 'create', 'verifyHours', 'payment', 'verifyPerformance'],
+    teacherCandidates: ['view', 'interview', 'evaluate', 'uploadVideo', 'reviewVideo'],
+    teachers: ['view', 'create', 'edit', 'delete', 'notes'],
+    dictionaries: ['view', 'create', 'edit', 'delete'],
+    users: ['view', 'create', 'edit', 'delete'],
+    todos: ['view', 'create', 'edit', 'delete'],
   },
 
   // 财务：财务管理、打款
