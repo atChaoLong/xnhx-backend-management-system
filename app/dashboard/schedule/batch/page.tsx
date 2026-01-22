@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { WeeklySchedulePicker, type WeeklySchedule } from "@/components/ui/weekly-schedule-picker"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import { Loader2, Plus, Trash2, Calendar, Clock, User, GraduationCap } from "lucide-react"
 import { FormalOrdersService } from "@/lib/services/formalOrders"
 import { StudentsService } from "@/lib/services/students"
@@ -840,22 +841,18 @@ export default function BatchSchedulePage() {
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold mb-4">1. 选择正式订单</h3>
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="order">选择订单</Label>
-                  <select
-                    id="order"
-                    value={selectedOrderId}
-                    onChange={(e) => handleOrderChange(e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                  >
-                    <option value="">请选择正式订单</option>
-                    {orders.map((order) => (
-                      <option key={order.id} value={order.id}>
-                        {order.student_name || '-'} - {order.teacher_names?.[0] || '-'} - {order.subjects?.[0] || '-'} - {order.order_number}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <SearchableSelect
+                  id="order"
+                  label="选择订单"
+                  placeholder="请输入订单号、学生姓名或老师姓名搜索..."
+                  value={selectedOrderId}
+                  onChange={(value) => handleOrderChange(value)}
+                  options={orders.map((order) => ({
+                    id: order.id,
+                    name: `${order.student_name || '-'} - ${order.teacher_names?.[0] || '-'} - ${order.subjects?.[0] || '-'} - ${order.order_number}`,
+                  }))}
+                  loading={isLoading}
+                />
 
                 {selectedOrder && (
                   <div className="mt-4 p-4 bg-muted rounded-lg">
