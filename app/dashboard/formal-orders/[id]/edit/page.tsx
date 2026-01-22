@@ -295,8 +295,8 @@ export default function EditFormalOrderPage() {
       return
     }
 
-    const isRenew = String(formData.order_type) === 'renew'
-    const isNewOrExpand = String(formData.order_type) === 'new' || String(formData.order_type) === 'extend'
+    const isRenew = formData.order_type.includes('续') || formData.order_type.toLowerCase().includes('renew')
+    const isNewOrExpand = formData.order_type.includes('新') || formData.order_type.includes('扩') || formData.order_type.toLowerCase().includes('new') || formData.order_type.toLowerCase().includes('extend')
     if (isNewOrExpand && !formData.lead_id) {
       toast({
         variant: "destructive",

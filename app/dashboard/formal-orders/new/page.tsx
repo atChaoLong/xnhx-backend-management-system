@@ -250,8 +250,8 @@ export default function NewFormalOrderPage() {
       return
     }
 
-    const isRenew = String(formData.order_type) === 'renew'
-    const isNewOrExpand = String(formData.order_type) === 'new' || String(formData.order_type) === 'extend'
+    const isRenew = formData.order_type.includes('续') || formData.order_type.toLowerCase().includes('renew')
+    const isNewOrExpand = formData.order_type.includes('新') || formData.order_type.includes('扩') || formData.order_type.toLowerCase().includes('new') || formData.order_type.toLowerCase().includes('extend')
     if (isNewOrExpand && !formData.lead_id) {
       toast({
         variant: "destructive",
@@ -522,7 +522,33 @@ export default function NewFormalOrderPage() {
                   </div>
                 </div>
 
-                {/* 关联信息 - 只有续费才显示关联订单 */}
+                {/* 关联信息 - 根据订单类型显示 */}
+                {/* 新签/扩课显示关联线索 */}
+                {(formData.order_type.includes('新') || formData.order_type.includes('扩') || formData.order_type.toLowerCase().includes('new') || formData.order_type.toLowerCase().includes('extend')) && (
+                  <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="lead_id">
+                        关联线索 <span className="text-destructive">*</span>
+                      </Label>
+                      <select
+                        id="lead_id"
+                        value={formData.lead_id}
+                        onChange={(e) => handleInputChange("lead_id", e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                        required
+                      >
+                        <option value="">请选择线索</option>
+                        {leads.map((lead) => (
+                          <option key={lead.id} value={lead.id}>
+                            {lead.report_number} - {lead.parent_wechat} - {lead.student_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {/* 续费显示关联订单 */}
                 {(formData.order_type.includes('续') || formData.order_type.toLowerCase().includes('renew')) && (
                   <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
 
