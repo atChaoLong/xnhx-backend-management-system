@@ -42,13 +42,18 @@ export async function POST(request: NextRequest) {
 
     // 获取学生信息（如果存在）
     let gradeCode = null
+    let studentClassinUid: number | null = null
+    let studentParentPhone: string | null = null
+
     if (order.student_id) {
       const { data: student } = await supabaseServer
         .from('students')
-        .select('grade_code')
+        .select('grade_code, classin_uid, parent_phone')
         .eq('id', order.student_id)
         .single()
       gradeCode = student?.grade_code || null
+      studentClassinUid = student?.classin_uid || null
+      studentParentPhone = student?.parent_phone || null
     }
 
     const sdk = getClassInSDKService()
@@ -218,6 +223,82 @@ export async function POST(request: NextRequest) {
       } else if (courseData) {
         localCourseId = courseData.id
         logger.info("创建本地 course 记录成功", { orderId, classinCourseId: courseId, localCourseId })
+      }
+    }
+
+    // 注册学生到 ClassIn（如果需要）并添加到课程
+    if (courseId && first.studentName) {
+      // 如果学生没有 classin_uid，需要先注册
+      if (!studentClassinUid && studentParentPhone) {
+        try {
+          logger.info('学生未注册 ClassIn，开始注册', { studentName: first.studentName, phone: studentParentPhone })
+          const studentPassword = process.env.CLASSIN_STUDENT_DEFAULT_PASSWORD || '123456'
+          studentClassinUid = await sdk.registerStudent({
+            telephone: studentParentPhone,
+            nickname: first.studentName,
+            password: studentPassword,
+          })
+
+          // 更新 students 表的 classin_uid
+          if (order.student_id) {
+            const { error: updateError } = await supabaseServer
+              .from('students')
+              .update({ classin_uid: studentClassinUid })
+              .eq('id', order.student_id)
+
+            if (updateError) {
+              logger.warn('更新学生 classin_uid 失败', { studentId: order.student_id, error: updateError.message })
+            } else {
+              logger.info('更新学生 classin_uid 成功', { studentId: order.student_id, classinUid: studentClassinUid })
+            }
+          }
+
+          logger.info('学生注册 ClassIn 成功', { studentName: first.studentName, uid: studentClassinUid })
+        } catch (e: any) {
+          logger.warn('注册学生到 ClassIn 失败（可能已存在），尝试从 students_classin 表查找', {
+            message: e?.message,
+            studentName: first.studentName,
+          })
+
+          // 尝试从 students_classin 表通过手机号查找
+          if (studentParentPhone) {
+            const { data: existingStudent } = await supabaseServer
+              .from('students_classin')
+              .select('uid')
+              .eq('mobile', studentParentPhone)
+              .maybeSingle()
+
+            if (existingStudent?.uid) {
+              studentClassinUid = existingStudent.uid
+              logger.info('从 students_classin 表找到学生', { phone: studentParentPhone, uid: studentClassinUid })
+
+              // 更新 students 表
+              if (order.student_id) {
+                await supabaseServer
+                  .from('students')
+                  .update({ classin_uid: studentClassinUid })
+                  .eq('id', order.student_id)
+              }
+            }
+          }
+        }
+      }
+
+      // 将学生添加到课程（课程下所有课节均可上）
+      if (studentClassinUid) {
+        try {
+          await sdk.addCourseStudent({
+            courseId: courseId as string,
+            studentUid: studentClassinUid,
+            identity: 1,
+            studentName: first.studentName,
+          })
+          logger.info('添加学生到课程成功', { courseId, studentUid: studentClassinUid, studentName: first.studentName })
+        } catch (e: any) {
+          logger.warn('添加学生到课程失败（非致命）', { message: e?.message, courseId, studentUid: studentClassinUid })
+        }
+      } else {
+        logger.warn('学生没有 ClassIn UID，无法添加到课程', { studentName: first.studentName })
       }
     }
 
