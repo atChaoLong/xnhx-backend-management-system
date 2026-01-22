@@ -612,7 +612,7 @@ export default function EditFormalOrderPage() {
                         <option value="">请选择线索</option>
                         {leads.map((lead) => (
                           <option key={lead.id} value={lead.id}>
-                            {lead.student_name} - {lead.parent_phone}
+                            {lead.report_number} - {lead.parent_wechat} - {lead.student_name}
                           </option>
                         ))}
                       </select>
