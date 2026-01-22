@@ -337,10 +337,43 @@ export default function StudentsPage() {
   }
 
   const handleConfirmEntry = async (student: Student) => {
-    const code = prompt(`为学生 ${student.student_name} 设置学生编号：`)
-    if (code === null || !code.trim()) return
-    const password = prompt(`为学生 ${student.student_name} 设置 ClassIn 初始密码：`, "123456")
-    if (password === null || !password.trim()) return
+    // 如果学生已经有 student_code，直接入库不需要再输入编号
+    if (student.student_code) {
+      const password = prompt(`学生 ${student.student_name} 已有编号 ${student.student_code}\n请输入 ClassIn 初始密码：`, "123456")
+      if (password === null || !password.trim()) return
+
+      try {
+        const resp = await fetch("/api/student-entries/confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            student_name: student.student_name,
+            student_code: student.student_code,
+            parent_phone: student.parent_phone,
+            initial_password: password.trim(),
+            status: student.status || "active",
+          }),
+        })
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ error: "学生入库失败" }))
+          throw new Error(err.error || "学生入库失败")
+        }
+        toast({
+          title: "入库成功",
+          description: `学生 ${student.student_name} 已注册 ClassIn`,
+        })
+        fetchStudents(currentPage, pageSize)
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "入库失败",
+          description: error.message || "无法入库该学生",
+        })
+      }
+      return
+    }
+
+    // 如果学生没有 student_code，提示输入编号和密码
     if (!student.parent_phone) {
       toast({
         variant: "destructive",
@@ -349,6 +382,12 @@ export default function StudentsPage() {
       })
       return
     }
+
+    const code = prompt(`为学生 ${student.student_name} 设置学生编号：`)
+    if (code === null || !code.trim()) return
+    const password = prompt(`为学生 ${student.student_name} 设置 ClassIn 初始密码：`, "123456")
+    if (password === null || !password.trim()) return
+
     try {
       const resp = await fetch("/api/student-entries/confirm", {
         method: "POST",

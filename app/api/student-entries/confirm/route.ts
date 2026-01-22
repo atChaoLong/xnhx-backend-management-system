@@ -41,7 +41,14 @@ export async function POST(request: NextRequest) {
       logger.warn('添加学生到机构失败（可能已存在）', { message: e?.message })
     }
 
-    // upsert 简化字段到 students
+    // 先根据 parent_phone 查找是否已存在该学生
+    const { data: existingStudent } = await supabaseServer
+      .from('students')
+      .select('id')
+      .eq('parent_phone', parent_phone)
+      .maybeSingle()
+
+    // 准备 upsert 数据
     const payload: any = {
       student_code,
       student_name,
@@ -52,9 +59,17 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString(),
     }
 
+    // 如果已存在学生，添加 id 以触发更新
+    if (existingStudent?.id) {
+      payload.id = existingStudent.id
+      logger.info('更新已有学生记录', { studentId: existingStudent.id, student_name })
+    } else {
+      logger.info('创建新学生记录', { student_name, parent_phone })
+    }
+
     const { data, error } = await supabaseServer
       .from('students')
-      .upsert(payload, { onConflict: 'student_code' })
+      .upsert(payload, { onConflict: 'id' })
       .select()
       .single()
 
