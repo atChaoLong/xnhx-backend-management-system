@@ -418,16 +418,16 @@ export default function CourseDetailPage() {
   }
 
   // 批量删除
-  const handleBatchDelete = async (deleteClassIn: boolean) => {
+  const handleBatchDelete = async () => {
     if (selectedSessionIds.size === 0) return
 
     try {
       setIsOperating(true)
       const token = localStorage.getItem('supabase.auth.token')
 
-      // 并发删除所有选中的课节
+      // 并发删除所有选中的课节（同时删除 ClassIn 课堂）
       const deletePromises = Array.from(selectedSessionIds).map(sessionId =>
-        fetch(`/api/class-sessions?id=${sessionId}&delete_classin=${deleteClassIn}`, {
+        fetch(`/api/class-sessions?id=${sessionId}&delete_classin=true`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` },
         })
@@ -780,23 +780,23 @@ export default function CourseDetailPage() {
           <DialogHeader>
             <DialogTitle>批量删除课节</DialogTitle>
             <DialogDescription>
-              确定要删除选中的 {selectedSessionIds.size} 节课吗？
+              确定要删除选中的 {selectedSessionIds.size} 节课吗？此操作将同时删除本地记录和 ClassIn 课堂。
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2">
+          <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => handleBatchDelete(false)}
+              onClick={() => setBatchDeleteDialogOpen(false)}
               disabled={isOperating}
             >
-              仅删除本地记录
+              取消
             </Button>
             <Button
               variant="destructive"
-              onClick={() => handleBatchDelete(true)}
+              onClick={handleBatchDelete}
               disabled={isOperating}
             >
-              同时删除 ClassIn 课堂
+              {isOperating ? '删除中...' : '确认删除'}
             </Button>
           </DialogFooter>
         </DialogContent>
