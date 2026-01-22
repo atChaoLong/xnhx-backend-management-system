@@ -93,6 +93,103 @@ if (leads.create()) {
 }
 ```
 
+## 认证系统
+
+### Token 机制
+项目使用 Supabase 的双 Token 机制实现自动续期：
+
+- **access_token**: 访问令牌，有效期 1 小时
+- **refresh_token**: 刷新令牌，有效期 30 天
+
+### 自动刷新流程
+
+1. **登录时**：同时存储 access_token 和 refresh_token 到 localStorage
+2. **后台定时检查**：每 30 秒检查一次 token 是否即将过期（剩余 < 5 分钟）
+3. **自动刷新**：token 即将过期时，后台自动调用刷新 API 获取新 token
+4. **401 错误处理**：API 请求返回 401 时，自动刷新 token 并重试原请求
+5. **刷新失败**：重试 3 次（指数退避），失败后清除认证信息并跳转登录页
+
+### 核心 API
+
+**登录**：`POST /api/auth/signin`
+```json
+{
+  "email": "user@example.com",
+  "password": "password"
+}
+```
+
+**响应**：
+```json
+{
+  "data": {
+    "access_token": "jwt_token",
+    "refresh_token": "refresh_token",
+    "expires_at": 1706925600,
+    "user": { ... }
+  }
+}
+```
+
+**刷新 Token**：`POST /api/auth/refresh`
+```json
+{
+  "refresh_token": "refresh_token"
+}
+```
+
+### 客户端使用
+
+**自动刷新**（Dashboard 中自动启用）：
+```typescript
+import { useTokenRefresh } from "@/lib/hooks/useTokenRefresh"
+
+function Dashboard() {
+  // 启动 token 自动刷新
+  useTokenRefresh()
+  // ...
+}
+```
+
+**手动刷新**：
+```typescript
+import { tokenRefreshManager } from "@/lib/tokenRefreshManager"
+
+const session = await tokenRefreshManager.refreshToken()
+```
+
+**检查 Token 是否即将过期**：
+```typescript
+const isExpiringSoon = tokenRefreshManager.isTokenExpiringSoon(300) // 5 分钟
+```
+
+### 多标签页同步
+
+使用 BroadcastChannel API 实现多标签页 token 同步：
+- 一个标签页刷新 token 后，其他标签页自动更新
+- 避免多个标签页同时刷新 token（并发控制）
+
+### 存储结构
+
+**localStorage**：
+```json
+{
+  "supabase.auth.session": {
+    "access_token": "jwt_token",
+    "refresh_token": "refresh_token",
+    "expires_at": 1706925600,
+    "user": { ... }
+  }
+}
+```
+
+兼容旧格式：
+```json
+{
+  "supabase.auth.token": "jwt_token"
+}
+```
+
 ## 数据库表
 
 主要表结构：

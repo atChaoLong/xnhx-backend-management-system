@@ -3,6 +3,8 @@
  * 所有 API 请求都应该使用这个而不是直接调用 fetch
  */
 
+import { tokenRefreshManager } from './tokenRefreshManager'
+
 export async function apiRequest(
   url: string,
   options: RequestInit = {}
@@ -33,34 +35,68 @@ export async function apiRequest(
     headers,
   })
 
-  // 处理 401 错误：清除过期的认证信息
+  // 处理 401 错误：尝试刷新 token 并重试
   if (response.status === 401 && typeof window !== 'undefined') {
-    // 检查是否是 token 相关的错误
     const responseClone = response.clone()
 
-    responseClone.json().then(data => {
+    try {
+      const data = await responseClone.json()
       const errorMsg = data.error || ''
 
-      // 如果是认证相关的错误，清除本地存储
-      if (errorMsg.includes('过期') || errorMsg.includes('登录') || errorMsg.includes('token')) {
-        console.warn('Token 已过期或无效，清除本地认证信息')
-
-        // 清除 token
-        localStorage.removeItem('supabase.auth.token')
-        // 清除用户缓存
-        sessionStorage.removeItem('currentUser')
-
-        // 触发自定义事件，通知其他组件
-        window.dispatchEvent(new Event('auth:expired'))
+      // 如果是 refresh_token 相关错误，直接清除（无法刷新）
+      if (errorMsg.includes('refresh_token') || errorMsg.includes('refresh token')) {
+        console.warn('refresh_token 已过期，清除认证信息')
+        clearAuthAndRedirect()
+        return response
       }
-    }).catch(() => {
-      // JSON 解析失败，也清除本地存储（保险起见）
-      localStorage.removeItem('supabase.auth.token')
-      sessionStorage.removeItem('currentUser')
-    })
+
+      // 其他 401 错误：尝试刷新 token
+      console.log('Token 已过期，尝试刷新并重试')
+
+      const newSession = await tokenRefreshManager.refreshToken()
+
+      if (newSession) {
+        console.log('Token 刷新成功，重试原请求')
+
+        // 使用新 token 重试原请求
+        const newHeaders = new Headers(options.headers || {})
+        newHeaders.set('Authorization', `Bearer ${newSession.access_token}`)
+
+        return fetch(url, {
+          ...options,
+          headers: newHeaders,
+        })
+      } else {
+        // 刷新失败，清除认证信息
+        console.warn('Token 刷新失败，清除认证信息')
+        clearAuthAndRedirect()
+      }
+    } catch (error) {
+      // JSON 解析失败或其他错误，清除认证信息（保险起见）
+      console.error('处理 401 错误失败', { error })
+      clearAuthAndRedirect()
+    }
   }
 
   return response
+}
+
+/**
+ * 清除认证信息并触发登出事件
+ */
+function clearAuthAndRedirect() {
+  if (typeof window === 'undefined') return
+
+  // 清除所有认证信息
+  localStorage.removeItem('supabase.auth.session')
+  localStorage.removeItem('supabase.auth.token')
+  localStorage.removeItem('user')
+  sessionStorage.removeItem('currentUser')
+
+  // 触发登出事件
+  window.dispatchEvent(new Event('auth:expired'))
+
+  // 不在这里跳转，让监听器处理（保持灵活性）
 }
 
 // 快捷方法

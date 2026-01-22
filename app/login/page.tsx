@@ -72,8 +72,20 @@ export default function LoginPage() {
         localStorage.removeItem('user')
       }
 
-      // 保存 token 到 localStorage
-      if (data.access_token) {
+      // 保存完整 session 到 localStorage
+      if (data.access_token && data.refresh_token) {
+        const sessionData = {
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+          expires_at: data.expires_at,
+          user: data.user
+        }
+        localStorage.setItem('supabase.auth.session', JSON.stringify(sessionData))
+
+        // 兼容：同时保存 access_token 到旧位置
+        localStorage.setItem('supabase.auth.token', data.access_token)
+      } else if (data.access_token) {
+        // 兼容旧格式
         localStorage.setItem('supabase.auth.token', data.access_token)
       }
 

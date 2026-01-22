@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
+import { useTokenRefresh } from "@/lib/hooks/useTokenRefresh"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { Loader2 } from "lucide-react"
 
@@ -13,6 +14,9 @@ export default function DashboardLayout({
 }) {
   const { user, isLoading, handleLogout } = useAuth()
   const router = useRouter()
+
+  // 启动 token 自动刷新
+  useTokenRefresh()
 
   useEffect(() => {
     if (!isLoading && !user) {
