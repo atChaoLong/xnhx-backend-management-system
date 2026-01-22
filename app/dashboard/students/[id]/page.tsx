@@ -155,6 +155,8 @@ interface Course {
   created_at: string
   updated_at: string
   order_number?: string
+  total_sessions?: number
+  session_duration?: number
 }
 
 interface StatusHistory {
@@ -166,6 +168,21 @@ interface StatusHistory {
   changed_by: string | null
   changed_at: string
   operator_name?: string
+}
+
+// 课程课节统计数据
+interface CourseSessionsStats {
+  [courseId: string]: {
+    totalSessions: number
+    completedSessions: number
+    scheduledSessions: number
+    durations: {
+      totalHours: number
+      scheduledHours: number
+      completedHours: number
+      unscheduledHours: number
+    }
+  }
 }
 
 // 订单类型映射
@@ -206,16 +223,6 @@ const COURSE_STATUS_MAP: Record<string, string> = {
   'cancelled': '已取消',
 }
 
-// 辅助函数：解析课程消耗信息
-const parseConsumptionInfo = (info: string | null | undefined): { totalSessions: number; completedSessions: number; progress: number } => {
-  if (!info) return { totalSessions: 0, completedSessions: 0, progress: 0 }
-  try {
-    return JSON.parse(info)
-  } catch {
-    return { totalSessions: 0, completedSessions: 0, progress: 0 }
-  }
-}
-
 export default function StudentDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -223,6 +230,9 @@ export default function StudentDetailPage() {
   const [detail, setDetail] = useState<StudentDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
+
+  // 课程课节统计数据
+  const [courseSessionsStats, setCourseSessionsStats] = useState<CourseSessionsStats>({})
 
   // 字典数据
   const [visitMethods, setVisitMethods] = useState<DictionaryItem[]>([])
@@ -357,6 +367,12 @@ export default function StudentDetailPage() {
           transactionsCount: transactions.length,
         },
       })
+
+      // 获取每个课程的课节统计数据
+      const courses = detailResult.data.courses || []
+      if (courses.length > 0) {
+        fetchCoursesSessionsStats(courses, token)
+      }
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -365,6 +381,47 @@ export default function StudentDetailPage() {
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // 获取所有课程的课节统计数据
+  const fetchCoursesSessionsStats = async (courses: Course[], token: string | null) => {
+    try {
+      const statsPromises = courses.map(async (course) => {
+        try {
+          const response = await fetch(`/api/courses/${course.id}/sessions`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          })
+
+          if (response.ok) {
+            const result = await response.json()
+            return {
+              courseId: course.id,
+              stats: result.statistics,
+            }
+          }
+          return null
+        } catch (error) {
+          console.error(`Failed to fetch sessions for course ${course.id}:`, error)
+          return null
+        }
+      })
+
+      const results = await Promise.all(statsPromises)
+
+      // 构建统计数据对象
+      const statsMap: CourseSessionsStats = {}
+      results.forEach((result) => {
+        if (result && result.stats) {
+          statsMap[result.courseId] = result.stats
+        }
+      })
+
+      setCourseSessionsStats(statsMap)
+    } catch (error) {
+      console.error('Failed to fetch courses sessions stats:', error)
     }
   }
 
@@ -715,7 +772,7 @@ export default function StudentDetailPage() {
                           <TableHead>订单号</TableHead>
                           <TableHead>课程名称</TableHead>
                           <TableHead>教师</TableHead>
-                          <TableHead>课时数</TableHead>
+                          <TableHead>未排课时长</TableHead>
                           <TableHead>总时长</TableHead>
                           <TableHead>进度</TableHead>
                           <TableHead>状态</TableHead>
@@ -724,30 +781,52 @@ export default function StudentDetailPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {courses.map((course) => {
-                          const consumption = parseConsumptionInfo(course.course_consumption_info)
-                          return (
-                            <TableRow key={course.id}>
+                        {courses.map((course) => (
+                          <TableRow key={course.id}>
                               <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 w-[140px] min-w-[140px]">
                                 {course.subject || '-'}
                               </TableCell>
                               <TableCell className="font-medium">{course.order_number || '-'}</TableCell>
                               <TableCell>{course.course_name || '-'}</TableCell>
                               <TableCell>{course.teacher_name || '-'}</TableCell>
-                              <TableCell>{consumption.totalSessions || course.session_count || 0}</TableCell>
+                              <TableCell>{(() => {
+                                // 使用 sessions API 返回的实际统计数据
+                                const stats = courseSessionsStats[course.id]
+
+                                if (stats && stats.durations) {
+                                  // API 返回的未排课时长
+                                  const unscheduledHours = stats.durations.unscheduledHours
+                                  return unscheduledHours % 1 === 0 ? unscheduledHours : unscheduledHours.toFixed(1)
+                                }
+
+                                // 如果 API 数据还未加载，显示加载中
+                                return '...'
+                              })()} 小时</TableCell>
                               <TableCell>{course.total_hours || 0} 小时</TableCell>
                               <TableCell>
-                                {consumption.totalSessions > 0 ? (
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-24 bg-gray-200 rounded-full h-2">
-                                      <div
-                                        className="bg-blue-600 h-2 rounded-full"
-                                        style={{ width: `${consumption.progress}%` }}
-                                      />
-                                    </div>
-                                    <span className="text-xs">{consumption.progress}%</span>
-                                  </div>
-                                ) : '-'}
+                                {(() => {
+                                  // 使用 sessions API 返回的实际统计数据
+                                  const stats = courseSessionsStats[course.id]
+
+                                  if (stats && stats.totalSessions > 0) {
+                                    // 计算进度：已完成节数 / 总节数
+                                    const progress = Math.round((stats.completedSessions / stats.totalSessions) * 100)
+                                    return (
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-24 bg-gray-200 rounded-full h-2">
+                                          <div
+                                            className="bg-blue-600 h-2 rounded-full"
+                                            style={{ width: `${progress}%` }}
+                                          />
+                                        </div>
+                                        <span className="text-xs">{progress}%</span>
+                                      </div>
+                                    )
+                                  }
+
+                                  // 如果 API 数据还未加载或没有课节，显示 '-'
+                                  return '-'
+                                })()}
                               </TableCell>
                               <TableCell>
                                 <Badge variant="outline">
@@ -765,8 +844,7 @@ export default function StudentDetailPage() {
                                 </Button>
                               </TableCell>
                             </TableRow>
-                          )
-                        })}
+                        ))}
                       </TableBody>
                     </Table>
                   </div>
