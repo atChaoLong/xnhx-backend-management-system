@@ -21,9 +21,23 @@ import { TeachersService } from "@/lib/services/teachers"
 import { useDictionary } from "@/lib/hooks/useDictionary"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
-import { format } from "date-fns"
+import { format, getDay } from "date-fns"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/fetch"
+
+// 星期几映射
+const WEEKDAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+
+// 获取日期的星期几显示
+const getWeekdayDisplay = (dateStr: string): string => {
+  try {
+    const date = new Date(dateStr)
+    const dayIndex = getDay(date)
+    return WEEKDAY_NAMES[dayIndex]
+  } catch {
+    return ''
+  }
+}
 
 interface ScheduleItem {
   id: string
@@ -1188,13 +1202,18 @@ export default function BatchSchedulePage() {
                               )}
                             </TableCell>
                           <TableCell>
-                            <Input
-                              type="date"
-                              value={item.date}
-                              onChange={(e) => updateScheduleItem(item.id, 'date', e.target.value)}
-                              className="h-9"
-                              disabled={isExisting}
-                            />
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="date"
+                                value={item.date}
+                                onChange={(e) => updateScheduleItem(item.id, 'date', e.target.value)}
+                                className="h-9 flex-1"
+                                disabled={isExisting}
+                              />
+                              <span className="text-xs text-muted-foreground whitespace-nowrap min-w-[40px]">
+                                {getWeekdayDisplay(item.date)}
+                              </span>
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
