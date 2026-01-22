@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { WeeklySchedulePicker, type WeeklySchedule } from "@/components/ui/weekly-schedule-picker"
 import { SearchableSelect } from "@/components/ui/searchable-select"
+import { TimePicker } from "@/components/ui/time-picker"
 import { Loader2, Plus, Trash2, Calendar, Clock, User, GraduationCap } from "lucide-react"
 import { FormalOrdersService } from "@/lib/services/formalOrders"
 import { StudentsService } from "@/lib/services/students"
@@ -966,10 +967,9 @@ export default function BatchSchedulePage() {
                       </div>
                       <div className="space-y-2">
                         <Label className="text-sm">开课时间</Label>
-                        <Input
-                          type="time"
+                        <TimePicker
                           value={editableParams.startTime}
-                          onChange={(e) => setEditableParams(p => ({ ...p, startTime: e.target.value }))}
+                          onChange={(value) => setEditableParams(p => ({ ...p, startTime: value }))}
                           className="h-9"
                         />
                       </div>
@@ -1018,10 +1018,9 @@ export default function BatchSchedulePage() {
                       </div>
                       <div className="space-y-2">
                         <Label className="text-sm">开课时间</Label>
-                        <Input
-                          type="time"
+                        <TimePicker
                           value={editableParams.startTime}
-                          onChange={(e) => setEditableParams(p => ({ ...p, startTime: e.target.value }))}
+                          onChange={(value) => setEditableParams(p => ({ ...p, startTime: value }))}
                           className="h-9"
                         />
                       </div>
@@ -1217,19 +1216,17 @@ export default function BatchSchedulePage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <Input
-                                type="time"
+                              <TimePicker
                                 value={item.startTime}
-                                onChange={(e) => updateScheduleItem(item.id, 'startTime', e.target.value)}
-                                className="h-9 w-24"
+                                onChange={(value) => updateScheduleItem(item.id, 'startTime', value)}
+                                className="w-28"
                                 disabled={isExisting}
                               />
                               <span>-</span>
-                              <Input
-                                type="time"
+                              <TimePicker
                                 value={item.endTime}
-                                onChange={(e) => updateScheduleItem(item.id, 'endTime', e.target.value)}
-                                className="h-9 w-24"
+                                onChange={(value) => updateScheduleItem(item.id, 'endTime', value)}
+                                className="w-28"
                                 disabled={isExisting}
                               />
                             </div>
