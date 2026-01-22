@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { getClassInSDKService } from "@/lib/services/classin-sdk/service"
 import { createLogger } from "@/lib/logger"
+import { toChinaTimeISO } from "@/lib/utils/timezone"
 
 const logger = createLogger("API:ScheduleBatchCreateClassIn")
 
@@ -267,8 +268,8 @@ export async function POST(request: NextRequest) {
         if (tErr || !teacherClassin?.uid) throw new Error(`教师未绑定 ClassIn：${raw.teacherName}`)
 
         const classroomName = courseName
-        const startTime = new Date(`${raw.date}T${raw.startTime}`)
-        const endTime = new Date(`${raw.date}T${raw.endTime}`)
+        const startTime = new Date(toChinaTimeISO(`${raw.date}T${raw.startTime}`))
+        const endTime = new Date(toChinaTimeISO(`${raw.date}T${raw.endTime}`))
 
         logger.debug("准备创建 ClassIn 课堂", {
           courseId,

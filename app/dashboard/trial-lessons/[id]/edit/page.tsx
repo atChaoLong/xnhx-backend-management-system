@@ -12,6 +12,7 @@ import { TrialLessonsService, TrialLesson } from "@/lib/services/trialLessons"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
 import { uploadFile } from "@/lib/supabase-client"
+import { toChinaTimeISO, fromISOToDatetimeLocal } from "@/lib/utils/timezone"
 import Link from "next/link"
 import {
   Select,
@@ -109,7 +110,7 @@ export default function EditTrialLessonPage() {
           region: data.region || "",
           grade: data.grade || "",
           trial_subject: data.trial_subject || "",
-          trial_time: data.trial_time ? new Date(data.trial_time).toISOString().slice(0, 16) : "",
+          trial_time: data.trial_time ? fromISOToDatetimeLocal(data.trial_time) : "",
           trial_duration: data.trial_duration?.toString() || "",
           phone: data.phone || "",
           channel: data.channel || "",
@@ -246,7 +247,7 @@ export default function EditTrialLessonPage() {
         region: formData.region.trim(),
         grade: formData.grade.trim(),
         trial_subject: formData.trial_subject.trim(),
-        trial_time: formData.trial_time,
+        trial_time: toChinaTimeISO(formData.trial_time), // 添加中国时区
         trial_duration: parseFloat(formData.trial_duration),
         phone: formData.phone.trim(),
         channel: formData.channel.trim(),

@@ -13,6 +13,7 @@ import { LeadsService } from "@/lib/services/leads"
 import { useDictionary } from "@/lib/hooks/useDictionary"
 import { useToast } from "@/hooks/use-toast"
 import { uploadPaymentProof } from "@/lib/services/upload"
+import { toChinaTimeISO } from "@/lib/utils/timezone"
 import Link from "next/link"
 
 export default function NewTrialLessonPage() {
@@ -172,7 +173,7 @@ export default function NewTrialLessonPage() {
         region: formData.region.trim(),
         grade: formData.grade.trim(),
         trial_subject: formData.trial_subject.trim(),
-        trial_time: formData.trial_time,
+        trial_time: toChinaTimeISO(formData.trial_time), // 添加中国时区
         trial_duration: parseFloat(formData.trial_duration),
         phone: formData.phone.trim(),
         channel: formData.channel.trim(),

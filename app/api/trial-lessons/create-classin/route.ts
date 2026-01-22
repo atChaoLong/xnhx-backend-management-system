@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { getClassInSDKService } from "@/lib/services/classin-sdk/service"
+import { ensureChinaTimezone } from "@/lib/utils/timezone"
  
 import { createLogger } from "@/lib/logger"
 
@@ -73,8 +74,9 @@ export async function POST(request: NextRequest) {
     const unitName = '试听单元'
     const classroomName = `【试听】${lesson.child_name} ${subjectLabel}课`
 
-    // 计算开始和结束时间
-    const trialTime = new Date(lesson.trial_time)
+    // 计算开始和结束时间（确保使用中国时区）
+    const trialTimeISO = ensureChinaTimezone(lesson.trial_time)
+    const trialTime = new Date(trialTimeISO)
     const durationInHours = lesson.trial_duration / 60
     const durationMs = durationInHours * 60 * 60 * 1000
     const endTime = new Date(trialTime.getTime() + durationMs)
