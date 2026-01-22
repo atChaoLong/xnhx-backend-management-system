@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
+import { batchCalculateTrialLessonStatus } from "@/lib/status-calculator"
 
 const logger = createLogger('API:Students:Detail')
 
@@ -83,6 +84,27 @@ export async function GET(request: NextRequest) {
     if (trialLessonsError) {
       logger.warn('获取试听课失败', { studentId, message: trialLessonsError.message })
     }
+
+    // 计算试听课状态
+    let trialLessonsWithStatus = trialLessons || []
+    if (trialLessons && trialLessons.length > 0) {
+      try {
+        const statusResults = await batchCalculateTrialLessonStatus(trialLessons)
+
+        // 合并状态到数据
+        trialLessonsWithStatus = trialLessons.map((lesson, index) => ({
+          ...lesson,
+          lesson_status: statusResults[index].status,
+          lesson_status_name: statusResults[index].statusName,
+          is_converted_calculated: statusResults[index].isConverted,
+        }))
+      } catch (error) {
+        logger.error('计算试听课状态失败', { studentId, error })
+        // 失败时使用原始数据
+      }
+    }
+
+    logger.debug('试听课数据', { studentId, count: trialLessonsWithStatus.length })
 
     // 5. 获取课程列表（直接通过 student_id 查询）
     let courses: any[] = []
@@ -182,13 +204,13 @@ export async function GET(request: NextRequest) {
         head_teacher: headTeacher,
       },
       orders: formalOrders || [],
-      trialLessons: trialLessons || [],
+      trialLessons: trialLessonsWithStatus || [],
       courses: formattedCourses || [],
       classrooms: classrooms || [],
       // 统计信息
       stats: {
         formalOrdersCount: formalOrders?.length || 0,
-        trialLessonsCount: trialLessons?.length || 0,
+        trialLessonsCount: trialLessonsWithStatus?.length || 0,
         coursesCount: formattedCourses?.length || 0,
         classroomsCount: classrooms?.length || 0,
         totalFormalHours: formalOrders?.reduce((sum, order) => sum + (order.total_hours || 0), 0) || 0,

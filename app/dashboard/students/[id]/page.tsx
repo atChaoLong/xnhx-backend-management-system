@@ -237,6 +237,9 @@ export default function StudentDetailPage() {
   // 字典数据
   const [visitMethods, setVisitMethods] = useState<DictionaryItem[]>([])
   const [parentAttitudes, setParentAttitudes] = useState<DictionaryItem[]>([])
+  const [grades, setGrades] = useState<DictionaryItem[]>([])
+  const [subjects, setSubjects] = useState<DictionaryItem[]>([])
+  const [regions, setRegions] = useState<DictionaryItem[]>([])
 
   // 回访表单状态
   const [visitDialogOpen, setVisitDialogOpen] = useState(false)
@@ -251,12 +254,18 @@ export default function StudentDetailPage() {
     // 加载字典数据
     const loadDictionaries = async () => {
       try {
-        const [methods, attitudes] = await Promise.all([
+        const [methods, attitudes, gradeData, subjectData, regionData] = await Promise.all([
           getDictionaryItems('visit_method'),
           getDictionaryItems('parent_attitude'),
+          getDictionaryItems('grade'),
+          getDictionaryItems('subject'),
+          getDictionaryItems('province'),
         ])
         setVisitMethods(methods)
         setParentAttitudes(attitudes)
+        setGrades(gradeData)
+        setSubjects(subjectData)
+        setRegions(regionData)
       } catch (error) {
         console.error('Failed to load dictionaries:', error)
       }
@@ -273,6 +282,78 @@ export default function StudentDetailPage() {
   const getLabelByCode = (items: DictionaryItem[], code: string): string => {
     const item = items.find(i => i.code === code)
     return item?.label || code
+  }
+
+  // 辅助函数：获取试听科目标签
+  const getTrialSubjectLabel = (code: string): string => {
+    return getLabelByCode(subjects, code)
+  }
+
+  // 辅助函数：获取年级标签
+  const getGradeLabel = (code: string): string => {
+    return getLabelByCode(grades, code)
+  }
+
+  // 辅助函数：获取地区标签
+  const getRegionLabel = (code: string): string => {
+    return getLabelByCode(regions, code)
+  }
+
+  // 辅助函数：获取试听课程状态标签样式
+  const getLessonStatusBadge = (status?: string) => {
+    if (!status) return 'bg-gray-100 text-gray-800'
+
+    // 新状态映射（详细流程）
+    const newStatusMap: Record<string, string> = {
+      'cancelled': 'bg-gray-100 text-gray-800',           // 取消试听 - 灰色
+      'waiting_match': 'bg-yellow-100 text-yellow-800',   // 待匹配老师 - 黄色
+      'waiting_confirm': 'bg-blue-100 text-blue-800',     // 待确认老师 - 蓝色
+      'waiting_time': 'bg-indigo-100 text-indigo-800',    // 待确认时间 - 靛蓝
+      'waiting_link': 'bg-purple-100 text-purple-800',    // 待开链接 - 紫色
+      'scheduled': 'bg-cyan-100 text-cyan-800',           // 已排待上课 - 青色
+      'waiting_feedback': 'bg-orange-100 text-orange-800',// 上完待反馈 - 橙色
+      'completed': 'bg-green-100 text-green-800',         // 已完成 - 绿色
+    }
+
+    // 旧状态映射（兼容）
+    const oldStatusMap: Record<string, string> = {
+      'pending': 'bg-yellow-100 text-yellow-800',         // 待确认 - 黄色
+      'confirmed': 'bg-blue-100 text-blue-800',           // 已确认 - 蓝色
+      'completed': 'bg-green-100 text-green-800',         // 已完成 - 绿色
+      'cancelled': 'bg-gray-100 text-gray-800',           // 已取消 - 灰色
+    }
+
+    return newStatusMap[status] || oldStatusMap[status] || 'bg-gray-100 text-gray-800'
+  }
+
+  // 辅助函数：获取试听课程状态文本
+  const getLessonStatusText = (status?: string, statusName?: string) => {
+    // 优先使用后端返回的状态名称
+    if (statusName) return statusName
+
+    if (!status) return '-'
+
+    // 新状态文本映射
+    const newStatusMap: Record<string, string> = {
+      'cancelled': '已取消',
+      'waiting_match': '待匹配老师',
+      'waiting_confirm': '待确认老师',
+      'waiting_time': '待确认时间',
+      'waiting_link': '待开链接',
+      'scheduled': '已排待上课',
+      'waiting_feedback': '上完待反馈',
+      'completed': '已完成',
+    }
+
+    // 旧状态文本映射（兼容）
+    const oldStatusMap: Record<string, string> = {
+      'pending': '待确认',
+      'confirmed': '已确认',
+      'completed': '已完成',
+      'cancelled': '已取消',
+    }
+
+    return newStatusMap[status] || oldStatusMap[status] || status
   }
 
   const fetchStudentDetail = async (id: string) => {
@@ -886,18 +967,18 @@ export default function StudentDetailPage() {
                               {lesson.child_name}
                             </TableCell>
                             <TableCell className="sticky left-[160px] z-20 bg-background group-hover:bg-muted/50 w-[140px] min-w-[140px]">
-                              {lesson.trial_subject}
+                              {getTrialSubjectLabel(lesson.trial_subject || '')}
                             </TableCell>
-                            <TableCell>{lesson.region}</TableCell>
-                            <TableCell>{lesson.grade}</TableCell>
+                            <TableCell>{getRegionLabel(lesson.region || '')}</TableCell>
+                            <TableCell>{getGradeLabel(lesson.grade || '')}</TableCell>
                             <TableCell>{format(new Date(lesson.trial_time), 'yyyy-MM-dd HH:mm')}</TableCell>
                             <TableCell>{lesson.trial_duration} 分钟</TableCell>
                             <TableCell>{lesson.matched_teacher || '-'}</TableCell>
                             <TableCell>{lesson.confirmed_teacher || '-'}</TableCell>
                             <TableCell>
-                              <Badge variant="outline">
-                                {lesson.lesson_status_name || lesson.status}
-                              </Badge>
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getLessonStatusBadge(lesson.lesson_status || lesson.status)}`}>
+                                {getLessonStatusText(lesson.lesson_status || lesson.status, lesson.lesson_status_name)}
+                              </span>
                             </TableCell>
                             <TableCell>
                               {lesson.is_converted_calculated !== undefined ? (
