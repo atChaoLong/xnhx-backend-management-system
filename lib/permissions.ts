@@ -150,9 +150,9 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
   // 教务：全部权限
   academic_affairs: {
     leads: ['view', 'create', 'edit', 'delete'],
-    trialLessons: ['view', 'create', 'edit', 'delete'],
+    trialLessons: ['view', 'create', 'edit', 'delete', 'matchTeacher', 'confirmTeacher', 'confirmTime', 'addLink', 'convert'],
     students: ['view', 'create', 'edit', 'delete'],
-    formalOrders: ['view', 'create', 'edit', 'delete'],
+    formalOrders: ['view', 'create', 'edit', 'delete', 'addLink'],
     classSessions: ['view', 'create', 'edit', 'delete'],
     courses: ['view', 'create', 'edit', 'delete'],
     transactions: ['view', 'create', 'verifyHours', 'payment', 'verifyPerformance'],
