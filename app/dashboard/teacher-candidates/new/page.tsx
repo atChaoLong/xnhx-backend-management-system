@@ -208,7 +208,7 @@ export default function NewTeacherCandidatePage() {
                     <Input
                       id="resume_file"
                       type="file"
-                      accept=".pdf,.doc,.docx"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp"
                       onChange={(e) => {
                         if (e.target.files?.[0]) {
                           setResumeFile(e.target.files[0])
