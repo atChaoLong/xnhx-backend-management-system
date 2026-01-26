@@ -1037,12 +1037,12 @@ export default function BatchSchedulePage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-sm">总课时</Label>
+                        <Label className="text-sm">剩余课时</Label>
                         <Input
                           type="number"
                           min={1}
                           max={50}
-                          value={editableParams.totalSessions}
+                          value={selectedOrder?.total_hours ? Math.round((selectedOrder.total_hours - existingHoursCount) * 100) / 100 : editableParams.totalSessions}
                           onChange={(e) => setEditableParams(p => ({ ...p, totalSessions: parseInt(e.target.value) || 1 }))}
                           className="h-9"
                           placeholder="最大50"
