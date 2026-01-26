@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { TimePicker } from "@/components/ui/time-picker"
 import { Loader2, ArrowLeft, Calendar, Clock, User, BookOpen, Play, CheckCircle, XCircle, Plus, Trash2, Edit, RefreshCw } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { format } from "date-fns"
@@ -746,20 +747,16 @@ export default function CourseDetailPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-start">开始时间 *</Label>
-              <Input
-                id="edit-start"
-                type="time"
+              <TimePicker
                 value={editForm.scheduled_time_start}
-                onChange={(e) => setEditForm({ ...editForm, scheduled_time_start: e.target.value })}
+                onChange={(value) => setEditForm({ ...editForm, scheduled_time_start: value })}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-end">结束时间 *</Label>
-              <Input
-                id="edit-end"
-                type="time"
+              <TimePicker
                 value={editForm.scheduled_time_end}
-                onChange={(e) => setEditForm({ ...editForm, scheduled_time_end: e.target.value })}
+                onChange={(value) => setEditForm({ ...editForm, scheduled_time_end: value })}
               />
             </div>
           </div>
@@ -823,20 +820,16 @@ export default function CourseDetailPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="add-start">开始时间 *</Label>
-              <Input
-                id="add-start"
-                type="time"
+              <TimePicker
                 value={addForm.startTime}
-                onChange={(e) => setAddForm({ ...addForm, startTime: e.target.value })}
+                onChange={(value) => setAddForm({ ...addForm, startTime: value })}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="add-end">结束时间 *</Label>
-              <Input
-                id="add-end"
-                type="time"
+              <TimePicker
                 value={addForm.endTime}
-                onChange={(e) => setAddForm({ ...addForm, endTime: e.target.value })}
+                onChange={(value) => setAddForm({ ...addForm, endTime: value })}
               />
             </div>
           </div>

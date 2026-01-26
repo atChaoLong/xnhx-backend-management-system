@@ -3,6 +3,7 @@
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { TimePicker } from "@/components/ui/time-picker"
 
 interface InterviewInfoTabProps {
   formData: {
@@ -36,11 +37,9 @@ export function InterviewInfoTab({ formData, onInputChange }: InterviewInfoTabPr
 
           <div className="space-y-2">
             <Label htmlFor="interview_time">约面时间</Label>
-            <Input
-              id="interview_time"
-              type="time"
+            <TimePicker
               value={formData.interview_time}
-              onChange={(e) => onInputChange("interview_time", e.target.value)}
+              onChange={(value) => onInputChange("interview_time", value)}
             />
           </div>
         </div>

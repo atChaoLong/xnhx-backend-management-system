@@ -1,8 +1,8 @@
 "use client"
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { TimePicker } from "@/components/ui/time-picker"
 
 export interface WeeklySchedule {
   monday: string | null
@@ -23,13 +23,6 @@ const days = [
   { key: 'saturday', label: '周六' },
   { key: 'sunday', label: '周日' },
 ]
-
-// 生成时间选项：09:00 - 21:00，每小时一个选项
-const timeOptions: string[] = []
-for (let hour = 9; hour <= 21; hour++) {
-  const timeStr = `${String(hour).padStart(2, '0')}:00`
-  timeOptions.push(timeStr)
-}
 
 interface WeeklySchedulePickerProps {
   value: WeeklySchedule
@@ -71,40 +64,33 @@ export function WeeklySchedulePicker({ value, onChange, label, defaultStartTime 
           return (
             <div
               key={dayKey}
-              className="border rounded-md p-1.5 flex items-center"
+              className="border rounded-md p-2 flex flex-col items-center gap-2"
             >
               {time ? (
-                <div className="flex items-center gap-1 w-full">
+                <>
                   <span className="text-sm font-medium whitespace-nowrap text-xs shrink-0">
                     {day.label}
                   </span>
-                  <Select
-                    value={time}
-                    onValueChange={(newTime) => handleTimeChange(dayKey, newTime)}
-                  >
-                    <SelectTrigger className="h-7 flex-1 min-w-0 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {timeOptions.map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {t}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleRemoveDay(dayKey)}
-                    className="h-7 w-7 text-base p-0 shrink-0"
-                  >
-                    ×
-                  </Button>
-                </div>
+                  <div className="flex items-center gap-1 w-full">
+                    <TimePicker
+                      value={time}
+                      onChange={(newTime) => handleTimeChange(dayKey, newTime)}
+                      className="h-8 flex-1 min-w-0 text-xs"
+                      minuteStep={60}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleRemoveDay(dayKey)}
+                      className="h-8 w-8 text-base p-0 shrink-0"
+                    >
+                      ×
+                    </Button>
+                  </div>
+                </>
               ) : (
-                <div className="flex items-center gap-1 w-full">
+                <>
                   <span className="text-sm font-medium whitespace-nowrap text-xs shrink-0">
                     {day.label}
                   </span>
@@ -113,11 +99,11 @@ export function WeeklySchedulePicker({ value, onChange, label, defaultStartTime 
                     size="sm"
                     variant="outline"
                     onClick={() => handleAddDay(dayKey)}
-                    className="flex-1 h-7 text-xs min-w-0"
+                    className="w-full h-8 text-xs"
                   >
                     +添加
                   </Button>
-                </div>
+                </>
               )}
             </div>
           )
