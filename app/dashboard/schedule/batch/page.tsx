@@ -192,6 +192,17 @@ export default function BatchSchedulePage() {
     return `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
   }
 
+  // 统一时间格式为 HH:mm（去掉秒数）
+  const normalizeTimeFormat = (time: string): string => {
+    if (!time) return time
+    // 如果包含秒数，去掉秒数
+    const parts = time.split(':')
+    if (parts.length >= 3) {
+      return `${parts[0]}:${parts[1]}`
+    }
+    return time
+  }
+
   // 生成班级课"每周一样"模式的课表
   const generateSameWeeklySchedule = (
     startDate: string,
@@ -371,8 +382,8 @@ export default function BatchSchedulePage() {
                   teacherName: session.teacher_name || "未分配",
                   subject: order.subjects?.[0] || "",
                   date: session.scheduled_date,
-                  startTime: session.scheduled_time_start || "",
-                  endTime: session.scheduled_time_end || "",
+                  startTime: normalizeTimeFormat(session.scheduled_time_start || ""),
+                  endTime: normalizeTimeFormat(session.scheduled_time_end || ""),
                   classroom: session.classroom_id || "",
                 }))
 
@@ -557,8 +568,8 @@ export default function BatchSchedulePage() {
                   teacherName: session.teacher_name || "未分配",
                   subject: selectedOrder.subjects?.[0] || "",
                   date: session.scheduled_date,
-                  startTime: session.scheduled_time_start || "",
-                  endTime: session.scheduled_time_end || "",
+                  startTime: normalizeTimeFormat(session.scheduled_time_start || ""),
+                  endTime: normalizeTimeFormat(session.scheduled_time_end || ""),
                   classroom: session.classroom_id || "",
                 }))
 
