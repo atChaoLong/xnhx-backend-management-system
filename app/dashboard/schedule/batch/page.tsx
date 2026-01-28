@@ -1037,15 +1037,42 @@ export default function BatchSchedulePage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-sm">剩余课时</Label>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm">课节</Label>
+                          {(() => {
+                            const remainingHours = selectedOrder?.total_hours
+                              ? Math.round((selectedOrder.total_hours - existingHoursCount) * 100) / 100
+                              : 0
+                            const consumedHours = (editableParams.totalSessions * editableParams.sessionDuration) / 60
+                            const isOverLimit = consumedHours > remainingHours && remainingHours > 0
+                            const remainingSessions = Math.floor((remainingHours * 60) / editableParams.sessionDuration)
+                            return isOverLimit ? (
+                              <span className="text-xs text-red-500">
+                                剩余约 {remainingSessions} 节 ({remainingHours} 小时)
+                              </span>
+                            ) : remainingHours > 0 ? (
+                              <span className="text-xs text-muted-foreground">
+                                剩余约 {remainingSessions} 节 ({remainingHours} 小时)
+                              </span>
+                            ) : null
+                          })()}
+                        </div>
                         <Input
                           type="number"
                           min={1}
                           max={50}
-                          value={selectedOrder?.total_hours ? Math.round((selectedOrder.total_hours - existingHoursCount) * 100) / 100 : editableParams.totalSessions}
+                          value={editableParams.totalSessions}
                           onChange={(e) => setEditableParams(p => ({ ...p, totalSessions: parseInt(e.target.value) || 1 }))}
-                          className="h-9"
-                          placeholder="最大50"
+                          className={cn(
+                            "h-9",
+                            selectedOrder?.total_hours &&
+                              ((editableParams.totalSessions * editableParams.sessionDuration) / 60) >
+                              Math.round((selectedOrder.total_hours - existingHoursCount) * 100) / 100 &&
+                              Math.round((selectedOrder.total_hours - existingHoursCount) * 100) / 100 > 0
+                              ? "border-red-500 focus-visible:ring-red-500"
+                              : ""
+                          )}
+                          placeholder="请输入课节数"
                         />
                       </div>
                     </div>
