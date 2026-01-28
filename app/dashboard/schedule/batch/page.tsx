@@ -602,13 +602,12 @@ export default function BatchSchedulePage() {
           classroom: "",
         })
       } else {
-        // 班级课模式：生成所有课时
-        const remainingSessions = totalSessions - existingSessions.length
+        // 班级课模式：生成用户输入数量的新课节
         const baseDate = existingSessions.length > 0 ? lastDate : startDate
 
         if (repeatMode === 'same') {
           // 每周开课时间一样
-          const scheduleData = generateSameWeeklySchedule(baseDate, startTime, remainingSessions, sessionDuration)
+          const scheduleData = generateSameWeeklySchedule(baseDate, startTime, totalSessions, sessionDuration)
           newSessions = scheduleData.map((session, i) => ({
             id: `preview-${selectedOrder.id}-${Date.now()}-${i}`,
             studentId: selectedOrder.student_id,
@@ -822,7 +821,8 @@ export default function BatchSchedulePage() {
           : `已成功创建 ${result.success}/${result.total} 节课程`,
       })
 
-      router.push("/dashboard/classroom")
+      // 重新加载订单信息和课节列表
+      await handleOrderChange(selectedOrderId)
     } catch (error: any) {
       toast({
         variant: "destructive",
