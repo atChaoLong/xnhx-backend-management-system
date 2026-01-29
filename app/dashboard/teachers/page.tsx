@@ -25,7 +25,7 @@ import {
   PaginationPageSize,
   PaginationInfo,
 } from "@/components/ui/pagination"
-import { Plus, Edit, Trash2, Loader2, AlertTriangle, Upload, Eye } from "lucide-react"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle, Upload, Eye, Users } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { TeachersService, Teacher } from "@/lib/services/teachers"
@@ -279,6 +279,11 @@ export default function TeachersPage() {
                             <Link href={`/dashboard/teachers/${teacher.id}`}>
                               <Button variant="ghost" size="icon" title="查看详情">
                                 <Eye className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                            <Link href={`/dashboard/students?teacher_id=${teacher.id}&teacher_name=${encodeURIComponent(teacher.name)}`}>
+                              <Button variant="ghost" size="icon" title="查看学员">
+                                <Users className="h-4 w-4" />
                               </Button>
                             </Link>
                             {!teacher.classin_uid && (

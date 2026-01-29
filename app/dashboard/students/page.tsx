@@ -36,7 +36,7 @@ import { Label } from "@/components/ui/label"
 import { Plus, Edit, Trash2, Loader2, AlertTriangle, UserCheck, MoreHorizontal, DollarSign } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { StudentsService, Student } from "@/lib/services/students"
 import { useToast } from "@/hooks/use-toast"
 import { usePagination } from "@/lib/hooks/usePagination"
@@ -60,6 +60,9 @@ interface HeadTeacher {
 
 export default function StudentsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const teacherId = searchParams.get('teacher_id')
+  const teacherName = searchParams.get('teacher_name')
   const { user } = useCurrentUser()
   const [students, setStudents] = useState<Student[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -115,6 +118,10 @@ export default function StudentsPage() {
       // 如果是班主任，只获取自己管理的学生
       if (user?.role === 'head_teacher') {
         url += `&head_teacher_id=${user.id}`
+      }
+      // 如果指定了老师ID，按老师筛选（用于查看某老师的学员）
+      if (teacherId) {
+        url += `&teacher_id=${teacherId}`
       }
 
       const token = localStorage.getItem('supabase.auth.token')
@@ -172,7 +179,7 @@ export default function StudentsPage() {
 
   useEffect(() => {
     fetchStudents(1, pageSize)
-  }, [])
+  }, [teacherId])
 
   // 删除学生
   const handleDeleteClick = (id: string) => {
@@ -422,7 +429,10 @@ export default function StudentsPage() {
   if (isLoading) {
     return (
       <div className="flex flex-col h-full">
-        <Header title="学生管理" description="管理和查看所有学生信息" />
+        <Header
+          title={teacherId ? `${teacherName || '老师'}的学员` : "学生管理"}
+          description={teacherId ? `查看该老师所带的所有学生` : "管理和查看所有学生信息"}
+        />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -433,8 +443,8 @@ export default function StudentsPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <Header
-        title="学生管理"
-        description="管理和查看所有学生信息"
+        title={teacherId ? `${teacherName || '老师'}的学员` : "学生管理"}
+        description={teacherId ? `查看该老师所带的所有学生` : "管理和查看所有学生信息"}
       />
 
       <div className="flex-1 overflow-hidden p-6">

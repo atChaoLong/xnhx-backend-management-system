@@ -95,6 +95,59 @@ export async function GET(request: NextRequest) {
       query = query.eq('head_teacher_id', headTeacherId)
     }
 
+    // 如果指定了老师ID，通过 courses 表关联查询（子查询方式避免重复）
+    const teacherId = searchParams.get('teacher_id')
+    logger.debug('teacher_id 参数', { teacherId })
+    if (teacherId) {
+      // 先获取老师的名字（courses 表可能用 teacher_name 而不是 teacher_id）
+      const { data: teacherData } = await supabaseServer
+        .from('teachers')
+        .select('name')
+        .eq('id', teacherId)
+        .single()
+
+      const teacherName = teacherData?.name
+      logger.debug('查询到的老师名字', { teacherId, teacherName })
+
+      // 查询 courses 表：先用 teacher_id，再用 teacher_name
+      let courseData: any[] = []
+
+      // 方式1：用 teacher_id 查询
+      const { data: byIdData, error: byIdError } = await supabaseServer
+        .from('courses')
+        .select('student_id')
+        .eq('teacher_id', teacherId)
+
+      logger.debug('按 teacher_id 查询 courses', { byIdData, byIdError })
+
+      if (byIdData && byIdData.length > 0) {
+        courseData = byIdData
+      } else if (teacherName) {
+        // 方式2：用 teacher_name 查询
+        const { data: byNameData, error: byNameError } = await supabaseServer
+          .from('courses')
+          .select('student_id')
+          .eq('teacher_name', teacherName)
+
+        logger.debug('按 teacher_name 查询 courses', { byNameData, byNameError, teacherName })
+
+        if (byNameData && byNameData.length > 0) {
+          courseData = byNameData
+        }
+      }
+
+      const studentIds = Array.from(new Set(courseData?.map(c => c.student_id).filter(Boolean) || []))
+      logger.debug('提取的学生IDs', { studentIds })
+
+      if (studentIds.length > 0) {
+        countQuery = countQuery.in('id', studentIds)
+        query = query.in('id', studentIds)
+      } else {
+        // 该老师没有学生，返回空结果
+        return NextResponse.json({ data: [], count: 0, from, to })
+      }
+    }
+
     // 获取总数
     const { count: totalCount } = await countQuery
 
