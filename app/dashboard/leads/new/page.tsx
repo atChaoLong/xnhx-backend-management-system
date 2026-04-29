@@ -20,6 +20,7 @@ import { ArrowLeft, Loader2 } from "lucide-react"
 import { LeadsService, NewLead } from "@/lib/services/leads"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { UserProfilesService, UserProfile } from "@/lib/services/userProfiles"
+import { uploadChatScreenshot } from "@/lib/services/upload"
 import { useToast } from "@/hooks/use-toast"
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser"
 import Link from "next/link"
@@ -32,6 +33,9 @@ export default function NewLeadPage() {
   const [isLoadingDict, setIsLoadingDict] = useState(true)
   const [isLoadingOperators, setIsLoadingOperators] = useState(true)
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
+  const [chatScreenshotFiles, setChatScreenshotFiles] = useState<File[]>([])
+  const [chatScreenshotPreviews, setChatScreenshotPreviews] = useState<string[]>([])
+  const [isUploadingFile, setIsUploadingFile] = useState(false)
 
   // 字典数据
   const [dictOptions, setDictOptions] = useState<{
@@ -121,6 +125,39 @@ export default function NewLeadPage() {
     )
   }
 
+  const handleChatScreenshotChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files)
+      setChatScreenshotFiles(prev => [...prev, ...files])
+
+      try {
+        setIsUploadingFile(true)
+        const uploadPromises = files.map(file => uploadChatScreenshot(file))
+        const urls = await Promise.all(uploadPromises)
+
+        setChatScreenshotPreviews(prev => [...prev, ...urls])
+        toast({
+          title: "上传成功",
+          description: `已上传 ${files.length} 张聊天截图`,
+        })
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "上传失败",
+          description: error.message || "无法上传聊天截图",
+        })
+      } finally {
+        setIsUploadingFile(false)
+        e.target.value = ''
+      }
+    }
+  }
+
+  const handleRemoveScreenshot = (index: number) => {
+    setChatScreenshotPreviews(prev => prev.filter((_, i) => i !== index))
+    setChatScreenshotFiles(prev => prev.filter((_, i) => i !== index))
+  }
+
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -149,6 +186,7 @@ export default function NewLeadPage() {
         subject_codes: selectedSubjects.length > 0 ? selectedSubjects : undefined,
         region_ip: formData.region_ip || undefined,
         parent_wechat: formData.parent_wechat || undefined,
+        chat_screenshots: chatScreenshotPreviews.length > 0 ? chatScreenshotPreviews.join(',') : undefined,
       }
 
       await LeadsService.createLead(payload)
@@ -341,6 +379,51 @@ export default function NewLeadPage() {
                   </div>
                 </div>
 
+                {/* 聊天截图 */}
+                <div className="space-y-2">
+                  <Label htmlFor="chat_screenshots">聊天截图（支持多张）</Label>
+                  <Input
+                    id="chat_screenshots"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleChatScreenshotChange}
+                    disabled={isUploadingFile}
+                  />
+                  {isUploadingFile && (
+                    <p className="text-xs text-muted-foreground flex items-center">
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      上传中...
+                    </p>
+                  )}
+                  {chatScreenshotPreviews.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      <p className="text-xs text-muted-foreground">已上传 {chatScreenshotPreviews.length} 张截图</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {chatScreenshotPreviews.map((preview, index) => (
+                          <div key={index} className="relative group">
+                            <img
+                              src={preview}
+                              alt={`聊天截图预览 ${index + 1}`}
+                              className="w-full h-auto border rounded"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveScreenshot(index)}
+                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                              disabled={isSubmitting}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 
                 {/* 操作按钮 */}
                 <div className="flex justify-end gap-4 pt-4 border-t">
@@ -349,7 +432,7 @@ export default function NewLeadPage() {
                       取消
                     </Button>
                   </Link>
-                  <Button type="submit" disabled={isSubmitting}>
+                  <Button type="submit" disabled={isSubmitting || isUploadingFile}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     创建线索
                   </Button>
