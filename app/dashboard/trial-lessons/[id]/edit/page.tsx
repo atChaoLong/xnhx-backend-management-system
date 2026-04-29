@@ -13,6 +13,7 @@ import { DictionaryService } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
 import { uploadFile } from "@/lib/supabase-client"
 import { toChinaTimeISO, fromISOToDatetimeLocal } from "@/lib/utils/timezone"
+import { useDictionary } from "@/lib/hooks/useDictionary"
 import Link from "next/link"
 import {
   Select,
@@ -32,6 +33,8 @@ export default function EditTrialLessonPage() {
   const [isLoadingTeachers, setIsLoadingTeachers] = useState(true)
   const [isUploading, setIsUploading] = useState(false)
   const [lesson, setLesson] = useState<TrialLesson | null>(null)
+  const { items: courseStatuses } = useDictionary('trial_course_status')
+  const { items: studentTypes } = useDictionary('student_type')
 
   const lessonId = params.id as string
 
@@ -581,24 +584,38 @@ export default function EditTrialLessonPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="course_status">课程状态</Label>
-                    <Input
+                    <select
                       id="course_status"
-                      placeholder="请输入课程状态"
                       value={formData.course_status}
                       onChange={(e) => handleInputChange("course_status", e.target.value)}
-                    />
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                    >
+                      <option value="">请选择状态</option>
+                      {courseStatuses.map((status) => (
+                        <option key={status.id} value={status.code}>
+                          {status.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="student_type">学生类型</Label>
-                    <Input
+                    <select
                       id="student_type"
-                      placeholder="请输入学生类型"
                       value={formData.student_type}
                       onChange={(e) => handleInputChange("student_type", e.target.value)}
-                    />
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                    >
+                      <option value="">请选择类型</option>
+                      {studentTypes.map((type) => (
+                        <option key={type.id} value={type.code}>
+                          {type.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="space-y-2">

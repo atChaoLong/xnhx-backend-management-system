@@ -80,10 +80,14 @@ export default function TrialLessonsPage() {
     grades: Array<{ code: string; label: string }>
     subjects: Array<{ code: string; label: string }>
     regions: Array<{ code: string; label: string }>
+    courseStatuses: Array<{ code: string; label: string }>
+    studentTypes: Array<{ code: string; label: string }>
   }>({
     grades: [],
     subjects: [],
     regions: [],
+    courseStatuses: [],
+    studentTypes: [],
   })
 
   // 教师数据
@@ -125,6 +129,8 @@ export default function TrialLessonsPage() {
           grades: dicts.grade || [],
           subjects: dicts.subject || [],
           regions: dicts.province || [],
+          courseStatuses: dicts.trial_course_status || [],
+          studentTypes: dicts.student_type || [],
         })
       } catch (error) {
         console.error("加载字典失败:", error)
@@ -183,7 +189,10 @@ export default function TrialLessonsPage() {
   }, [])
 
   // 根据编码获取标签
-  const getLabelByCode = (code: string, category: 'grades' | 'subjects' | 'regions') => {
+  const getLabelByCode = (
+    code: string,
+    category: 'grades' | 'subjects' | 'regions' | 'courseStatuses' | 'studentTypes'
+  ) => {
     const items = dictOptions[category]
     const item = items.find(i => i.code === code)
     return item?.label || code
@@ -562,13 +571,13 @@ export default function TrialLessonsPage() {
                         <TableCell>{lesson.channel || "-"}</TableCell>
                         <TableCell>
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {lesson.course_status || "-"}
+                            {lesson.course_status ? getLabelByCode(lesson.course_status, 'courseStatuses') : "-"}
                           </span>
                         </TableCell>
                         <TableCell>{lesson.assigned_consultant || "-"}</TableCell>
                         <TableCell>{lesson.matched_teacher || "-"}</TableCell>
                         <TableCell>{lesson.confirmed_teacher || "-"}</TableCell>
-                        <TableCell>{lesson.student_type || "-"}</TableCell>
+                        <TableCell>{lesson.student_type ? getLabelByCode(lesson.student_type, 'studentTypes') : "-"}</TableCell>
                         <TableCell>
                           {lesson.urgency_level && (
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getUrgencyBadge(lesson.urgency_level)}`}>

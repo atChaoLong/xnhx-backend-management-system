@@ -27,10 +27,14 @@ export default function TrialLessonDetailPage() {
     grades: Array<{ code: string; label: string }>
     subjects: Array<{ code: string; label: string }>
     regions: Array<{ code: string; label: string }>
+    courseStatuses: Array<{ code: string; label: string }>
+    studentTypes: Array<{ code: string; label: string }>
   }>({
     grades: [],
     subjects: [],
     regions: [],
+    courseStatuses: [],
+    studentTypes: [],
   })
 
   // 加载试听课程数据
@@ -66,6 +70,8 @@ export default function TrialLessonDetailPage() {
           grades: dicts.grade || [],
           subjects: dicts.subject || [],
           regions: dicts.province || [],
+          courseStatuses: dicts.trial_course_status || [],
+          studentTypes: dicts.student_type || [],
         })
       } catch (error) {
         console.error("加载字典失败:", error)
@@ -78,7 +84,10 @@ export default function TrialLessonDetailPage() {
   }, [])
 
   // 根据编码获取标签
-  const getLabelByCode = (code: string, category: 'grades' | 'subjects' | 'regions') => {
+  const getLabelByCode = (
+    code: string,
+    category: 'grades' | 'subjects' | 'regions' | 'courseStatuses' | 'studentTypes'
+  ) => {
     const items = dictOptions[category]
     const item = items.find(i => i.code === code)
     return item?.label || code
@@ -365,13 +374,15 @@ export default function TrialLessonDetailPage() {
                 <span className="text-sm text-muted-foreground">课程状态</span>
                 <div className="mt-1">
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {lesson.course_status || "-"}
+                    {lesson.course_status ? getLabelByCode(lesson.course_status, 'courseStatuses') : "-"}
                   </span>
                 </div>
               </div>
               <div className="flex flex-col">
                 <span className="text-sm text-muted-foreground">学生类型</span>
-                <span className="text-base font-medium">{lesson.student_type || "-"}</span>
+                <span className="text-base font-medium">
+                  {lesson.student_type ? getLabelByCode(lesson.student_type, 'studentTypes') : "-"}
+                </span>
               </div>
               <div className="flex flex-col">
                 <span className="text-sm text-muted-foreground">匹配教师</span>
