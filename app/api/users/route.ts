@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 验证角色是否有效
-    const validRoles = ['admin', 'operator', 'sales', 'head_teacher', 'teacher', 'academic_affairs', 'finance', 'hr']
+    const validRoles = ['admin', 'operator', 'sales', 'head_teacher', 'teacher', 'academic_affairs', 'finance', 'teacher_recruiter', 'hr']
     if (!validRoles.includes(role)) {
       return NextResponse.json(
         { error: `无效的角色，必须是以下之一: ${validRoles.join(', ')}` },
@@ -317,7 +317,7 @@ export async function PUT(request: NextRequest) {
 
     // 如果更新角色，验证角色是否有效
     if (role) {
-      const validRoles = ['admin', 'operator', 'sales', 'head_teacher', 'teacher', 'academic_affairs', 'finance', 'hr']
+      const validRoles = ['admin', 'operator', 'sales', 'head_teacher', 'teacher', 'academic_affairs', 'finance', 'teacher_recruiter', 'hr']
       if (!validRoles.includes(role)) {
         return NextResponse.json(
           { error: `无效的角色，必须是以下之一: ${validRoles.join(', ')}` },

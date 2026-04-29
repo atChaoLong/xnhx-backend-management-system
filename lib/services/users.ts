@@ -12,7 +12,7 @@ export interface UserProfile {
   id: string              // 主键，直接对应 auth.users.id
   username?: string       // 用户名
   name: string            // 姓名
-  role: string            // 用户角色（admin, operator, sales, head_teacher, teacher, academic_affairs, finance, hr）
+  role: string            // 用户角色（admin, operator, sales, head_teacher, teacher, academic_affairs, finance, teacher_recruiter, hr）
   phone?: string          // 手机号
   wechat?: string         // 微信号
   email?: string          // 邮箱
@@ -30,7 +30,7 @@ export interface CreateUserRequest {
   password: string       // 登录密码
   username?: string      // 用户名
   name?: string          // 姓名
-  role: string           // 用户角色（admin, operator, sales, head_teacher, teacher, academic_affairs, finance, hr）
+  role: string           // 用户角色（admin, operator, sales, head_teacher, teacher, academic_affairs, finance, teacher_recruiter, hr）
   phone?: string         // 手机号
   wechat?: string        // 微信号
   team_name?: string     // 团队名称
@@ -55,6 +55,7 @@ export const ROLES = {
   teacher: { code: 'teacher', name: '教师', description: '负责教学和授课' },
   academic_affairs: { code: 'academic_affairs', name: '教务', description: '负责教务安排和管理' },
   finance: { code: 'finance', name: '财务', description: '负责财务管理' },
+  teacher_recruiter: { code: 'teacher_recruiter', name: '招师', description: '负责老师招聘、约面、初试和入库推进' },
   hr: { code: 'hr', name: '人事', description: '负责人力资源和员工管理' },
 } as const
 

@@ -68,16 +68,24 @@ const navigationGroups: MenuGroup[] = [
   },
   {
     title: "订单管理",
-    roles: ['admin', 'sales', 'head_teacher', 'academic_affairs'],
+    roles: ['admin', 'sales', 'head_teacher'],
     items: [
       { name: "试听课", href: "/dashboard/trial-lessons", icon: BookOpen, permission: { resource: 'trialLessons', action: 'view' } },
       { name: "正式课", href: "/dashboard/formal-orders", icon: FileText, permission: { resource: 'formalOrders', action: 'view' } },
     ]
   },
   {
-    title: "教务管理",
-    roles: ['admin', 'academic_affairs', 'head_teacher', 'hr'],
+    title: "招师管理",
+    roles: ['admin', 'teacher_recruiter'],
     items: [
+      { name: "面试管理", href: "/dashboard/teacher-candidates", icon: ClipboardList, permission: { resource: 'teacherCandidates', action: 'view' } },
+    ]
+  },
+  {
+    title: "教务管理",
+    roles: ['admin', 'academic_affairs', 'head_teacher'],
+    items: [
+      { name: "试听课", href: "/dashboard/trial-lessons", icon: BookOpen, permission: { resource: 'trialLessons', action: 'view' } },
       { name: "面试管理", href: "/dashboard/teacher-candidates", icon: ClipboardList, permission: { resource: 'teacherCandidates', action: 'view' } },
       { name: "老师库存管理", href: "/dashboard/teachers", icon: GraduationCap, permission: { resource: 'teachers', action: 'view' } },
       { name: "学生管理", href: "/dashboard/students", icon: Users, permission: { resource: 'students', action: 'view' } },

@@ -44,14 +44,14 @@ export default function EditTeacherCandidatePage() {
   const candidateId = params.id as string
 
   // 根据角色判断可见的Tab
-  const isHR = role === 'hr' || role === 'admin'
+  const isRecruiter = role === 'teacher_recruiter' || role === 'admin'
   const isAcademic = role === 'academic_affairs' || role === 'admin'
 
-  // 分阶段：基本信息（所有人），初试后填写（HR），复核填写（教务），谈薪入库（教务）
-  const canViewBasic = true
-  const canViewPostInterview = isHR
+  // 分阶段：基本信息（招师/教务），初试后填写（招师），复核填写（教务），谈薪入库（招师）
+  const canViewBasic = isRecruiter || isAcademic
+  const canViewPostInterview = isRecruiter
   const canViewReview = isAcademic
-  const canViewSalary = isAcademic
+  const canViewSalary = isRecruiter
 
   const [formData, setFormData] = useState({
     // 基本信息

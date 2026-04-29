@@ -598,7 +598,7 @@ export default function TrialLessonsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            {/* 快捷匹配老师 - 销售操作，状态为待匹配老师时显示 */}
+                            {/* 快捷匹配老师 - 教务/教学操作，状态为待匹配老师时显示 */}
                             {lesson.lesson_status === 'waiting_match' && trialLessonsPerm.matchTeacher() && (
                               <Button
                                 variant="outline"

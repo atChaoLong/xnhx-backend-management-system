@@ -162,6 +162,10 @@ async function checkIfHasFormalOrderFromLesson(lessonId: string): Promise<boolea
 
 /**
  * 计算试听状态
+ *
+ * 当前统一口径：
+ * 1. 试听时间在未来：已排待上课
+ * 2. 试听时间已过去且未转化：上完待反馈
  */
 export async function calculateTrialLessonStatus(lesson: any): Promise<TrialLessonStatus> {
   const today = new Date()
@@ -211,13 +215,12 @@ export async function calculateTrialLessonStatus(lesson: any): Promise<TrialLess
     return TrialLessonStatus.COMPLETED
   }
 
-  // f. 已排待上课：时间还未到，且未转化
+  // f. 已排待上课：试听时间在未来，且未转化
   if (lessonTime > today) {
     return TrialLessonStatus.SCHEDULED
   }
 
-  // g. 上完待反馈：时间已过，且"是否转化"为空
-  // 课程时间已过但没有转化标记
+  // g. 上完待反馈：试听时间已过去，且"是否转化"为空
   if (lessonTime <= today) {
     return TrialLessonStatus.WAITING_FEEDBACK
   }
