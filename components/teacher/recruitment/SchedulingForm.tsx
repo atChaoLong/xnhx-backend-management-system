@@ -11,9 +11,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2, X } from "lucide-react"
-import { TeacherCandidate } from "@/lib/services/teacherCandidates"
+import { TeacherCandidate, TeacherCandidatesService } from "@/lib/services/teacherCandidates"
 import { useToast } from "@/hooks/use-toast"
-import { validateStepCompletion, advanceToNextStep } from "@/lib/services/recruitmentFlow"
+import { advanceToNextStep } from "@/lib/services/recruitmentFlow"
+import { getClientSafeErrorMessage } from "@/lib/safe-error"
 
 interface SchedulingFormProps {
   candidate: TeacherCandidate
@@ -78,8 +79,20 @@ export default function SchedulingForm({
     setIsSubmitting(true)
 
     try {
-      // 这里调用 API 更新信息并推进到下一步
-      // TODO: 实现 API 调用
+      await TeacherCandidatesService.updateTeacherCandidate({
+        id: candidate.id,
+        wechat_id: formData.wechat_id.trim() || undefined,
+        interview_date: formData.interview_date,
+        interview_time: formData.interview_time,
+        interview_officer: formData.interview_officer.trim(),
+        interview_link: formData.interview_link.trim() || undefined,
+        interview_notes: formData.interview_notes.trim() || undefined,
+      } as TeacherCandidate)
+
+      const result = await advanceToNextStep(candidate.id, "scheduling")
+      if (!result.success) {
+        throw new Error(result.error || "招聘流程推进失败")
+      }
       
       toast({
         title: "约面信息已保存",
@@ -87,11 +100,11 @@ export default function SchedulingForm({
       })
 
       onSuccess()
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "保存失败",
-        description: error.message || "无法保存约面信息",
+        description: getClientSafeErrorMessage(error, "无法保存约面信息，请稍后重试"),
       })
     } finally {
       setIsSubmitting(false)

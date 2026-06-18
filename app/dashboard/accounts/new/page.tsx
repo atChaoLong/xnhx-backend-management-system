@@ -1,13 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -19,6 +18,9 @@ import { Loader2, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { UsersService, CreateUserRequest, ROLES } from "@/lib/services/users"
 import { useToast } from "@/hooks/use-toast"
+import { getClientSafeErrorMessage } from "@/lib/safe-error"
+
+const ACCOUNT_CREATE_ERROR = "无法创建用户"
 
 export default function NewAccountPage() {
   const router = useRouter()
@@ -70,11 +72,11 @@ export default function NewAccountPage() {
         description: "用户已创建",
       })
       router.push("/dashboard/accounts")
-    } catch (error: any) {
+    } catch (error) {
       toast({
         variant: "destructive",
         title: "创建失败",
-        description: error.message || "无法创建用户",
+        description: getClientSafeErrorMessage(error, ACCOUNT_CREATE_ERROR),
       })
     } finally {
       setIsLoading(false)
@@ -222,23 +224,6 @@ export default function NewAccountPage() {
                         disabled={isLoading}
                       />
                     </div>
-                  </div>
-                </div>
-
-                {/* 备注 */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">备注</h3>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="notes">备注信息</Label>
-                    <Textarea
-                      id="notes"
-                      placeholder="请输入备注信息"
-                      value={formData.notes}
-                      onChange={(e) => handleInputChange("notes", e.target.value)}
-                      disabled={isLoading}
-                      rows={3}
-                    />
                   </div>
                 </div>
 

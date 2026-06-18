@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
 import {
   Dialog,
   DialogContent,
@@ -25,7 +24,8 @@ import { Loader2 } from "lucide-react"
 import { TodosService } from "@/lib/services/todos"
 import { useToast } from "@/hooks/use-toast"
 import { UserProfilesService } from "@/lib/services/userProfiles"
-import type { TodoPriority, TodoEntityType } from "@/lib/types/todo"
+import { getClientSafeErrorMessage } from "@/lib/safe-error"
+import type { TodoPriority } from "@/lib/types/todo"
 
 interface CreateTodoDialogProps {
   isOpen: boolean
@@ -57,8 +57,12 @@ export function CreateTodoDialog({ isOpen, onClose, onSuccess }: CreateTodoDialo
           u.role === 'sales' || u.role === 'head_teacher'
         )
         setUsers(filteredUsers)
-      } catch (error: any) {
-        console.error('加载用户列表失败:', error)
+      } catch (error: unknown) {
+        toast({
+          variant: "destructive",
+          title: "加载失败",
+          description: getClientSafeErrorMessage(error, "无法加载可分配用户"),
+        })
       } finally {
         setIsLoadingUsers(false)
       }
@@ -107,11 +111,11 @@ export function CreateTodoDialog({ isOpen, onClose, onSuccess }: CreateTodoDialo
       })
 
       onSuccess()
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "创建失败",
-        description: error.message || "无法创建待办",
+        description: getClientSafeErrorMessage(error, "无法创建待办"),
       })
     } finally {
       setIsLoading(false)

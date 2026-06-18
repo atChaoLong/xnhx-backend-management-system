@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -19,6 +18,10 @@ import { Loader2, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { UsersService, UserProfile, ROLES } from "@/lib/services/users"
 import { useToast } from "@/hooks/use-toast"
+import { getClientSafeErrorMessage } from "@/lib/safe-error"
+
+const ACCOUNT_LOAD_ERROR = "无法加载用户信息"
+const ACCOUNT_UPDATE_ERROR = "无法更新用户信息"
 
 export default function EditAccountPage() {
   const router = useRouter()
@@ -56,11 +59,11 @@ export default function EditAccountPage() {
           team_name: data.team_name || "",
           is_active: data.is_active,
         })
-      } catch (error: any) {
+      } catch (error) {
         toast({
           variant: "destructive",
           title: "加载失败",
-          description: error.message || "无法加载用户信息",
+          description: getClientSafeErrorMessage(error, ACCOUNT_LOAD_ERROR),
         })
         router.push("/dashboard/accounts")
       } finally {
@@ -101,11 +104,11 @@ export default function EditAccountPage() {
         description: "用户信息已更新",
       })
       router.push("/dashboard/accounts")
-    } catch (error: any) {
+    } catch (error) {
       toast({
         variant: "destructive",
         title: "更新失败",
-        description: error.message || "无法更新用户信息",
+        description: getClientSafeErrorMessage(error, ACCOUNT_UPDATE_ERROR),
       })
     } finally {
       setIsLoading(false)
@@ -164,7 +167,7 @@ export default function EditAccountPage() {
                     <div className="grid gap-2">
                       <Label>邮箱</Label>
                       <div className="text-sm text-muted-foreground">
-                        {user.id.slice(0, 8)}...
+                        {user.email || user.username || `${user.id.slice(0, 8)}...`}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         邮箱地址无法修改
@@ -179,13 +182,13 @@ export default function EditAccountPage() {
 
                   <div className="grid gap-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="full_name">真实姓名</Label>
+                      <Label htmlFor="name">真实姓名</Label>
                       <Input
-                        id="full_name"
+                        id="name"
                         type="text"
                         placeholder="请输入真实姓名"
-                        value={formData.full_name}
-                        onChange={(e) => handleInputChange("full_name", e.target.value)}
+                        value={formData.name}
+                        onChange={(e) => handleInputChange("name", e.target.value)}
                         disabled={isLoading}
                       />
                     </div>
@@ -275,23 +278,6 @@ export default function EditAccountPage() {
                         disabled={isLoading}
                       />
                     </div>
-                  </div>
-                </div>
-
-                {/* 备注 */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">备注</h3>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="notes">备注信息</Label>
-                    <Textarea
-                      id="notes"
-                      placeholder="请输入备注信息"
-                      value={formData.notes}
-                      onChange={(e) => handleInputChange("notes", e.target.value)}
-                      disabled={isLoading}
-                      rows={3}
-                    />
                   </div>
                 </div>
 

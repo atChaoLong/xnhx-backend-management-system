@@ -40,6 +40,31 @@ interface InterviewRecord {
   created_at: string
 }
 
+const TEACHER_LEVEL_LABELS: Record<string, string> = {
+  ungraded: "未定级",
+  junior: "初级教师",
+  intermediate: "中级教师",
+  senior: "高级教师",
+  expert: "专家教师",
+}
+
+const TEACHER_STATUS_LABELS: Record<string, string> = {
+  active: "正常",
+  full: "满课",
+  paused: "暂停排课",
+  disabled: "停用",
+}
+
+function getTeacherLevelLabel(level?: string | null) {
+  if (!level) return "未定级"
+  return TEACHER_LEVEL_LABELS[level] || level
+}
+
+function getTeacherStatusLabel(status?: string | null) {
+  if (!status) return "正常"
+  return TEACHER_STATUS_LABELS[status] || status
+}
+
 export default function TeacherDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const { toast } = useToast()
@@ -217,6 +242,18 @@ export default function TeacherDetailPage({ params }: { params: Promise<{ id: st
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-muted-foreground">姓名</label>
                   <p className="text-base font-semibold">{teacher.name || '-'}</p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-muted-foreground">老师编号</label>
+                  <p className="text-base font-semibold">{teacher.teacher_code || '-'}</p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-muted-foreground">老师等级</label>
+                  <p className="text-base">{getTeacherLevelLabel(teacher.teacher_level)}</p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-muted-foreground">老师状态</label>
+                  <p className="text-base">{getTeacherStatusLabel(teacher.status)}</p>
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-muted-foreground">性别</label>

@@ -1,12 +1,45 @@
 import { NextResponse, NextRequest } from 'next/server'
-import { supabaseServer } from '@/lib/supabase'
+import type { Session } from '@supabase/supabase-js'
+import { supabaseAuthServer } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
+import { summarizeError } from '@/lib/safe-error'
+import { revokeServerAuthSession } from '@/lib/server-auth-session-cleanup'
+import { getActiveUserProfile } from '@/lib/server-active-profile'
+import { setAuthCookies } from '@/lib/server-auth-token'
 
 const logger = createLogger('Auth:Signin')
 
+function isRecord(value: unknown): value is Record<string, any> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function normalizeString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function summarizeIdentifier(identifier: string) {
+  return {
+    input_type: identifier.includes('@') ? 'email' : 'account',
+    input_length: identifier.length,
+    has_at: identifier.includes('@'),
+  }
+}
+
+function buildClientSession(session: Session) {
+  return {
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
+    expires_at: session.expires_at,
+    user: session.user?.id ? { id: session.user.id } : null,
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json()
+    const rawBody = await request.json()
+    const body = isRecord(rawBody) ? rawBody : {}
+    const email = normalizeString(body.email)
+    const password = typeof body.password === 'string' ? body.password : ''
 
     if (!email || !password) {
       logger.warn('登录请求缺少必填字段')
@@ -22,49 +55,78 @@ export async function POST(request: NextRequest) {
     let finalEmail = email
     if (!email.includes('@')) {
       finalEmail = `${email}@xiaoniuhaoxue.com`
-      logger.info('账号转邮箱', { account: email, email: finalEmail })
+      logger.info('账号转邮箱', {
+        identifier_summary: summarizeIdentifier(email),
+        used_default_domain: true,
+      })
     }
 
-    logger.info('用户登录尝试', { input: email, finalEmail, passwordLength: password?.length })
+    logger.info('用户登录尝试', {
+      identifier_summary: summarizeIdentifier(email),
+      has_password: true,
+    })
 
-    const { data, error } = await supabaseServer.auth.signInWithPassword({
+    const { data, error } = await supabaseAuthServer.auth.signInWithPassword({
       email: finalEmail,
       password,
     })
 
     if (error) {
-      logger.error('认证失败', {
-        message: error.message,
-        status: error.status,
-        name: error.name,
-      })
+      logger.warn('认证失败', summarizeError(error))
 
       return NextResponse.json(
         {
-          error: error.message || '认证失败',
-          hint: '请确认已在 Supabase 中创建用户账户',
+          error: '账号或密码错误',
         },
         { status: 401 }
       )
     }
 
-    logger.info('登录成功', { userId: data.user?.id, email: data.user?.email })
+    const userId = data.user?.id
+    if (!userId || !data.session) {
+      logger.warn('登录成功但未返回完整 session', {
+        hasUserId: Boolean(userId),
+        hasSession: Boolean(data.session),
+      })
+      return NextResponse.json(
+        { error: '登录失败，请稍后重试' },
+        { status: 500 }
+      )
+    }
 
-    return NextResponse.json({
-      data: {
-        session: data.session,
-        user: data.user,
-        access_token: data.session?.access_token,
-        refresh_token: data.session?.refresh_token,
-        expires_at: data.session?.expires_at,
-      },
+    const profileResult = await getActiveUserProfile(userId, {
+      accessToken: data.session.access_token,
     })
-  } catch (error: any) {
-    logger.error('登录 API 异常', { message: error.message, stack: error.stack })
+    if (profileResult.ok === false) {
+      logger.warn('登录后用户档案校验失败', {
+        userId,
+        code: profileResult.code,
+      })
+      await revokeServerAuthSession(data.session.access_token, {
+        userId,
+        reason: profileResult.code,
+      })
+      return NextResponse.json(
+        {
+          error: profileResult.error,
+          code: profileResult.code,
+        },
+        { status: profileResult.status }
+      )
+    }
+
+    logger.info('登录成功', { userId })
+
+    const response = NextResponse.json({
+      data: buildClientSession(data.session),
+    })
+    setAuthCookies(response, data.session)
+    return response
+  } catch (error: unknown) {
+    logger.error('登录 API 异常', summarizeError(error))
     return NextResponse.json(
       {
-        error: error.message || '登录失败',
-        details: error.toString(),
+        error: '登录失败，请稍后重试',
       },
       { status: 500 }
     )

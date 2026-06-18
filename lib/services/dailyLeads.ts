@@ -97,7 +97,7 @@ export async function createDailyLead(lead: NewDailyLead): Promise<DailyLead> {
 /**
  * 更新每日线索信息
  */
-export async function updateDailyLead(lead: DailyLead & { id?: string }): Promise<DailyLead> {
+export async function updateDailyLead(lead: Partial<DailyLead> & { id?: string }): Promise<DailyLead> {
   const { id, ...updateData } = lead
 
   if (!id) {

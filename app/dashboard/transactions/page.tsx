@@ -7,14 +7,6 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ScrollableTable } from "@/components/ui/scrollable-table"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import {
   Pagination,
   PaginationContent,
   PaginationEllipsis,
@@ -25,21 +17,26 @@ import {
   PaginationPageSize,
   PaginationInfo,
 } from "@/components/ui/pagination"
-import { Plus, Edit, Trash2, Loader2, AlertTriangle } from "lucide-react"
+import { CheckCircle2, Loader2, Plus, XCircle } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
-import { TransactionsService } from "@/lib/services/transactions"
+import { TransactionsService, TransactionRecord, TransactionStats, TransactionWorkflowAction } from "@/lib/services/transactions"
 import { useToast } from "@/hooks/use-toast"
 import { usePagination } from "@/lib/hooks/usePagination"
+import { usePermission } from "@/lib/hooks/usePermission"
+import { getClientSafeErrorMessage } from "@/lib/safe-error"
+
+const TRANSACTIONS_LOAD_ERROR = "无法加载异动记录列表"
+const TRANSACTIONS_WORKFLOW_ERROR = "无法更新异动流程"
 
 export default function TransactionsPage() {
-  const [transactions, setTransactions] = useState<any[]>([])
+  const [transactions, setTransactions] = useState<TransactionRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [totalCount, setTotalCount] = useState(0)
-  const [isDeleting, setIsDeleting] = useState<string | null>(null)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null)
+  const [stats, setStats] = useState<TransactionStats | null>(null)
   const { toast } = useToast()
+  const { transactions: transactionsPerm } = usePermission()
 
   const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
 
@@ -66,14 +63,18 @@ export default function TransactionsPage() {
       setIsLoading(true)
       const from = (page - 1) * size
       const to = from + size - 1
-      const { data, count } = await TransactionsService.getTransactions(from, to)
+      const [{ data, count }, nextStats] = await Promise.all([
+        TransactionsService.getTransactions(from, to),
+        TransactionsService.getStats(),
+      ])
       setTransactions(data)
       setTotalCount(count)
-    } catch (error: any) {
+      setStats(nextStats)
+    } catch (error) {
       toast({
         variant: "destructive",
         title: "加载失败",
-        description: error.message || "无法加载异动记录列表",
+        description: getClientSafeErrorMessage(error, TRANSACTIONS_LOAD_ERROR),
       })
     } finally {
       setIsLoading(false)
@@ -84,47 +85,12 @@ export default function TransactionsPage() {
     fetchTransactions(1, pageSize)
   }, [])
 
-  // 删除异动记录
-  const handleDeleteClick = (id: string) => {
-    setTransactionToDelete(id)
-    setDeleteDialogOpen(true)
-  }
-
-  const handleDeleteConfirm = async () => {
-    if (!transactionToDelete) return
-
-    try {
-      setIsDeleting(transactionToDelete)
-      await TransactionsService.deleteTransaction(transactionToDelete)
-      toast({
-        title: "删除成功",
-        description: "异动记录已删除",
-      })
-      fetchTransactions(currentPage, pageSize)
-      setDeleteDialogOpen(false)
-      setTransactionToDelete(null)
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "删除失败",
-        description: error.message || "无法删除异动记录",
-      })
-    } finally {
-      setIsDeleting(null)
-    }
-  }
-
-  const handleDeleteCancel = () => {
-    setDeleteDialogOpen(false)
-    setTransactionToDelete(null)
-  }
-
   // 获取状态标签样式
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, string> = {
-      'pending': 'bg-yellow-100 text-yellow-800',
+      'pending': 'bg-amber-100 text-amber-800',
       'processing': 'bg-blue-100 text-blue-800',
-      'completed': 'bg-green-100 text-green-800',
+      'completed': 'bg-emerald-100 text-emerald-800',
       'rejected': 'bg-red-100 text-red-800',
     }
     return statusMap[status] || 'bg-gray-100 text-gray-800'
@@ -133,40 +99,175 @@ export default function TransactionsPage() {
   // 获取状态文本
   const getStatusText = (status: string) => {
     const statusMap: Record<string, string> = {
-      'pending': '待处理',
-      'processing': '处理中',
-      'completed': '已完成',
+      'pending': '待教务核对',
+      'processing': '待财务打款',
+      'completed': '已完成打款',
       'rejected': '已拒绝',
     }
     return statusMap[status] || status
   }
 
-  // 切换状态
-  const handleToggleStatus = async (transaction: any) => {
-    const statusFlow: Record<string, string> = {
-      'pending': 'processing',
-      'processing': 'completed',
-      'completed': 'rejected',
-      'rejected': 'pending',
+  const getActionText = (action: string) => {
+    const actionMap: Record<string, string> = {
+      submitted: '提交申请',
+      verify_amount: '教务核对',
+      mark_paid: '财务打款',
+      verify_performance: '业绩核对',
+      reject: '拒绝',
+      status_change: '状态更新',
+    }
+    return actionMap[action] || action
+  }
+
+  const formatCurrency = (amount: number) => {
+    return `¥${amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}`
+  }
+
+  const statusSummaryItems = stats
+    ? ([
+        { status: 'pending' as const, label: getStatusText('pending'), tone: 'border-amber-200 bg-amber-50 text-amber-900' },
+        { status: 'processing' as const, label: getStatusText('processing'), tone: 'border-blue-200 bg-blue-50 text-blue-900' },
+        { status: 'completed' as const, label: getStatusText('completed'), tone: 'border-emerald-200 bg-emerald-50 text-emerald-900' },
+        { status: 'rejected' as const, label: getStatusText('rejected'), tone: 'border-red-200 bg-red-50 text-red-900' },
+      ].map((item) => ({
+        ...item,
+        summary: stats.by_status[item.status],
+      })))
+    : []
+
+  const renderWorkflowEvents = (transaction: TransactionRecord) => {
+    const events = transaction.workflow_events || []
+
+    if (events.length === 0) {
+      return <div className="text-xs text-muted-foreground">暂无操作流水</div>
     }
 
+    return (
+      <div className="space-y-1">
+        {events.slice(0, 3).map((event) => (
+          <div key={event.id} className="text-xs leading-5">
+            <span className="font-medium text-foreground">{getActionText(event.action)}</span>
+            <span className="ml-1 text-muted-foreground">
+              {format(new Date(event.created_at), 'MM-dd HH:mm')}
+            </span>
+            <span className="ml-1 text-muted-foreground">
+              {event.actor_name || event.actor_role || '系统'}
+            </span>
+            {event.from_status && event.to_status && event.from_status !== event.to_status && (
+              <span className="ml-1 text-muted-foreground">
+                {getStatusText(event.from_status)} → {getStatusText(event.to_status)}
+              </span>
+            )}
+          </div>
+        ))}
+        {events.length > 3 && (
+          <div className="text-xs text-muted-foreground">还有 {events.length - 3} 条流水</div>
+        )}
+      </div>
+    )
+  }
+
+  const handleWorkflowAction = async (
+    transaction: TransactionRecord,
+    workflowAction: TransactionWorkflowAction,
+    successMessage: string
+  ) => {
     try {
-      await TransactionsService.updateTransaction({
-        ...transaction,
-        status: statusFlow[transaction.status] as any,
-      })
+      setUpdatingId(transaction.id)
+      await TransactionsService.advanceWorkflow(transaction.id, workflowAction)
       toast({
-        title: "更新成功",
-        description: "状态已更新",
+        title: "操作成功",
+        description: successMessage,
       })
-      fetchTransactions(currentPage, pageSize)
-    } catch (error: any) {
+      await fetchTransactions(currentPage, pageSize)
+    } catch (error) {
       toast({
         variant: "destructive",
-        title: "更新失败",
-        description: error.message || "无法更新状态",
+        title: "操作失败",
+        description: getClientSafeErrorMessage(error, TRANSACTIONS_WORKFLOW_ERROR),
       })
+    } finally {
+      setUpdatingId(null)
     }
+  }
+
+  const getWorkflowActions = (transaction: TransactionRecord) => {
+    const isUpdating = updatingId === transaction.id
+
+    if (transaction.status === 'pending') {
+      return (
+        <div className="flex justify-end gap-2">
+          {transactionsPerm.verifyHours() && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleWorkflowAction(transaction, 'verify_amount', '已通过教务金额核对')}
+              disabled={isUpdating}
+            >
+              {isUpdating ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <CheckCircle2 className="mr-1 h-3 w-3" />}
+              教务通过
+            </Button>
+          )}
+          {(transactionsPerm.verifyHours() || transactionsPerm.payment()) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleWorkflowAction(transaction, 'reject', '已拒绝该异动记录')}
+              disabled={isUpdating}
+            >
+              <XCircle className="mr-1 h-3 w-3" />
+              拒绝
+            </Button>
+          )}
+        </div>
+      )
+    }
+
+    if (transaction.status === 'processing') {
+      return (
+        <div className="flex justify-end gap-2">
+          {transactionsPerm.payment() && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleWorkflowAction(transaction, 'mark_paid', '已确认财务打款')}
+              disabled={isUpdating}
+            >
+              {isUpdating ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <CheckCircle2 className="mr-1 h-3 w-3" />}
+              确认打款
+            </Button>
+          )}
+          {(transactionsPerm.verifyHours() || transactionsPerm.payment()) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleWorkflowAction(transaction, 'reject', '已拒绝该异动记录')}
+              disabled={isUpdating}
+            >
+              <XCircle className="mr-1 h-3 w-3" />
+              拒绝
+            </Button>
+          )}
+        </div>
+      )
+    }
+
+    if (transaction.status === 'completed' && transactionsPerm.verifyPerformance()) {
+      const verified = Boolean(transaction.performance_verified_at)
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleWorkflowAction(transaction, 'verify_performance', '已完成人力业绩核对')}
+          disabled={isUpdating || verified}
+        >
+          {isUpdating ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <CheckCircle2 className="mr-1 h-3 w-3" />}
+          {verified ? '业绩已核对' : '业绩核对'}
+        </Button>
+      )
+    }
+
+    return <span className="text-sm text-muted-foreground">无可用操作</span>
   }
 
   if (isLoading) {
@@ -204,14 +305,38 @@ export default function TransactionsPage() {
                 <Button variant="outline" onClick={() => fetchTransactions(currentPage, pageSize)} disabled={isLoading}>
                   刷新
                 </Button>
-                <Link href="/dashboard/transactions/new">
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    新增异动记录
-                  </Button>
-                </Link>
+                {transactionsPerm.create() && (
+                  <Link href="/dashboard/transactions/new">
+                    <Button>
+                      <Plus className="mr-2 h-4 w-4" />
+                      新增异动记录
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
+
+            {stats && (
+              <div className="mb-6 grid gap-3 md:grid-cols-6 flex-shrink-0">
+                <div className="rounded-md border bg-background p-4 md:col-span-2">
+                  <div className="text-sm text-muted-foreground">可见异动总览</div>
+                  <div className="mt-2 flex items-end gap-3">
+                    <div className="text-2xl font-semibold">{stats.total_count}</div>
+                    <div className="pb-1 text-sm text-muted-foreground">笔</div>
+                  </div>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    合计退费 {formatCurrency(stats.total_amount)}
+                  </div>
+                </div>
+                {statusSummaryItems.map((item) => (
+                  <div key={item.status} className={`rounded-md border p-4 ${item.tone}`}>
+                    <div className="text-sm font-medium">{item.label}</div>
+                    <div className="mt-2 text-2xl font-semibold">{item.summary.count}</div>
+                    <div className="mt-1 text-xs opacity-80">{formatCurrency(item.summary.amount)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <ScrollableTable>
               <Table className="border-0">
@@ -223,14 +348,17 @@ export default function TransactionsPage() {
                     <TableHead>退费金额</TableHead>
                     <TableHead>退费原因</TableHead>
                     <TableHead>状态</TableHead>
-                    <TableHead className="text-right">操作</TableHead>
+                    <TableHead>流程记录</TableHead>
+                    <TableHead>操作流水</TableHead>
+                    <TableHead className="text-right">流程操作</TableHead>
+                    <TableHead className="text-right">关联</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {transactions.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                        暂无数据，点击&quot;新增异动记录&quot;开始添加
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                        暂无异动记录
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -246,33 +374,31 @@ export default function TransactionsPage() {
                         <TableCell>{transaction.refund_amount ? `¥${transaction.refund_amount}` : "-"}</TableCell>
                         <TableCell className="max-w-md truncate">{transaction.refund_reason || "-"}</TableCell>
                         <TableCell>
-                          <button
-                            onClick={() => handleToggleStatus(transaction)}
-                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium cursor-pointer transition-colors ${getStatusBadge(transaction.status)}`}
-                          >
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(transaction.status)}`}>
                             {getStatusText(transaction.status)}
-                          </button>
+                          </span>
+                        </TableCell>
+                        <TableCell className="min-w-[180px] text-xs text-muted-foreground">
+                          <div>教务：{transaction.academic_verified_at ? format(new Date(transaction.academic_verified_at), 'yyyy-MM-dd HH:mm') : '-'}</div>
+                          <div>财务：{transaction.paid_at ? format(new Date(transaction.paid_at), 'yyyy-MM-dd HH:mm') : '-'}</div>
+                          <div>人力：{transaction.performance_verified_at ? format(new Date(transaction.performance_verified_at), 'yyyy-MM-dd HH:mm') : '-'}</div>
+                        </TableCell>
+                        <TableCell className="min-w-[260px]">
+                          {renderWorkflowEvents(transaction)}
+                        </TableCell>
+                        <TableCell className="min-w-[220px] text-right">
+                          {getWorkflowActions(transaction)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Link href={`/dashboard/transactions/${transaction.id}/edit`}>
-                              <Button variant="ghost" size="icon">
-                                <Edit className="h-4 w-4" />
+                          {transaction.student_id ? (
+                            <Link href={`/dashboard/students/${transaction.student_id}`}>
+                              <Button variant="outline" size="sm">
+                                查看正式生
                               </Button>
                             </Link>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteClick(transaction.id)}
-                              disabled={isDeleting === transaction.id}
-                            >
-                              {isDeleting === transaction.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              )}
-                            </Button>
-                          </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">历史记录</span>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))
@@ -340,35 +466,6 @@ export default function TransactionsPage() {
         </Card>
       </div>
 
-      {/* 删除确认对话框 */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              <DialogTitle>确认删除</DialogTitle>
-            </div>
-            <DialogDescription>
-              确定要删除这个异动记录吗？此操作无法撤销。
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleDeleteCancel} disabled={isDeleting !== null}>
-              取消
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteConfirm} disabled={isDeleting !== null}>
-              {isDeleting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  删除中...
-                </>
-              ) : (
-                "确认删除"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

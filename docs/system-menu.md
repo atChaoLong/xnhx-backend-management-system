@@ -377,7 +377,7 @@
 
 **路由**: `/dashboard/teacher-candidates/interview`
 
-**使用角色**: 招师HR (hr)
+**使用角色**: 招师 (teacher_recruiter)、管理员 (admin)
 
 **功能描述**:
 - 从每日线索导入候选人
@@ -404,7 +404,7 @@
 
 **路由**: `/dashboard/teacher-candidates/upload`
 
-**使用角色**: 招师HR (hr)
+**使用角色**: 招师HR (hr)、教务 (academic_affairs)
 
 **功能描述**:
 - 上传面试录像
@@ -590,15 +590,15 @@
 
 **路由**: `/dashboard/teachers/exceptions`
 
-**使用角色**: 招师HR (hr)
+**使用角色**: 管理员 (admin)、教务 (academic_affairs)
 
 **功能描述**:
 - 查看入库后出现异常的老师
-- 处理异常情况
-- 记录异常原因
-- 跟踪处理进度
+- 按风险等级筛选异常情况
+- 跳转老师详情或编辑页处理异常
+- 自动识别编号、联系方式、ClassIn 绑定、等级、状态、科目/年级等资料缺口
 
-**数据表**: `teacher_profiles`, `teacher_exceptions`(新建)
+**数据表**: `teachers`（当前自动检测）；如需异常原因和处理进度长期留痕，后续新增 `teacher_exceptions`
 
 **权限**:
 ```typescript

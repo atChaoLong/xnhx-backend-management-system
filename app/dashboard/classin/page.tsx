@@ -19,6 +19,8 @@ import {
 import { Loader2, RefreshCw, Video } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { usePagination } from "@/lib/hooks/usePagination"
+import { usePermission } from "@/lib/hooks/usePermission"
+import { api } from "@/lib/fetch"
 
 interface ClassInClassroom {
   class_id: number
@@ -42,6 +44,8 @@ export default function ClassInIntegrationPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
   const { toast } = useToast()
+  const { teachers, isLoading: isPermissionLoading } = usePermission()
+  const canUseClassInOps = !isPermissionLoading && teachers.notes()
 
   const {
     currentPage,
@@ -67,7 +71,7 @@ export default function ClassInIntegrationPage() {
       const from = (page - 1) * size
       const to = from + size - 1
 
-      const response = await fetch(`/api/classin/classrooms?from=${from}&to=${to}`)
+      const response = await api.get(`/api/classin/classrooms?from=${from}&to=${to}`)
 
       if (!response.ok) {
         throw new Error('加载失败')
@@ -88,8 +92,9 @@ export default function ClassInIntegrationPage() {
   }
 
   useEffect(() => {
+    if (isPermissionLoading || !canUseClassInOps) return
     fetchClassrooms(1, pageSize)
-  }, [])
+  }, [isPermissionLoading, canUseClassInOps])
 
   // 格式化时间戳
   const formatTimestamp = (timestamp?: number) => {
@@ -115,6 +120,32 @@ export default function ClassInIntegrationPage() {
       2: 'bg-blue-100 text-blue-800',
     }
     return styleMap[status || 0] || 'bg-gray-100 text-gray-800'
+  }
+
+  if (isPermissionLoading) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="ClassIn 课堂" description="查看 ClassIn 平台的课堂数据" />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!canUseClassInOps) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="ClassIn 课堂" description="查看 ClassIn 平台的课堂数据" />
+        <div className="flex-1 overflow-auto p-6">
+          <Card>
+            <CardContent className="p-6 text-sm text-muted-foreground">
+              当前角色无权访问 ClassIn 镜像数据。
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
   }
 
   if (isLoading) {
@@ -236,6 +267,7 @@ export default function ClassInIntegrationPage() {
                       <PaginationItem>
                         <PaginationPrevious
                           onClick={goToPreviousPage}
+                          disabled={!canGoPrevious}
                           className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
                         />
                       </PaginationItem>
@@ -252,6 +284,7 @@ export default function ClassInIntegrationPage() {
                             <PaginationLink
                               onClick={() => goToPage(page)}
                               isActive={page === currentPage}
+                              disabled={false}
                               className="cursor-pointer"
                             >
                               {page}
@@ -262,6 +295,7 @@ export default function ClassInIntegrationPage() {
                       <PaginationItem>
                         <PaginationNext
                           onClick={goToNextPage}
+                          disabled={!canGoNext}
                           className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
                         />
                       </PaginationItem>

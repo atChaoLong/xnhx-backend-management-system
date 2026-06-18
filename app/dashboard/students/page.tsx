@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ScrollableTable } from "@/components/ui/scrollable-table"
 import {
@@ -33,10 +34,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { Plus, Edit, Trash2, Loader2, AlertTriangle, UserCheck, MoreHorizontal, DollarSign } from "lucide-react"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle, UserCheck, MoreHorizontal, DollarSign, Search, RefreshCw } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { StudentsService, Student } from "@/lib/services/students"
 import { useToast } from "@/hooks/use-toast"
 import { usePagination } from "@/lib/hooks/usePagination"
@@ -50,6 +51,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Textarea } from "@/components/ui/textarea"
+import { summarizeError } from "@/lib/safe-error"
 
 // 班主任类型
 interface HeadTeacher {
@@ -58,12 +60,92 @@ interface HeadTeacher {
   role: string
 }
 
+interface ClassInEntryFormState {
+  studentCode: string
+  initialPassword: string
+}
+
+type FormalRiskFilter = "all" | "low_hours" | "no_head_teacher" | "no_course" | "inactive"
+
+interface FormalStudentRisk {
+  key: Exclude<FormalRiskFilter, "all">
+  label: string
+  className: string
+}
+
+const FORMAL_RISK_FILTERS: Array<{ value: FormalRiskFilter; label: string }> = [
+  { value: "all", label: "全部预警" },
+  { value: "low_hours", label: "课时预警" },
+  { value: "no_head_teacher", label: "未分配班主任" },
+  { value: "no_course", label: "缺少授课信息" },
+  { value: "inactive", label: "非在读状态" },
+]
+
+const formatHours = (value?: number | null) => `${(value ?? 0).toFixed(1)} 小时`
+
+const formatCurrency = (value?: number | null) => `¥${Math.max(0, value ?? 0).toFixed(2)}`
+
+const getFormalStudentRisks = (student: Student): FormalStudentRisk[] => {
+  const summary = student.formal_summary
+  const remainingHours = summary?.remaining_formal_hours ?? 0
+  const totalHours = summary?.total_formal_hours ?? 0
+  const subjects = summary?.formal_subjects ?? []
+  const teachers = summary?.formal_teachers ?? []
+  const risks: FormalStudentRisk[] = []
+
+  if (!student.head_teacher_id) {
+    risks.push({
+      key: "no_head_teacher",
+      label: "未分配班主任",
+      className: "bg-amber-100 text-amber-800",
+    })
+  }
+
+  if (totalHours > 0 && remainingHours <= 3) {
+    risks.push({
+      key: "low_hours",
+      label: "课时预警",
+      className: "bg-red-100 text-red-800",
+    })
+  }
+
+  if (subjects.length === 0 || teachers.length === 0) {
+    risks.push({
+      key: "no_course",
+      label: "授课信息缺失",
+      className: "bg-slate-100 text-slate-700",
+    })
+  }
+
+  if (student.status && !["active", "studying"].includes(student.status)) {
+    risks.push({
+      key: "inactive",
+      label: getStudentStatusLabel(student.status),
+      className: "bg-purple-100 text-purple-800",
+    })
+  }
+
+  return risks
+}
+
 export default function StudentsPage() {
   const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const teacherId = searchParams.get('teacher_id')
   const teacherName = searchParams.get('teacher_name')
   const { user } = useCurrentUser()
+  const isFormalStudentsPage = pathname.includes('/dashboard/formal-students')
+  const isAcademicStudentsPage = pathname.includes('/dashboard/academic/students')
+  const isFormalStudentView = isFormalStudentsPage || isAcademicStudentsPage
+  const pageTitle = teacherId ? `${teacherName || '老师'}的学员` : isAcademicStudentsPage ? "学生库（教务版）" : isFormalStudentView ? "正式生管理" : "学生管理"
+  const pageDescription = teacherId ? `查看该老师所带的所有学生` : isAcademicStudentsPage ? "按教务口径查看正式生订单、课时、退费与回访入口" : isFormalStudentView ? "集中查看正式生订单、剩余课时、退费与回访入口" : "管理和查看所有学生信息"
+  const canCreateStudent = !isFormalStudentView && (user?.role === 'admin' || user?.role === 'academic_affairs')
+  const canAssignHeadTeacher = user?.role === 'admin' || user?.role === 'academic_affairs'
+  const canEditStudent = !isFormalStudentView && (user?.role === 'admin' || user?.role === 'academic_affairs')
+  const canDeleteStudent = user?.role === 'admin'
+  const canUpdateStatus = user?.role === 'admin' || user?.role === 'academic_affairs' || user?.role === 'head_teacher'
+  const canViewClassInSecrets = user?.role === 'admin' || user?.role === 'academic_affairs'
   const [students, setStudents] = useState<Student[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
@@ -83,6 +165,16 @@ export default function StudentsPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("")
   const [statusReason, setStatusReason] = useState<string>("")
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+  const [classInEntryDialogOpen, setClassInEntryDialogOpen] = useState(false)
+  const [studentToConfirmEntry, setStudentToConfirmEntry] = useState<Student | null>(null)
+  const [classInEntryForm, setClassInEntryForm] = useState<ClassInEntryFormState>({
+    studentCode: "",
+    initialPassword: "",
+  })
+  const [isConfirmingEntry, setIsConfirmingEntry] = useState(false)
+  const [formalSearch, setFormalSearch] = useState("")
+  const [formalRiskFilter, setFormalRiskFilter] = useState<FormalRiskFilter>("all")
+  const [formalSubjectFilter, setFormalSubjectFilter] = useState("all")
 
   const { toast } = useToast()
 
@@ -115,6 +207,9 @@ export default function StudentsPage() {
 
       // 根据用户角色构建 URL
       let url = `/api/students?from=${from}&to=${to}`
+      if (isFormalStudentView) {
+        url += '&formal=true&include_summary=true'
+      }
       // 如果是班主任，只获取自己管理的学生
       if (user?.role === 'head_teacher') {
         url += `&head_teacher_id=${user.id}`
@@ -124,12 +219,7 @@ export default function StudentsPage() {
         url += `&teacher_id=${teacherId}`
       }
 
-      const token = localStorage.getItem('supabase.auth.token')
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
+      const response = await api.get(url)
 
       if (!response.ok) {
         throw new Error('获取学生列表失败')
@@ -153,19 +243,14 @@ export default function StudentsPage() {
   const fetchHeadTeachers = async () => {
     try {
       setIsLoadingHeadTeachers(true)
-      const token = localStorage.getItem('supabase.auth.token')
-      const response = await fetch('/api/users?role=head_teacher', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
+      const response = await api.get('/api/users?role=head_teacher')
       if (!response.ok) {
         throw new Error('获取班主任列表失败')
       }
       const { data } = await response.json()
       setHeadTeachers(data || [])
     } catch (error: any) {
-      console.error('获取班主任列表失败:', error)
+      console.error('获取班主任列表失败:', summarizeError(error))
       toast({
         variant: "destructive",
         title: "加载失败",
@@ -179,16 +264,35 @@ export default function StudentsPage() {
 
   useEffect(() => {
     fetchStudents(1, pageSize)
-  }, [teacherId])
+  }, [teacherId, isFormalStudentView])
 
   // 删除学生
   const handleDeleteClick = (id: string) => {
+    if (!canDeleteStudent) {
+      toast({
+        variant: "destructive",
+        title: "无法删除",
+        description: "当前角色无权删除学生",
+      })
+      return
+    }
+
     setStudentToDelete(id)
     setDeleteDialogOpen(true)
   }
 
   const handleDeleteConfirm = async () => {
     if (!studentToDelete) return
+    if (!canDeleteStudent) {
+      toast({
+        variant: "destructive",
+        title: "无法删除",
+        description: "当前角色无权删除学生",
+      })
+      setDeleteDialogOpen(false)
+      setStudentToDelete(null)
+      return
+    }
 
     try {
       setIsDeleting(studentToDelete)
@@ -237,17 +341,9 @@ export default function StudentsPage() {
 
     try {
       setIsAssigning(studentToAssign.id)
-      const token = localStorage.getItem('supabase.auth.token')
-      const response = await fetch('/api/students/assign-head-teacher', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          studentId: studentToAssign.id,
-          headTeacherId: selectedHeadTeacher,
-        }),
+      const response = await api.post('/api/students/assign-head-teacher', {
+        studentId: studentToAssign.id,
+        headTeacherId: selectedHeadTeacher,
       })
 
       if (!response.ok) {
@@ -296,18 +392,10 @@ export default function StudentsPage() {
 
     try {
       setIsUpdatingStatus(true)
-      const token = localStorage.getItem('supabase.auth.token')
-      const response = await fetch('/api/students/update-status', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          studentId: studentToUpdateStatus.id,
-          status: selectedStatus,
-          reason: statusReason,
-        }),
+      const response = await api.put('/api/students/update-status', {
+        studentId: studentToUpdateStatus.id,
+        status: selectedStatus,
+        reason: statusReason,
       })
 
       if (!response.ok) {
@@ -343,44 +431,7 @@ export default function StudentsPage() {
     setStatusReason('')
   }
 
-  const handleConfirmEntry = async (student: Student) => {
-    // 如果学生已经有 student_code，直接入库不需要再输入编号
-    if (student.student_code) {
-      const password = prompt(`学生 ${student.student_name} 已有编号 ${student.student_code}\n请输入 ClassIn 初始密码：`, "123456")
-      if (password === null || !password.trim()) return
-
-      try {
-        const resp = await fetch("/api/student-entries/confirm", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            student_name: student.student_name,
-            student_code: student.student_code,
-            parent_phone: student.parent_phone,
-            initial_password: password.trim(),
-            status: student.status || "active",
-          }),
-        })
-        if (!resp.ok) {
-          const err = await resp.json().catch(() => ({ error: "学生入库失败" }))
-          throw new Error(err.error || "学生入库失败")
-        }
-        toast({
-          title: "入库成功",
-          description: `学生 ${student.student_name} 已注册 ClassIn`,
-        })
-        fetchStudents(currentPage, pageSize)
-      } catch (error: any) {
-        toast({
-          variant: "destructive",
-          title: "入库失败",
-          description: error.message || "无法入库该学生",
-        })
-      }
-      return
-    }
-
-    // 如果学生没有 student_code，提示输入编号和密码
+  const openClassInEntryDialog = (student: Student) => {
     if (!student.parent_phone) {
       toast({
         variant: "destructive",
@@ -390,22 +441,60 @@ export default function StudentsPage() {
       return
     }
 
-    const code = prompt(`为学生 ${student.student_name} 设置学生编号：`)
-    if (code === null || !code.trim()) return
-    const password = prompt(`为学生 ${student.student_name} 设置 ClassIn 初始密码：`, "123456")
-    if (password === null || !password.trim()) return
+    setStudentToConfirmEntry(student)
+    setClassInEntryForm({
+      studentCode: student.student_code || "",
+      initialPassword: "",
+    })
+    setClassInEntryDialogOpen(true)
+  }
+
+  const resetClassInEntryDialog = () => {
+    setClassInEntryDialogOpen(false)
+    setStudentToConfirmEntry(null)
+    setClassInEntryForm({
+      studentCode: "",
+      initialPassword: "",
+    })
+  }
+
+  const closeClassInEntryDialog = () => {
+    if (isConfirmingEntry) return
+    resetClassInEntryDialog()
+  }
+
+  const handleConfirmEntry = async () => {
+    if (!studentToConfirmEntry) return
+
+    const studentCode = classInEntryForm.studentCode.trim()
+    const initialPassword = classInEntryForm.initialPassword.trim()
+
+    if (!studentCode) {
+      toast({
+        variant: "destructive",
+        title: "请输入学生编号",
+        description: "学生编号用于写入本地学生档案",
+      })
+      return
+    }
+
+    if (!initialPassword) {
+      toast({
+        variant: "destructive",
+        title: "请输入 ClassIn 初始密码",
+        description: "初始密码只会随本次入库请求提交",
+      })
+      return
+    }
 
     try {
-      const resp = await fetch("/api/student-entries/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          student_name: student.student_name,
-          student_code: code.trim(),
-          parent_phone: student.parent_phone,
-          initial_password: password.trim(),
-          status: student.status || "active",
-        }),
+      setIsConfirmingEntry(true)
+      const resp = await api.post("/api/student-entries/confirm", {
+        student_name: studentToConfirmEntry.student_name,
+        student_code: studentCode,
+        parent_phone: studentToConfirmEntry.parent_phone,
+        initial_password: initialPassword,
+        status: studentToConfirmEntry.status || "active",
       })
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ error: "学生入库失败" }))
@@ -413,8 +502,9 @@ export default function StudentsPage() {
       }
       toast({
         title: "入库成功",
-        description: "学生已注册 ClassIn 并写入 students",
+        description: `学生 ${studentToConfirmEntry.student_name} 已注册 ClassIn`,
       })
+      resetClassInEntryDialog()
       fetchStudents(currentPage, pageSize)
     } catch (error: any) {
       toast({
@@ -422,16 +512,72 @@ export default function StudentsPage() {
         title: "入库失败",
         description: error.message || "无法入库该学生",
       })
+    } finally {
+      setIsConfirmingEntry(false)
     }
   }
+
+  const subjectOptions = useMemo(() => {
+    const subjects = new Set<string>()
+    students.forEach((student) => {
+      student.formal_summary?.formal_subjects?.forEach((subject) => {
+        if (subject) subjects.add(subject)
+      })
+    })
+    return Array.from(subjects).sort((a, b) => a.localeCompare(b, "zh-CN"))
+  }, [students])
+
+  const formalViewStats = useMemo(() => {
+    const base = {
+      currentPageCount: students.length,
+      lowHoursCount: 0,
+      unassignedCount: 0,
+      remainingHours: 0,
+      remainingAmount: 0,
+      subjectCount: subjectOptions.length,
+    }
+
+    students.forEach((student) => {
+      const summary = student.formal_summary
+      const risks = getFormalStudentRisks(student)
+      if (risks.some((risk) => risk.key === "low_hours")) base.lowHoursCount += 1
+      if (risks.some((risk) => risk.key === "no_head_teacher")) base.unassignedCount += 1
+      base.remainingHours += summary?.remaining_formal_hours ?? 0
+      base.remainingAmount += summary?.remaining_formal_amount ?? 0
+    })
+
+    return base
+  }, [students, subjectOptions.length])
+
+  const displayedStudents = useMemo(() => {
+    if (!isFormalStudentView) return students
+
+    const keyword = formalSearch.trim().toLowerCase()
+    return students.filter((student) => {
+      const summary = student.formal_summary
+      const risks = getFormalStudentRisks(student)
+      const matchesKeyword = !keyword || [
+        student.student_name,
+        student.student_code,
+        student.parent_phone,
+        student.head_teacher_name,
+        ...(summary?.formal_subjects ?? []),
+        ...(summary?.formal_teachers ?? []),
+      ].some((value) => String(value ?? "").toLowerCase().includes(keyword))
+      const matchesRisk = formalRiskFilter === "all" || risks.some((risk) => risk.key === formalRiskFilter)
+      const matchesSubject = formalSubjectFilter === "all" || summary?.formal_subjects?.includes(formalSubjectFilter)
+
+      return matchesKeyword && matchesRisk && matchesSubject
+    })
+  }, [formalRiskFilter, formalSearch, formalSubjectFilter, isFormalStudentView, students])
 
 
   if (isLoading) {
     return (
       <div className="flex flex-col h-full">
         <Header
-          title={teacherId ? `${teacherName || '老师'}的学员` : "学生管理"}
-          description={teacherId ? `查看该老师所带的所有学生` : "管理和查看所有学生信息"}
+          title={pageTitle}
+          description={pageDescription}
         />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -443,8 +589,8 @@ export default function StudentsPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <Header
-        title={teacherId ? `${teacherName || '老师'}的学员` : "学生管理"}
-        description={teacherId ? `查看该老师所带的所有学生` : "管理和查看所有学生信息"}
+        title={pageTitle}
+        description={pageDescription}
       />
 
       <div className="flex-1 overflow-hidden p-6">
@@ -452,7 +598,7 @@ export default function StudentsPage() {
           <CardContent className="flex-1 flex flex-col p-6 overflow-hidden">
             <div className="flex justify-between items-center mb-6 flex-shrink-0">
               <div>
-                <h3 className="text-lg font-semibold">学生列表</h3>
+                <h3 className="text-lg font-semibold">{isFormalStudentView ? "正式生列表" : "学生列表"}</h3>
                 <PaginationInfo
                   currentPage={currentPage}
                   totalPages={totalPages}
@@ -464,14 +610,86 @@ export default function StudentsPage() {
                 <Button variant="outline" onClick={() => fetchStudents(currentPage, pageSize)} disabled={isLoading}>
                   刷新
                 </Button>
-                <Link href="/dashboard/students/new">
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    新增学生
-                  </Button>
-                </Link>
+                {canCreateStudent && (
+                  <Link href="/dashboard/students/new">
+                    <Button>
+                      <Plus className="mr-2 h-4 w-4" />
+                      新增学生
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
+
+            {isFormalStudentView && (
+              <div className="mb-6 space-y-4 flex-shrink-0">
+                <div className="grid gap-3 md:grid-cols-4">
+                  <div className="rounded-md border px-4 py-3">
+                    <div className="text-xs text-muted-foreground">当前页正式生</div>
+                    <div className="mt-1 text-2xl font-semibold">{formalViewStats.currentPageCount}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">筛选后 {displayedStudents.length} 人</div>
+                  </div>
+                  <div className="rounded-md border px-4 py-3">
+                    <div className="text-xs text-muted-foreground">课时预警</div>
+                    <div className="mt-1 text-2xl font-semibold text-red-700">{formalViewStats.lowHoursCount}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">剩余课时不超过 3 小时</div>
+                  </div>
+                  <div className="rounded-md border px-4 py-3">
+                    <div className="text-xs text-muted-foreground">未分配班主任</div>
+                    <div className="mt-1 text-2xl font-semibold text-amber-700">{formalViewStats.unassignedCount}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">需要教务补归属</div>
+                  </div>
+                  <div className="rounded-md border px-4 py-3">
+                    <div className="text-xs text-muted-foreground">剩余课时 / 金额</div>
+                    <div className="mt-1 text-xl font-semibold">{formatHours(formalViewStats.remainingHours)}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">{formatCurrency(formalViewStats.remainingAmount)} · {formalViewStats.subjectCount} 个科目</div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="relative min-w-0 flex-1 lg:max-w-md">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={formalSearch}
+                      onChange={(event) => setFormalSearch(event.target.value)}
+                      placeholder="搜索学生、手机号、班主任、科目或老师"
+                      className="pl-9"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <Select value={formalRiskFilter} onValueChange={(value) => setFormalRiskFilter(value as FormalRiskFilter)}>
+                      <SelectTrigger className="w-full sm:w-[170px]">
+                        <SelectValue placeholder="预警筛选" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {FORMAL_RISK_FILTERS.map((filter) => (
+                          <SelectItem key={filter.value} value={filter.value}>
+                            {filter.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={formalSubjectFilter} onValueChange={setFormalSubjectFilter}>
+                      <SelectTrigger className="w-full sm:w-[170px]">
+                        <SelectValue placeholder="科目筛选" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">全部科目</SelectItem>
+                        {subjectOptions.map((subject) => (
+                          <SelectItem key={subject} value={subject}>
+                            {subject}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button variant="outline" onClick={() => fetchStudents(currentPage, pageSize)} disabled={isLoading}>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      刷新数据
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <ScrollableTable>
               <Table className="border-0">
@@ -480,22 +698,32 @@ export default function StudentsPage() {
                     <TableHead className="sticky left-0 z-30 bg-background w-[180px] min-w-[180px]">学生姓名</TableHead>
                     <TableHead className="sticky left-[180px] z-30 bg-background w-[140px] min-w-[140px]">学生编号</TableHead>
                     <TableHead>手机号</TableHead>
-                    <TableHead>ClassIn初始密码</TableHead>
-                    <TableHead>ClassIn UID</TableHead>
+                    {!isFormalStudentView && canViewClassInSecrets && <TableHead>ClassIn初始密码</TableHead>}
+                    {!isFormalStudentView && canViewClassInSecrets && <TableHead>ClassIn UID</TableHead>}
                     <TableHead>班主任</TableHead>
                     <TableHead>状态</TableHead>
+                    {isFormalStudentView && <TableHead>教务预警</TableHead>}
+                    {isFormalStudentView && <TableHead>科目</TableHead>}
+                    {isFormalStudentView && <TableHead>老师</TableHead>}
+                    {isFormalStudentView && <TableHead>订单数</TableHead>}
+                    {isFormalStudentView && <TableHead>总课时</TableHead>}
+                    {isFormalStudentView && <TableHead>剩余课时</TableHead>}
+                    {isFormalStudentView && <TableHead>剩余金额</TableHead>}
                     <TableHead className="text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {students.length === 0 ? (
+                    {displayedStudents.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        暂无数据，点击&quot;新增学生&quot;开始添加
+                      <TableCell colSpan={isFormalStudentView ? 13 : canViewClassInSecrets ? 8 : 6} className="text-center py-8 text-muted-foreground">
+                        {isFormalStudentView && students.length > 0 ? "当前筛选条件下暂无正式生" : isFormalStudentView ? "暂无正式生" : "暂无数据"}
                       </TableCell>
                     </TableRow>
                   ) : (
-                    students.map((student) => (
+                    displayedStudents.map((student) => {
+                      const formalRisks = getFormalStudentRisks(student)
+
+                      return (
                       <TableRow key={student.id}>
                         <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 font-medium w-[180px] min-w-[180px]">
                           <Link href={`/dashboard/students/${student.id}`} className="hover:underline font-medium text-primary">
@@ -506,8 +734,8 @@ export default function StudentsPage() {
                           {student.student_code || "-"}
                         </TableCell>
                         <TableCell>{student.parent_phone || "-"}</TableCell>
-                        <TableCell>{student.classin_initial_password || "-"}</TableCell>
-                        <TableCell>{student.classin_uid ?? "-"}</TableCell>
+                        {!isFormalStudentView && canViewClassInSecrets && <TableCell>{student.classin_initial_password || "-"}</TableCell>}
+                        {!isFormalStudentView && canViewClassInSecrets && <TableCell>{student.classin_uid ?? "-"}</TableCell>}
                         <TableCell>
                           {student.head_teacher_name ? (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -522,26 +750,96 @@ export default function StudentsPage() {
                             {getStudentStatusLabel(student.status)}
                           </span>
                         </TableCell>
+                        {isFormalStudentView && (
+                          <TableCell>
+                            {formalRisks.length === 0 ? (
+                              <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-800">
+                                正常
+                              </span>
+                            ) : (
+                              <div className="flex flex-wrap gap-1">
+                                {formalRisks.slice(0, 2).map((risk) => (
+                                  <span key={risk.key} className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${risk.className}`}>
+                                    {risk.label}
+                                  </span>
+                                ))}
+                                {formalRisks.length > 2 && (
+                                  <span className="inline-flex items-center rounded-full bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+                                    +{formalRisks.length - 2}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </TableCell>
+                        )}
+                        {isFormalStudentView && (
+                          <TableCell>{student.formal_summary?.formal_subjects?.join(', ') || '-'}</TableCell>
+                        )}
+                        {isFormalStudentView && (
+                          <TableCell>{student.formal_summary?.formal_teachers?.join(', ') || '-'}</TableCell>
+                        )}
+                        {isFormalStudentView && (
+                          <TableCell>{student.formal_summary?.formal_order_count ?? 0}</TableCell>
+                        )}
+                        {isFormalStudentView && (
+                          <TableCell>{formatHours(student.formal_summary?.total_formal_hours)}</TableCell>
+                        )}
+                        {isFormalStudentView && (
+                          <TableCell>{formatHours(student.formal_summary?.remaining_formal_hours)}</TableCell>
+                        )}
+                        {isFormalStudentView && (
+                          <TableCell>{formatCurrency(student.formal_summary?.remaining_formal_amount)}</TableCell>
+                        )}
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            {!student.classin_uid && (
+                            {!isFormalStudentView && !student.classin_uid && canEditStudent && (
                               <Button
                                 variant="default"
                                 size="sm"
-                                onClick={() => handleConfirmEntry(student)}
+                                onClick={() => openClassInEntryDialog(student)}
                                 className="bg-blue-600 hover:bg-blue-700"
                               >
                                 入库
                               </Button>
                             )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openAssignDialog(student)}
-                            >
-                              <UserCheck className="mr-2 h-4 w-4" />
-                              分配班主任
-                            </Button>
+                            {canAssignHeadTeacher && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openAssignDialog(student)}
+                              >
+                                <UserCheck className="mr-2 h-4 w-4" />
+                                分配班主任
+                              </Button>
+                            )}
+                            {isFormalStudentView && student.formal_summary?.latest_order_id && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => router.push(`/dashboard/formal-orders/new?previousOrderId=${student.formal_summary?.latest_order_id}&studentId=${student.id}&mode=renew`)}
+                              >
+                                续费
+                              </Button>
+                            )}
+                            {isFormalStudentView && student.formal_summary?.latest_order_id && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => router.push(`/dashboard/formal-orders/new?previousOrderId=${student.formal_summary?.latest_order_id}&studentId=${student.id}&mode=extend`)}
+                              >
+                                扩科
+                              </Button>
+                            )}
+                            {isFormalStudentView && student.formal_summary?.latest_order_id && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => router.push(`/dashboard/transactions/new?student_id=${student.id}&order_id=${student.formal_summary?.latest_order_id}`)}
+                              >
+                                <DollarSign className="mr-2 h-4 w-4" />
+                                退费
+                              </Button>
+                            )}
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon">
@@ -549,36 +847,43 @@ export default function StudentsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => openStatusDialog(student)}>
-                                  更新状态
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => router.push(`/dashboard/transactions/new?student_id=${student.id}`)}>
+                                {canUpdateStatus && (
+                                  <DropdownMenuItem onClick={() => openStatusDialog(student)}>
+                                    更新状态
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem onClick={() => router.push(`/dashboard/transactions/new?student_id=${student.id}${student.formal_summary?.latest_order_id ? `&order_id=${student.formal_summary.latest_order_id}` : ''}`)}>
                                   <DollarSign className="mr-2 h-4 w-4" />
                                   退费
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
-                            <Link href={`/dashboard/students/${student.id}/edit`}>
-                              <Button variant="ghost" size="icon">
-                                <Edit className="h-4 w-4" />
+                            {canEditStudent && (
+                              <Link href={`/dashboard/students/${student.id}/edit`}>
+                                <Button variant="ghost" size="icon">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                            )}
+                            {canDeleteStudent && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteClick(student.id)}
+                                disabled={isDeleting === student.id}
+                              >
+                                {isDeleting === student.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                )}
                               </Button>
-                            </Link>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteClick(student.id)}
-                              disabled={isDeleting === student.id}
-                            >
-                              {isDeleting === student.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              )}
-                            </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
+                      )
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -644,7 +949,7 @@ export default function StudentsPage() {
       </div>
 
       {/* 删除确认对话框 */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <Dialog open={canDeleteStudent && deleteDialogOpen} onOpenChange={(open) => !open && handleDeleteCancel()}>
         <DialogContent>
           <DialogHeader>
             <div className="flex items-center gap-2">
@@ -726,6 +1031,84 @@ export default function StudentsPage() {
                 </>
               ) : (
                 "确认分配"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ClassIn 入库对话框 */}
+      <Dialog open={classInEntryDialogOpen} onOpenChange={(open) => {
+        if (open) {
+          setClassInEntryDialogOpen(true)
+          return
+        }
+        closeClassInEntryDialog()
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>学生入库 ClassIn</DialogTitle>
+            <DialogDescription>
+              为学生 <span className="font-semibold">{studentToConfirmEntry?.student_name}</span> 注册 ClassIn 并同步写入学生档案
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="classin-entry-student-code">学生编号</Label>
+              <Input
+                id="classin-entry-student-code"
+                value={classInEntryForm.studentCode}
+                onChange={(event) => setClassInEntryForm((current) => ({
+                  ...current,
+                  studentCode: event.target.value,
+                }))}
+                disabled={isConfirmingEntry || Boolean(studentToConfirmEntry?.student_code)}
+                placeholder="请输入学生编号"
+              />
+              {studentToConfirmEntry?.student_code && (
+                <p className="text-xs text-muted-foreground">
+                  已有编号: {studentToConfirmEntry.student_code}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="classin-entry-initial-password">ClassIn 初始密码</Label>
+              <Input
+                id="classin-entry-initial-password"
+                type="password"
+                autoComplete="new-password"
+                value={classInEntryForm.initialPassword}
+                onChange={(event) => setClassInEntryForm((current) => ({
+                  ...current,
+                  initialPassword: event.target.value,
+                }))}
+                disabled={isConfirmingEntry}
+                placeholder="请输入初始密码"
+              />
+            </div>
+            <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+              家长手机号: {studentToConfirmEntry?.parent_phone || "-"}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeClassInEntryDialog} disabled={isConfirmingEntry}>
+              取消
+            </Button>
+            <Button
+              onClick={handleConfirmEntry}
+              disabled={
+                isConfirmingEntry ||
+                !classInEntryForm.studentCode.trim() ||
+                !classInEntryForm.initialPassword.trim()
+              }
+            >
+              {isConfirmingEntry ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  入库中...
+                </>
+              ) : (
+                "确认入库"
               )}
             </Button>
           </DialogFooter>

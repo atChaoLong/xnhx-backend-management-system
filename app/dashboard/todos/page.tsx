@@ -5,8 +5,16 @@ import { Header } from "@/components/dashboard/header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { CheckCircle2, Clock, AlertCircle, Plus, Loader2, Trash2 } from "lucide-react"
-import { TodosService, Todo } from "@/lib/services/todos"
+import { TodosService, Todo, TodoStats } from "@/lib/services/todos"
 import { useToast } from "@/hooks/use-toast"
 import { usePagination } from "@/lib/hooks/usePagination"
 import {
@@ -24,12 +32,29 @@ import { zhCN } from "date-fns/locale"
 type TodoStatus = "pending" | "completed" | "cancelled"
 type TodoPriority = "low" | "medium" | "high" | "urgent"
 
+const emptyStats: TodoStats = {
+  total: 0,
+  pending: 0,
+  completed: 0,
+  cancelled: 0,
+  due_today: 0,
+  overdue: 0,
+  urgent_pending: 0,
+  urgent_overdue: 0,
+  escalation_watch: 0,
+  escalation_urgent: 0,
+  escalation_critical: 0,
+  escalated_total: 0,
+}
+
 export default function TodosPage() {
   const [todos, setTodos] = useState<Todo[]>([])
   const [totalCount, setTotalCount] = useState(0)
+  const [stats, setStats] = useState<TodoStats>(emptyStats)
   const [isLoading, setIsLoading] = useState(false)
   const [isCompleting, setIsCompleting] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const [todoToDelete, setTodoToDelete] = useState<Todo | null>(null)
   const [filters, setFilters] = useState<{
     status: TodoStatus | "all"
     priority: TodoPriority | "all"
@@ -40,10 +65,9 @@ export default function TodosPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
 
   const { toast } = useToast()
-  const { todos: todosPerm, user } = usePermission()
+  const { user, todos: todoPermissions } = usePermission()
 
-  // 检查是否可以创建待办（运营或管理员）
-  const canCreateTodo = user?.role === 'admin' || user?.role === 'operator'
+  const canCreateTodo = todoPermissions.create()
 
   // 分页逻辑
   const {
@@ -78,9 +102,10 @@ export default function TodosPage() {
         filterParams.priority = filters.priority
       }
 
-      const { data, count } = await TodosService.getTodos(from, to, filterParams)
+      const { data, count, stats } = await TodosService.getTodos(from, to, filterParams)
       setTodos(data)
       setTotalCount(count)
+      setStats(stats || emptyStats)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -92,14 +117,9 @@ export default function TodosPage() {
     }
   }
 
-  // 筛选条件变化时，重新获取数据
   useEffect(() => {
     fetchTodos(1, pageSize)
   }, [filters])
-
-  useEffect(() => {
-    fetchTodos()
-  }, [])
 
   // 标记完成
   const handleCompleteTodo = async (todo: Todo) => {
@@ -124,17 +144,23 @@ export default function TodosPage() {
     }
   }
 
+  const openDeleteDialog = (todo: Todo) => {
+    setTodoToDelete(todo)
+  }
+
   // 删除待办
-  const handleDeleteTodo = async (todo: Todo) => {
-    if (!confirm(`确定要删除待办"${todo.title}"吗？`)) return
+  const handleDeleteTodo = async () => {
+    const targetTodo = todoToDelete
+    if (!targetTodo) return
 
     try {
-      setIsDeleting(todo.id)
-      await TodosService.deleteTodo(todo.id)
+      setIsDeleting(targetTodo.id)
+      await TodosService.deleteTodo(targetTodo.id)
       toast({
         title: "删除成功",
         description: "待办已删除",
       })
+      setTodoToDelete(null)
       fetchTodos(currentPage, pageSize)
     } catch (error: any) {
       toast({
@@ -145,6 +171,14 @@ export default function TodosPage() {
     } finally {
       setIsDeleting(null)
     }
+  }
+
+  const canCompleteTodo = (todo: Todo) => {
+    return todoPermissions.edit() && todo.status === "pending" && todo.assigned_to === user?.id
+  }
+
+  const canDeleteTodo = (_todo: Todo) => {
+    return todoPermissions.delete()
   }
 
   // 获取优先级样式
@@ -179,18 +213,52 @@ export default function TodosPage() {
     return <Clock className="h-5 w-5 text-blue-600" />
   }
 
-  // 计算统计数据
-  const stats = {
-    total: todos.filter(t => t.status === "pending").length,
-    completed: todos.filter(t => t.status === "completed").length,
-    urgent: todos.filter(t => t.status === "pending" && t.priority === "urgent").length,
-    todayOverdue: todos.filter(t => {
-      if (t.status !== "pending" || !t.due_date) return false
-      const dueDate = new Date(t.due_date)
-      const today = new Date()
-      today.setHours(23, 59, 59, 999)
-      return dueDate <= today
-    }).length,
+  const getSlaBadge = (todo: Todo) => {
+    if (todo.sla_status === "overdue") {
+      return (
+        <Badge className="bg-red-100 text-red-800 hover:bg-red-200">
+          逾期{todo.days_overdue ? `${todo.days_overdue}天` : ""}
+        </Badge>
+      )
+    }
+
+    if (todo.sla_status === "due_today") {
+      return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-200">今日到期</Badge>
+    }
+
+    if (todo.sla_status === "no_due_date" && todo.status === "pending") {
+      return <Badge variant="outline">无截止时间</Badge>
+    }
+
+    return null
+  }
+
+  const getEscalationBadge = (todo: Todo) => {
+    if (todo.escalation_level === "critical") {
+      return (
+        <Badge className="bg-rose-100 text-rose-800 hover:bg-rose-200" title={todo.escalation_reason || undefined}>
+          严重升级
+        </Badge>
+      )
+    }
+
+    if (todo.escalation_level === "urgent") {
+      return (
+        <Badge className="bg-red-100 text-red-800 hover:bg-red-200" title={todo.escalation_reason || undefined}>
+          需升级
+        </Badge>
+      )
+    }
+
+    if (todo.escalation_level === "watch") {
+      return (
+        <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200" title={todo.escalation_reason || undefined}>
+          需关注
+        </Badge>
+      )
+    }
+
+    return null
   }
 
   if (isLoading && todos.length === 0) {
@@ -213,13 +281,13 @@ export default function TodosPage() {
 
       <div className="flex-1 overflow-auto p-6 space-y-6">
         {/* 统计卡片 */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">待完成</p>
-                  <p className="text-3xl font-bold mt-2">{stats.total}</p>
+                  <p className="text-3xl font-bold mt-2">{stats.pending}</p>
                 </div>
                 <Clock className="h-12 w-12 text-blue-600 opacity-20" />
               </div>
@@ -229,10 +297,10 @@ export default function TodosPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">已完成</p>
-                  <p className="text-3xl font-bold mt-2">{stats.completed}</p>
+                  <p className="text-sm text-muted-foreground">今日到期</p>
+                  <p className="text-3xl font-bold mt-2">{stats.due_today}</p>
                 </div>
-                <CheckCircle2 className="h-12 w-12 text-green-600 opacity-20" />
+                <Clock className="h-12 w-12 text-amber-600 opacity-20" />
               </div>
             </CardContent>
           </Card>
@@ -240,8 +308,8 @@ export default function TodosPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">紧急</p>
-                  <p className="text-3xl font-bold mt-2">{stats.urgent}</p>
+                  <p className="text-sm text-muted-foreground">已逾期</p>
+                  <p className="text-3xl font-bold mt-2">{stats.overdue}</p>
                 </div>
                 <AlertCircle className="h-12 w-12 text-red-600 opacity-20" />
               </div>
@@ -251,10 +319,22 @@ export default function TodosPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">今日到期</p>
-                  <p className="text-3xl font-bold mt-2">{stats.todayOverdue}</p>
+                  <p className="text-sm text-muted-foreground">紧急待办</p>
+                  <p className="text-3xl font-bold mt-2">{stats.urgent_pending}</p>
                 </div>
-                <Clock className="h-12 w-12 text-orange-600 opacity-20" />
+                <AlertCircle className="h-12 w-12 text-orange-600 opacity-20" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">升级提醒</p>
+                  <p className="text-3xl font-bold mt-2">{stats.escalated_total}</p>
+                  <p className="text-xs text-muted-foreground mt-1">严重 {stats.escalation_critical}</p>
+                </div>
+                <AlertCircle className="h-12 w-12 text-rose-600 opacity-20" />
               </div>
             </CardContent>
           </Card>
@@ -339,6 +419,8 @@ export default function TodosPage() {
                           {todo.title}
                         </h3>
                         {getPriorityBadge(todo.priority)}
+                        {getSlaBadge(todo)}
+                        {getEscalationBadge(todo)}
                       </div>
                       {todo.description && (
                         <p className="text-sm text-muted-foreground truncate mb-2">
@@ -347,7 +429,7 @@ export default function TodosPage() {
                       )}
                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
                         {todo.due_date && (
-                          <span>
+                          <span className={todo.is_overdue ? "font-medium text-red-600" : ""}>
                             到期：{format(new Date(todo.due_date), "MM月dd日 HH:mm", { locale: zhCN })}
                           </span>
                         )}
@@ -359,7 +441,7 @@ export default function TodosPage() {
 
                     {/* 操作按钮 */}
                     <div className="flex items-center gap-2">
-                      {todo.status === "pending" && (
+                      {canCompleteTodo(todo) && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -376,11 +458,11 @@ export default function TodosPage() {
                           )}
                         </Button>
                       )}
-                      {(user?.role === 'admin' || todo.created_by === user?.id) && (
+                      {canDeleteTodo(todo) && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDeleteTodo(todo)}
+                          onClick={() => openDeleteDialog(todo)}
                           disabled={isDeleting === todo.id}
                         >
                           {isDeleting === todo.id ? (
@@ -442,6 +524,47 @@ export default function TodosPage() {
           fetchTodos(currentPage, pageSize)
         }}
       />
+
+      <Dialog
+        open={Boolean(todoToDelete)}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) {
+            setTodoToDelete(null)
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>删除待办</DialogTitle>
+            <DialogDescription>
+              删除后无法恢复，请确认是否删除“{todoToDelete?.title || "该待办"}”。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setTodoToDelete(null)}
+              disabled={Boolean(isDeleting)}
+            >
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteTodo}
+              disabled={Boolean(isDeleting)}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  删除中...
+                </>
+              ) : (
+                "删除"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -91,13 +91,12 @@
 以下路径跳过权限检查：
 
 ```typescript
-- /api/auth          // 认证相关（登录、注册、登出、会话）
-- /api/upload        // 文件上传
-- /api/init-admin    // 初始化管理员
-- /api/cleanup-all-admins  // 清理管理员
-- /api/classin       // ClassIn 集成
-- /api/classin-sdk   // ClassIn SDK
-- /api/sync          // 第三方同步
+- /api/health           // 健康检查
+- /api/upload           // 文件上传
+- /api/init-admin       // 初始化管理员，路由内强制校验 INIT_ADMIN_SECRET
+- /api/classin/callback // ClassIn 回调，路由内校验 SafeKey
+- /api/auth/*           // 认证相关（登录、注册、登出、会话）
+- /api/teacher-form/*   // 外部老师二维码信息采集
 ```
 
 ## 🎯 核心特点

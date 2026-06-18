@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
+import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getAccessibleCourseIds, hasScopedIdAccess } from "@/lib/server-business-scope"
+import { createSafeErrorResponse, summarizeError } from "@/lib/safe-error"
 
 const logger = createLogger('API:Courses:Consumption')
+
+function isCompletedClassroom(classroom: { end_time?: number | null }, nowSeconds: number) {
+  return typeof classroom.end_time === 'number' && classroom.end_time > 0 && classroom.end_time < nowSeconds
+}
 
 /**
  * 计算课程实际消耗（基于 classroom_classin）
@@ -10,10 +17,10 @@ const logger = createLogger('API:Courses:Consumption')
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { courseId: string } }
+  { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
-    const { courseId } = params
+    const { courseId } = await params
 
     if (!courseId) {
       return NextResponse.json(
@@ -23,6 +30,17 @@ export async function GET(
     }
 
     logger.debug('计算课程实际消耗', { courseId })
+
+    const profile = await getCurrentProfile(request)
+    const accessibleCourseIds = await getAccessibleCourseIds(profile)
+
+    if (!hasScopedIdAccess(accessibleCourseIds, courseId)) {
+      logger.warn('计算课程实际消耗失败 - 无权访问课程', { courseId, profileId: profile?.id })
+      return NextResponse.json(
+        { error: '无权查看该课程消耗' },
+        { status: 403 }
+      )
+    }
 
     // 1. 获取课程信息
     const { data: course, error: courseError } = await supabaseServer
@@ -57,21 +75,25 @@ export async function GET(
       .order('start_time', { ascending: true })
 
     if (classroomsError) {
-      logger.error('获取课堂记录失败', { courseId, message: classroomsError.message })
+      logger.error('获取课堂记录失败', { courseId, error_summary: summarizeError(classroomsError) })
       return NextResponse.json(
         { error: '获取课堂记录失败' },
         { status: 400 }
       )
     }
 
-    // 3. 计算实际上课小时数
+    // 3. 计算已完成课节的实际上课小时数
     let actualSeconds = 0
+    const nowSeconds = Math.floor(Date.now() / 1000)
     const sessionCount = classrooms?.length || 0
+    const completedClassrooms = classrooms?.filter((classroom: any) =>
+      isCompletedClassroom(classroom, nowSeconds)
+    ) || []
 
-    classrooms?.forEach((classroom: any) => {
+    completedClassrooms.forEach((classroom: any) => {
       if (classroom.start_time && classroom.end_time) {
         const duration = classroom.end_time - classroom.start_time
-        actualSeconds += duration
+        if (duration > 0) actualSeconds += duration
       }
     })
 
@@ -80,8 +102,8 @@ export async function GET(
 
     // 4. 统计课时数（从 classroom_classin 计算）
     const totalSessions = sessionCount
-    const completedSessions = sessionCount  // 假设所有课时都已完成
-    const progress = totalSessions > 0 ? 100 : 0
+    const completedSessions = completedClassrooms.length
+    const progress = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0
 
     // 5. 构建返回数据
     const consumptionInfo = {
@@ -102,11 +124,12 @@ export async function GET(
     })
 
     return NextResponse.json({ data: consumptionInfo })
-  } catch (error: any) {
-    logger.error('计算课程实际消耗异常', { message: error.message, stack: error.stack })
+  } catch (error) {
+    const safeError = createSafeErrorResponse(error, '计算课程实际消耗失败')
+    logger.error('计算课程实际消耗异常', safeError.log)
     return NextResponse.json(
-      { error: error.message || '计算课程实际消耗失败' },
-      { status: 500 }
+      safeError.response,
+      { status: safeError.status }
     )
   }
 }

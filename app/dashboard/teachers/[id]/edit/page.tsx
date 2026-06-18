@@ -27,6 +27,8 @@ export default function EditTeacherPage() {
   const [formData, setFormData] = useState({
     // 基本信息
     teacher_name: "",
+    teacher_level: "ungraded",
+    status: "active",
     gender: "",
     wechat: "",
     classin_phone: "",
@@ -61,7 +63,9 @@ export default function EditTeacherPage() {
 
         // 设置表单数据
         setFormData({
-          teacher_name: data.teacher_name || "",
+          teacher_name: data.name || "",
+          teacher_level: data.teacher_level || "ungraded",
+          status: data.status || "active",
           gender: data.gender || "",
           wechat: data.wechat || "",
           classin_phone: data.classin_phone || "",
@@ -113,7 +117,8 @@ export default function EditTeacherPage() {
     ]
 
     for (const { field, name } of requiredFields) {
-      if (!formData[field as keyof typeof formData] || (typeof formData[field as keyof typeof formData] === 'string' && !formData[field as keyof typeof formData].trim())) {
+      const value = formData[field as keyof typeof formData]
+      if (!value || (typeof value === 'string' && !value.trim())) {
         toast({
           variant: "destructive",
           title: "验证失败",
@@ -129,6 +134,8 @@ export default function EditTeacherPage() {
       const payload = {
         id: teacherId,
         name: formData.teacher_name.trim(),
+        teacher_level: formData.teacher_level === "ungraded" ? null : formData.teacher_level,
+        status: formData.status || "active",
         gender: formData.gender,
         wechat: formData.wechat.trim(),
         classin_phone: formData.classin_phone.trim(),
@@ -278,6 +285,39 @@ export default function EditTeacherPage() {
                     onChange={(e) => handleInputChange("location", e.target.value)}
                     required
                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="teacher_level">老师等级</Label>
+                    <select
+                      id="teacher_level"
+                      value={formData.teacher_level}
+                      onChange={(e) => handleInputChange("teacher_level", e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                    >
+                      <option value="ungraded">未定级</option>
+                      <option value="junior">初级教师</option>
+                      <option value="intermediate">中级教师</option>
+                      <option value="senior">高级教师</option>
+                      <option value="expert">专家教师</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="status">老师状态</Label>
+                    <select
+                      id="status"
+                      value={formData.status}
+                      onChange={(e) => handleInputChange("status", e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                    >
+                      <option value="active">正常</option>
+                      <option value="full">满课</option>
+                      <option value="paused">暂停排课</option>
+                      <option value="disabled">停用</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 

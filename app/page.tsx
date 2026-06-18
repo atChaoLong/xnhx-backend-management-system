@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
+import { api } from "@/lib/fetch"
+import { createLogger } from "@/lib/logger"
+import { summarizeError } from "@/lib/safe-error"
+
+const logger = createLogger('HomePage')
 
 export default function Home() {
   const router = useRouter()
@@ -10,31 +15,20 @@ export default function Home() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('supabase.auth.token')
-
-      if (!token) {
-        // 没有 token，跳转到登录页
-        router.replace("/login")
-        return
-      }
-
-      // 验证token是否有效
+      // 验证 session 是否有效；统一 API wrapper 会在 access token 过期时尝试刷新，
+      // 服务端也会读取 httpOnly 登录 cookie 以支持刷新/深链进入。
       try {
-        const response = await fetch('/api/auth/session', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        })
+        const response = await api.get('/api/auth/session')
 
         if (response.ok) {
-          // token有效，跳转到dashboard
+          // session 有效，跳转到 dashboard
           router.replace("/dashboard")
         } else {
-          // token无效，跳转到登录页
+          // session 无效，跳转到登录页
           router.replace("/login")
         }
       } catch (error) {
-        console.error('验证token失败:', error)
+        logger.warn('验证 session 失败', summarizeError(error))
         // 出错时跳转到登录页
         router.replace("/login")
       } finally {

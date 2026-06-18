@@ -4,6 +4,7 @@
  */
 
 import { api } from '@/lib/fetch'
+import { summarizeError } from '@/lib/safe-error'
 
 export interface DictionaryItem {
   id: string
@@ -32,6 +33,21 @@ export interface DictionaryGroup {
 const CACHE_DURATION = 5 * 60 * 1000 // 5分钟
 let cache: DictionaryGroup | null = null
 let cacheTime: number = 0
+let teacherFormCache: DictionaryGroup | null = null
+let teacherFormCacheTime: number = 0
+
+function groupDictionaryItems(items: DictionaryItem[]): DictionaryGroup {
+  const grouped: DictionaryGroup = {}
+
+  items.forEach((item) => {
+    if (!grouped[item.category]) {
+      grouped[item.category] = []
+    }
+    grouped[item.category].push(item)
+  })
+
+  return grouped
+}
 
 /**
  * 清除字典缓存
@@ -39,6 +55,8 @@ let cacheTime: number = 0
 export function clearDictionaryCache(): void {
   cache = null
   cacheTime = 0
+  teacherFormCache = null
+  teacherFormCacheTime = 0
 }
 
 /**
@@ -60,8 +78,11 @@ export async function getDictionaryItems(category: string): Promise<DictionaryIt
 
     const { data } = await response.json()
     return data as DictionaryItem[]
-  } catch (error: any) {
-    console.error(`Failed to fetch dictionary items for category ${category}:`, error)
+  } catch (error: unknown) {
+    console.error('Failed to fetch dictionary items:', {
+      category,
+      error: summarizeError(error),
+    })
     return []
   }
 }
@@ -86,24 +107,46 @@ export async function getAllDictionaries(): Promise<DictionaryGroup> {
     const { data } = await response.json()
     const items = data as DictionaryItem[]
 
-    // 按分类分组
-    const grouped: DictionaryGroup = {}
-    items.forEach((item) => {
-      if (!grouped[item.category]) {
-        grouped[item.category] = []
-      }
-      grouped[item.category].push(item)
-    })
+    const grouped = groupDictionaryItems(items)
 
     // 更新缓存
     cache = grouped
     cacheTime = Date.now()
 
     return grouped
-  } catch (error: any) {
-    console.error('Failed to fetch all dictionaries:', error)
+  } catch (error: unknown) {
+    console.error('Failed to fetch all dictionaries:', summarizeError(error))
     // 返回缓存的旧数据（降级）
     return cache || {}
+  }
+}
+
+/**
+ * 获取老师外部表单需要的公开字典项
+ */
+export async function getTeacherFormDictionaries(): Promise<DictionaryGroup> {
+  if (teacherFormCache && Date.now() - teacherFormCacheTime < CACHE_DURATION) {
+    return teacherFormCache
+  }
+
+  try {
+    const response = await api.get('/api/teacher-form/dictionaries')
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: '获取老师表单字典失败' }))
+      throw new Error(error.error || '获取老师表单字典失败')
+    }
+
+    const { data } = await response.json()
+    const grouped = groupDictionaryItems(data as DictionaryItem[])
+
+    teacherFormCache = grouped
+    teacherFormCacheTime = Date.now()
+
+    return grouped
+  } catch (error: unknown) {
+    console.error('Failed to fetch teacher form dictionaries:', summarizeError(error))
+    return teacherFormCache || {}
   }
 }
 
@@ -181,6 +224,7 @@ export async function deleteDictionary(id: string): Promise<boolean> {
 export const DictionaryService = {
   getDictionaryItems,
   getAllDictionaries,
+  getTeacherFormDictionaries,
   getDictionaryById,
   createDictionary,
   updateDictionary,

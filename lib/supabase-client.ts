@@ -1,4 +1,9 @@
 import { supabase } from './supabase'
+import { createLogger } from './logger'
+import { summarizeError } from './safe-error'
+import { uploadFile as uploadFileWithSignedUrl } from './services/upload'
+
+const logger = createLogger('SupabaseClient')
 
 /**
  * 获取当前用户的 access token
@@ -14,7 +19,7 @@ export async function getAccessToken(): Promise<string | null> {
     }
     return null
   } catch (error) {
-    console.error('获取 access token 失败:', error)
+    logger.warn('获取 access token 失败', summarizeError(error))
     return null
   }
 }
@@ -35,23 +40,5 @@ export async function uploadFile(
     throw new Error('未登录或登录已过期')
   }
 
-  const formData = new FormData()
-  formData.append('file', file)
-  formData.append('bucket', bucket)
-
-  const response = await fetch('/api/upload', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
-    body: formData,
-  })
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: '上传失败' }))
-    throw new Error(error.error || '上传失败')
-  }
-
-  const result = await response.json()
-  return result.url
+  return uploadFileWithSignedUrl(file, bucket)
 }

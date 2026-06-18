@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getClassInSDKService } from '@/lib/services/classin-sdk/service'
+import { requireClassInOpsProfile } from '@/lib/server-classin-ops'
+import { createLogger } from '@/lib/logger'
+import { summarizeError } from '@/lib/safe-error'
+
+const logger = createLogger('API:ClassIn:RegisterStudent')
 
 /**
  * 注册学生到 ClassIn
@@ -8,6 +13,9 @@ import { getClassInSDKService } from '@/lib/services/classin-sdk/service'
  */
 export async function POST(request: NextRequest) {
   try {
+    const access = await requireClassInOpsProfile(request)
+    if (access.ok === false) return access.response
+
     const body = await request.json()
 
     // 验证必填字段
@@ -35,7 +43,7 @@ export async function POST(request: NextRequest) {
       })
     } catch (addError: any) {
       // addSchoolStudent 失败不影响注册结果
-      console.warn('添加学生到机构失败（可能已存在）:', addError.message)
+      logger.warn('添加学生到机构失败（可能已存在）', summarizeError(addError))
     }
 
     return NextResponse.json({
@@ -45,8 +53,9 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error: any) {
+    logger.error('注册学生到 ClassIn 失败', summarizeError(error))
     return NextResponse.json(
-      { error: error.message || '注册学生失败' },
+      { error: '注册学生失败' },
       { status: 500 }
     )
   }

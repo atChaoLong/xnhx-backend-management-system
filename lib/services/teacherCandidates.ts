@@ -16,6 +16,7 @@ export interface TeacherCandidate {
   // 基本信息
   name: string
   wechat_id?: string
+  phone?: string
   daily_lead_id?: string
   resume_url?: string
   profile_photo_url?: string
@@ -38,12 +39,14 @@ export interface TeacherCandidate {
   interview_exception?: string
   video_recording_url?: string
   trial_video_url?: string
+  interview_notes?: string
 
   // 面试评分
   interview_month?: string
   interview_week?: number
   registration_date?: string
   interview_score?: number
+  interview_rating?: string
   logical_expression_score?: number
   dress_appearance_score?: number
   material_preparation_score?: number
@@ -62,6 +65,7 @@ export interface TeacherCandidate {
   reviewed_by?: string
   review_result?: string
   review_evaluation_comment?: string
+  review_notes?: string
   review_date?: string
   teacher_level?: string
   can_teach_graduation_class?: boolean
@@ -101,6 +105,8 @@ export interface TeacherCandidate {
 
   // 后期使用（目前未启用）
   candidate_status?: 'waiting_contact' | 'contacted' | 'interviewing' | 'pending_review' | 'pending_entry' | 'review_rejected' | 'can_trial_lesson' | 'trial_review_pending' | 'can_formal' | 'pause_scheduling' | 'disabled'
+  interview_status?: string
+  interview_status_name?: string
 }
 
 /**
@@ -108,11 +114,28 @@ export interface TeacherCandidate {
  */
 export type NewTeacherCandidate = Omit<TeacherCandidate, 'id' | 'created_at' | 'updated_at'>
 
+export interface TeacherCandidateFilters {
+  queue?: 'scheduling' | 'pending_entry' | 'video_upload' | 'teaching_review' | 'reserve'
+}
+
 /**
  * 获取老师面试列表（支持分页）
  */
-export async function getTeacherCandidates(from: number = 0, to: number = 19): Promise<{ data: TeacherCandidate[], count: number }> {
-  const response = await api.get(`/api/teacher-candidates?from=${from}&to=${to}`)
+export async function getTeacherCandidates(
+  from: number = 0,
+  to: number = 19,
+  filters: TeacherCandidateFilters = {}
+): Promise<{ data: TeacherCandidate[], count: number }> {
+  const params = new URLSearchParams({
+    from: from.toString(),
+    to: to.toString(),
+  })
+
+  if (filters.queue) {
+    params.set('queue', filters.queue)
+  }
+
+  const response = await api.get(`/api/teacher-candidates?${params.toString()}`)
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: '获取老师面试列表失败' }))

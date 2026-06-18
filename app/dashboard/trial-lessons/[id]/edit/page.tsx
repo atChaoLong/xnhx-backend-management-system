@@ -7,11 +7,19 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import { Loader2 } from "lucide-react"
 import { TrialLessonsService, TrialLesson } from "@/lib/services/trialLessons"
+import { type ClassInTeacherOption, TeachersService } from "@/lib/services/teachers"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
-import { uploadFile } from "@/lib/supabase-client"
+import {
+  PAYMENT_PROOF_ACCEPT,
+  isPaymentProofImageFile,
+  isPaymentProofImagePath,
+  uploadPaymentProof,
+  validatePaymentProofFile,
+} from "@/lib/services/upload"
 import { toChinaTimeISO, fromISOToDatetimeLocal } from "@/lib/utils/timezone"
 import { useDictionary } from "@/lib/hooks/useDictionary"
 import Link from "next/link"
@@ -54,13 +62,7 @@ export default function EditTrialLessonPage() {
   })
 
   // 教师数据
-  const [teachers, setTeachers] = useState<Array<{
-    id: string
-    teacher_name: string
-    teacher_subject?: string
-    teacher_phone?: string
-    classin_uid: number
-  }>>([])
+  const [teachers, setTeachers] = useState<ClassInTeacherOption[]>([])
 
   const [formData, setFormData] = useState({
     // 基本信息
@@ -154,8 +156,12 @@ export default function EditTrialLessonPage() {
           subjects: dicts.subject || [],
           regions: dicts.province || [],
         })
-      } catch (error) {
-        console.error("加载字典失败:", error)
+      } catch {
+        toast({
+          variant: "destructive",
+          title: "加载字典失败",
+          description: "无法加载试听课程字典",
+        })
       } finally {
         setIsLoadingDict(false)
       }
@@ -169,16 +175,14 @@ export default function EditTrialLessonPage() {
     const loadTeachers = async () => {
       try {
         setIsLoadingTeachers(true)
-        const response = await fetch('/api/teachers/classin')
-        const result = await response.json()
-
-        if (result.success) {
-          setTeachers(result.data)
-        } else {
-          console.error("加载教师失败:", result.error)
-        }
-      } catch (error) {
-        console.error("加载教师失败:", error)
+        const data = await TeachersService.getClassInTeachers()
+        setTeachers(data || [])
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "加载老师失败",
+          description: error.message || "无法加载 ClassIn 老师目录",
+        })
       } finally {
         setIsLoadingTeachers(false)
       }
@@ -203,7 +207,6 @@ export default function EditTrialLessonPage() {
       { field: 'trial_time', name: '试听时间' },
       { field: 'trial_duration', name: '试听时长' },
       { field: 'phone', name: '手机号' },
-      { field: 'payment_proof', name: '付款凭证' },
     ]
 
     for (const { field, name } of requiredFields) {
@@ -225,7 +228,7 @@ export default function EditTrialLessonPage() {
       if (uploadedFile) {
         try {
           setIsUploading(true)
-          paymentProofUrl = await uploadFile(uploadedFile, 'payment-proofs')
+          paymentProofUrl = await uploadPaymentProof(uploadedFile)
           toast({
             title: "上传成功",
             description: "付款凭证已上传",
@@ -242,11 +245,10 @@ export default function EditTrialLessonPage() {
         }
       }
 
-      const payload = {
+      const payload: Partial<TrialLesson> & { id: string } = {
         id: lessonId,
         child_name: formData.child_name.trim(),
         status: formData.status,
-        lead_id: formData.lead_id.trim() || undefined,
         region: formData.region.trim(),
         grade: formData.grade.trim(),
         trial_subject: formData.trial_subject.trim(),
@@ -255,7 +257,6 @@ export default function EditTrialLessonPage() {
         phone: formData.phone.trim(),
         channel: formData.channel.trim(),
         trial_amount: formData.trial_amount ? parseFloat(formData.trial_amount) : undefined,
-        payment_proof: paymentProofUrl.trim(),
         urgency_level: formData.urgency_level || undefined,
         notes: formData.notes.trim() || undefined,
         assigned_consultant: formData.assigned_consultant.trim() || undefined,
@@ -263,6 +264,10 @@ export default function EditTrialLessonPage() {
         student_type: formData.student_type.trim() || undefined,
         matched_teacher: formData.matched_teacher.trim() || undefined,
         confirmed_teacher: formData.confirmed_teacher.trim() || undefined,
+      }
+
+      if (paymentProofUrl.trim()) {
+        payload.payment_proof = paymentProofUrl.trim()
       }
 
       await TrialLessonsService.updateTrialLesson(payload)
@@ -342,12 +347,18 @@ export default function EditTrialLessonPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="lead_id">关联线索ID</Label>
+                    <Label htmlFor="source_id">来源</Label>
                     <Input
-                      id="lead_id"
-                      placeholder="请输入线索ID（可选）"
-                      value={formData.lead_id}
-                      onChange={(e) => handleInputChange("lead_id", e.target.value)}
+                      id="source_id"
+                      value={
+                        lesson.lead?.report_number
+                          ? `线索 ${lesson.lead.report_number}`
+                          : lesson.student_id
+                          ? `正式生 ${lesson.student_id}`
+                          : formData.lead_id || "-"
+                      }
+                      disabled
+                      className="bg-muted"
                     />
                   </div>
                 </div>
@@ -487,40 +498,72 @@ export default function EditTrialLessonPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="payment_proof">
-                      付款凭证 <span className="text-destructive">*</span>
-                    </Label>
+                    <Label htmlFor="payment_proof">付款凭证</Label>
                     <Input
                       id="payment_proof"
                       type="file"
-                      accept="image/*"
+                      accept={PAYMENT_PROOF_ACCEPT}
                       onChange={(e) => {
                         const file = e.target.files?.[0]
                         if (file) {
+                          const validationError = validatePaymentProofFile(file)
+                          if (validationError) {
+                            toast({
+                              variant: "destructive",
+                              title: "文件不符合要求",
+                              description: validationError,
+                            })
+                            e.currentTarget.value = ""
+                            setUploadedFile(null)
+                            setPreviewUrl("")
+                            return
+                          }
+
                           setUploadedFile(file)
-                          // 创建本地预览URL
-                          const url = URL.createObjectURL(file)
-                          setPreviewUrl(url)
-                          handleInputChange("payment_proof", url)
+                          if (isPaymentProofImageFile(file)) {
+                            const url = URL.createObjectURL(file)
+                            setPreviewUrl(url)
+                            handleInputChange("payment_proof", url)
+                          } else {
+                            setPreviewUrl("")
+                            handleInputChange("payment_proof", file.name)
+                          }
                         }
                       }}
                     />
-                    {(previewUrl || formData.payment_proof) && (
+                    {(uploadedFile || formData.payment_proof) && (
                       <div className="mt-2">
                         <p className="text-xs text-muted-foreground mb-1">
-                          {uploadedFile ? '新图片预览：' : '当前付款凭证：'}
+                          {uploadedFile ? '新付款凭证：' : '当前付款凭证：'}
                         </p>
-                        <img
-                          src={previewUrl || formData.payment_proof}
-                          alt="付款凭证预览"
-                          className="max-w-xs h-auto border rounded"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none'
-                          }}
-                        />
-                        {uploadedFile && (
+                        {uploadedFile ? (
+                          previewUrl ? (
+                            <>
+                              <img
+                                src={previewUrl}
+                                alt="付款凭证预览"
+                                className="max-w-xs h-auto border rounded"
+                              />
+                              <p className="text-xs text-muted-foreground mt-1">
+                                新文件: {uploadedFile.name}
+                              </p>
+                            </>
+                          ) : (
+                            <p className="text-sm text-muted-foreground break-all">
+                              新文件: {uploadedFile.name}
+                            </p>
+                          )
+                        ) : isPaymentProofImagePath(formData.payment_proof) ? (
+                          <img
+                            src={formData.payment_proof}
+                            alt="付款凭证预览"
+                            className="max-w-xs h-auto border rounded"
+                          />
+                        ) : (
                           <p className="text-xs text-muted-foreground mt-1">
-                            新文件: {uploadedFile.name}
+                            <a href={formData.payment_proof} target="_blank" rel="noopener noreferrer" className="underline">
+                              打开付款凭证
+                            </a>
                           </p>
                         )}
                       </div>
@@ -619,12 +662,21 @@ export default function EditTrialLessonPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="matched_teacher">匹配老师</Label>
-                    <Input
+                    <SearchableSelect
                       id="matched_teacher"
-                      placeholder="请输入匹配老师"
+                      label="匹配老师"
+                      placeholder="请输入老师姓名或科目搜索..."
                       value={formData.matched_teacher}
-                      onChange={(e) => handleInputChange("matched_teacher", e.target.value)}
+                      onChange={(value) => handleInputChange("matched_teacher", value)}
+                      options={teachers.map((teacher) => ({
+                        id: teacher.teacher_name,
+                        name: [
+                          teacher.teacher_name,
+                          teacher.teacher_subject,
+                          teacher.classin_uid ? "已绑定ClassIn" : "",
+                        ].filter(Boolean).join(" - "),
+                      }))}
+                      loading={isLoadingTeachers}
                     />
                   </div>
                 </div>

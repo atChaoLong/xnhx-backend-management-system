@@ -14,12 +14,11 @@
 
 **端点**: `PUT /api/classin/classrooms`
 
+**权限**: 需要系统登录，且仅限 admin / academic_affairs。后端使用服务端环境变量完成 ClassIn API v2 签名，客户端不传 `SID`、`safeKey` 或 `timeStamp`。
+
 **请求体**:
 ```json
 {
-  "SID": "your-classin-sid",
-  "safeKey": "your-classin-safekey", 
-  "timeStamp": "1484719085",
   "courseId": 442447,
   "classId": 23644,
   "className": "修改后的课节名称",
@@ -38,9 +37,6 @@
 ```
 
 **参数说明**:
-- `SID` (必需): 机构SID
-- `safeKey` (必需): 安全密钥
-- `timeStamp` (必需): 时间戳
 - `courseId` (必需): 课程ID
 - `classId` (必需): 课节ID
 - `className` (可选): 课节名称
@@ -60,32 +56,28 @@
 
 **端点**: `DELETE /api/classin/classrooms`
 
+**权限**: 需要系统登录，且仅限 admin / academic_affairs。后端使用服务端环境变量完成 ClassIn API v2 签名。
+
 **查询参数**:
-- `SID` (必需): 机构SID
-- `safeKey` (必需): 安全密钥
-- `timeStamp` (必需): 时间戳
 - `courseId` (必需): 课程ID
 - `classId` (必需): 课节ID
 
 **示例**:
 ```
-DELETE /api/classin/classrooms?SID=1234567&safeKey=0f7781b3033527a8cc2b1abbf45a5fd2&timeStamp=1484719085&courseId=442447&classId=23644
+DELETE /api/classin/classrooms?courseId=442447&classId=23644
 ```
 
 ### 3. 测试端点
 
 **端点**: `GET/POST /api/classin/classrooms/test`
 
-**用途**: 用于测试修改和删除功能
+**用途**: 用于测试修改和删除功能。该端点会操作远端 ClassIn 课堂，仅 admin / academic_affairs 可使用。
 
 **修改测试**:
 ```json
 POST /api/classin/classrooms/test
 {
   "action": "edit",
-  "SID": "your-classin-sid",
-  "safeKey": "your-classin-safekey",
-  "timeStamp": "1484719085",
   "courseId": 442447,
   "classId": 23644,
   "className": "修改后的课节名称"
@@ -97,9 +89,6 @@ POST /api/classin/classrooms/test
 POST /api/classin/classrooms/test
 {
   "action": "delete",
-  "SID": "your-classin-sid",
-  "safeKey": "your-classin-safekey", 
-  "timeStamp": "1484719085",
   "courseId": 442447,
   "classId": 23644
 }
@@ -113,7 +102,7 @@ POST /api/classin/classrooms/test
 # ClassIn API 配置
 CLASSIN_SID="your-classin-sid"
 CLASSIN_SECRET="your-classin-secret"
-CLASSIN_API_URL="https://dynamic.eeo.cn"
+CLASSIN_API_URL="api.eeo.cn"
 ```
 
 ## 实现架构
@@ -169,9 +158,6 @@ const editClass = async () => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        SID: 'your-classin-sid',
-        safeKey: 'your-classin-safekey',
-        timeStamp: '1484719085',
         courseId: 442447,
         classId: 23644,
         className: '新的课节名称',
@@ -195,7 +181,7 @@ const editClass = async () => {
 const deleteClass = async () => {
   try {
     const response = await fetch(
-      '/api/classin/classrooms?SID=your-classin-sid&safeKey=your-classin-safekey&timeStamp=1484719085&courseId=442447&classId=23644',
+      '/api/classin/classrooms?courseId=442447&classId=23644',
       {
         method: 'DELETE',
       }
@@ -211,9 +197,9 @@ const deleteClass = async () => {
 
 ## 注意事项
 
-1. **认证方式**: 使用传统的SID/safeKey认证，不需要LMS API的签名
-2. **时间戳**: 所有时间参数使用Unix时间戳（秒）
-3. **权限控制**: 确保API密钥有相应的操作权限
+1. **认证方式**: 客户端使用系统登录态；后端使用 `CLASSIN_SID` 和 `CLASSIN_SECRET` 生成 API v2 签名
+2. **时间戳**: 课节开始/结束时间参数使用Unix时间戳（秒）
+3. **权限控制**: 修改/删除/测试端点仅限 admin / academic_affairs
 4. **数据一致性**: API会尝试同步本地数据库，但如果ClassIn API操作失败，本地数据不会回滚
 5. **测试环境**: 建议先在测试环境中验证功能正常后再在生产环境使用
 
@@ -222,12 +208,12 @@ const deleteClass = async () => {
 ### 常见错误
 
 1. **认证失败**: 检查 `CLASSIN_SID` 和 `CLASSIN_SECRET` 配置
-2. **参数缺失**: 确保必需的 `SID`、`safeKey`、`timeStamp`、`courseId`、`classId` 参数已提供
+2. **参数缺失**: 确保必需的 `courseId`、`classId` 参数已提供
 3. **权限不足**: 验证API密钥是否有相应的操作权限
 4. **网络问题**: 检查服务器能否访问 ClassIn API 端点
 
 ### 调试建议
 
-1. 使用测试端点 `/api/classin/classrooms/test` 进行功能验证
+1. 使用测试端点 `/api/classin/classrooms/test` 进行功能验证，仅限 admin / academic_affairs
 2. 查看服务器日志获取详细错误信息
 3. 在开发环境中启用详细错误堆栈跟踪

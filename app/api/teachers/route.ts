@@ -2,9 +2,144 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
 import { handleDatabaseError } from "@/lib/utils"
-import { getClassInSDKService } from "@/lib/services/classin-sdk/service"
+import { generateTeacherCode } from "@/lib/server-teacher-code"
+import { getCurrentProfile } from "@/lib/server-data-scope"
+import { redactTeacherClassInSecrets, redactTeachersClassInSecrets } from "@/lib/server-teacher-redaction"
+import { summarizeError } from "@/lib/safe-error"
 
 const logger = createLogger('API:Teachers')
+const TEACHER_LIST_SELECT = `
+  id,
+  created_at,
+  updated_at,
+  teacher_code,
+  teacher_level,
+  status,
+  name,
+  wechat,
+  classin_phone,
+  subjects,
+  grade_levels,
+  used_classin,
+  education,
+  university,
+  teaching_years,
+  teaching_style,
+  success_cases,
+  student_regions,
+  student_levels,
+  classin_uid,
+  location
+`
+
+const TEACHER_DETAIL_SELECT = `
+  id,
+  created_at,
+  updated_at,
+  teacher_code,
+  teacher_level,
+  status,
+  name,
+  gender,
+  wechat,
+  classin_phone,
+  subjects,
+  grade_levels,
+  used_classin,
+  has_certificate,
+  education,
+  university,
+  available_times,
+  textbook_versions,
+  student_regions,
+  student_levels,
+  teaching_years,
+  teaching_style,
+  success_cases,
+  photo_url,
+  review_screenshots,
+  notes,
+  classin_uid,
+  location
+`
+
+function hasNonEmptyString(value: unknown): boolean {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function listCount(value: unknown): number | undefined {
+  return Array.isArray(value) ? value.length : undefined
+}
+
+function summarizeTeacherPayload(payload: Record<string, any>) {
+  const fields = Object.keys(payload || {}).sort()
+
+  return {
+    fields,
+    field_count: fields.length,
+    has_name: hasNonEmptyString(payload?.name),
+    has_wechat: hasNonEmptyString(payload?.wechat),
+    has_classin_phone: hasNonEmptyString(payload?.classin_phone),
+    has_location: hasNonEmptyString(payload?.location),
+    has_university: hasNonEmptyString(payload?.university),
+    subject_count: listCount(payload?.subjects),
+    grade_level_count: listCount(payload?.grade_levels),
+    has_photo_url: hasNonEmptyString(payload?.photo_url),
+    has_review_screenshots: Array.isArray(payload?.review_screenshots) ? payload.review_screenshots.length > 0 : Boolean(payload?.review_screenshots),
+    has_notes: hasNonEmptyString(payload?.notes),
+    has_bank_card_info: Boolean(payload?.bank_card_info),
+  }
+}
+
+function isMissingTeacherColumnError(error: unknown) {
+  const err = typeof error === 'object' && error !== null && !Array.isArray(error)
+    ? error as Record<string, any>
+    : {}
+  const code = String(err.code || '')
+  const message = `${err.message || ''} ${err.details || ''} ${err.hint || ''}`.toLowerCase()
+
+  return code === '42703' ||
+    code === 'PGRST204' ||
+    (message.includes('column') && message.includes('does not exist')) ||
+    message.includes('could not find') ||
+    message.includes('schema cache')
+}
+
+const TEACHER_LEGACY_WRITE_FIELDS = [
+  'teacher_code',
+  'name',
+  'teacher_level',
+  'status',
+  'gender',
+  'wechat',
+  'classin_phone',
+  'location',
+  'subjects',
+  'grade_levels',
+  'used_classin',
+  'has_certificate',
+  'education',
+  'university',
+  'available_times',
+  'textbook_versions',
+  'student_regions',
+  'student_levels',
+  'teaching_years',
+  'teaching_style',
+  'success_cases',
+  'photo_url',
+  'review_screenshots',
+  'notes',
+] as const
+
+function pickTeacherPayload(payload: Record<string, any>) {
+  return TEACHER_LEGACY_WRITE_FIELDS.reduce<Record<string, any>>((picked, field) => {
+    if (payload[field] !== undefined) {
+      picked[field] = payload[field]
+    }
+    return picked
+  }, {})
+}
 
 // GET: 获取老师列表（支持ID查询单个和分页）
 export async function GET(request: NextRequest) {
@@ -13,70 +148,95 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get('id')
     const from = parseInt(searchParams.get('from') || '0')
     const to = parseInt(searchParams.get('to') || '19')
+    const profile = await getCurrentProfile(request)
 
     logger.debug('获取老师数据', { id, from, to })
+
+    if (!profile) {
+      return NextResponse.json(
+        { error: '用户档案未配置，请联系管理员' },
+        { status: 403 }
+      )
+    }
 
     if (id) {
       const { data, error } = await supabaseServer
         .from('teachers')
-        .select('*')
+        .select(TEACHER_DETAIL_SELECT)
         .eq('id', id)
         .single()
 
       if (error) {
-        logger.error('获取老师失败', { id, message: error.message, code: error.code })
+        logger.error('获取老师失败', { id, error_summary: summarizeError(error) })
         return NextResponse.json(
-          { error: error.message },
+          { error: '获取老师失败' },
           { status: 400 }
         )
       }
 
       logger.debug('获取老师成功', { id })
-      return NextResponse.json({ data })
+      return NextResponse.json({ data: redactTeacherClassInSecrets(data, profile) })
     }
 
-    const { count: totalCount } = await supabaseServer
+    const { count: totalCount, error: countError } = await supabaseServer
       .from('teachers')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
+
+    if (countError) {
+      logger.error('获取老师数量失败', { error_summary: summarizeError(countError) })
+      return NextResponse.json(
+        { error: '获取老师列表失败' },
+        { status: 400 }
+      )
+    }
 
     const { data, error } = await supabaseServer
       .from('teachers')
-      .select('id, created_at, updated_at, name, wechat, classin_phone, subjects, grade_levels, used_classin, classin_uid, location')
+      .select(TEACHER_LIST_SELECT)
       .order('created_at', { ascending: false })
       .range(from, to)
 
     if (error) {
-      logger.error('获取老师列表失败', { message: error.message, code: error.code })
+      logger.error('获取老师列表失败', { error_summary: summarizeError(error) })
       return NextResponse.json(
-        { error: error.message },
+        { error: '获取老师列表失败' },
         { status: 400 }
       )
     }
 
     logger.debug('获取老师列表成功', { count: data?.length || 0 })
     return NextResponse.json({
-      data: data || [],
+      data: redactTeachersClassInSecrets(data || [], profile),
       count: totalCount || 0,
       from,
       to,
     })
   } catch (error: any) {
-    logger.error('获取老师异常', { message: error.message, stack: error.stack })
+    logger.error('获取老师异常', { error_summary: summarizeError(error) })
     return NextResponse.json(
-      { error: error.message || '获取老师失败' },
+      { error: '获取老师失败' },
       { status: 500 }
     )
   }
 }
 
 /**
- * 创建新老师，并可选注册到 ClassIn 系统
+ * 创建新老师。ClassIn 老师账号在试听确认老师时自动创建/绑定。
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    const profile = await getCurrentProfile(request)
+    const bodySummary = summarizeTeacherPayload(body)
 
-    logger.debug('创建老师 - 接收到的数据', { body })
+    logger.debug('创建老师 - 接收到的数据', { body_summary: bodySummary })
+
+    if (!profile) {
+      return NextResponse.json(
+        { error: '用户档案未配置，请联系管理员' },
+        { status: 403 }
+      )
+    }
 
     // 后端验证：必填字段
     const requiredFields = ['name', 'gender', 'wechat', 'classin_phone', 'location', 'subjects', 'grade_levels', 'education', 'university']
@@ -87,9 +247,9 @@ export async function POST(request: NextRequest) {
       if (isEmpty) {
         logger.error(`创建老师失败 - ${field} 为空`, {
           field,
-          value,
+          value_present: value !== undefined && value !== null,
           type: typeof value,
-          body
+          body_summary: bodySummary
         })
         return NextResponse.json(
           { error: `${field}不能为空` },
@@ -98,15 +258,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 生成老师编号（TEA + 年月日 + 4位随机数）
-    const today = new Date()
-    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '')
-    const randomStr = Math.floor(1000 + Math.random() * 9000)
-    const teacher_code = `TEA${dateStr}${randomStr}`
+    const teacher_code = await generateTeacherCode()
 
     const insertData = {
       teacher_code,
       name: body.name?.trim(),
+      teacher_level: body.teacher_level || null,
+      status: body.status || 'active',
       gender: body.gender,
       wechat: body.wechat.trim(),
       classin_phone: body.classin_phone.trim(),
@@ -130,101 +288,43 @@ export async function POST(request: NextRequest) {
       bank_card_info: body.bank_card_info || null,
     }
 
-    logger.debug('创建老师 - 准备插入的数据', { insertData })
+    logger.debug('创建老师 - 准备插入的数据', {
+      insert_summary: summarizeTeacherPayload(insertData),
+    })
 
-    const { data, error } = await supabaseServer
+    const createResult = await supabaseServer
       .from('teachers')
       .insert(insertData)
-      .select()
+      .select(TEACHER_DETAIL_SELECT)
       .single()
+    let data = createResult.data
+    let error = createResult.error
+
+    if (error && isMissingTeacherColumnError(error)) {
+      logger.warn('创建老师遇到线上字段不兼容，使用基础字段重试', {
+        error_summary: summarizeError(error),
+      })
+      const fallbackResult = await supabaseServer
+        .from('teachers')
+        .insert(pickTeacherPayload(insertData))
+        .select(TEACHER_DETAIL_SELECT)
+        .single()
+      data = fallbackResult.data
+      error = fallbackResult.error
+    }
 
     if (error) {
-      logger.error('创建老师失败', { message: error.message, code: error.code, details: error.details })
+      logger.error('创建老师失败', { error_summary: summarizeError(error) })
       const { message, status } = handleDatabaseError(error)
       return NextResponse.json({ error: message }, { status })
     }
 
-    logger.info('创建老师成功', { id: data.id, name: data.name })
-
-    // 可选：注册到 ClassIn（参考 /api/teachers/register-classin）
-    const registerToClassIn = true
-    const classinPassword: string | undefined = "test123456"
-
-    if (registerToClassIn) {
-      if (!classinPassword || !insertData.classin_phone) {
-        return NextResponse.json(
-          { error: '注册到 ClassIn 需要提供 classin_password 且必须有 classin_phone' },
-          { status: 400 }
-        )
-      }
-
-      const sdk = getClassInSDKService()
-
-      try {
-        const uid = await sdk.registerTeacher({
-          telephone: insertData.classin_phone,
-          nickname: insertData.name,
-          password: classinPassword,
-        })
-
-        logger.info('ClassIn 老师注册成功', { uid })
-
-        // 保存 ClassIn 映射到主表
-        const { error: updateError } = await supabaseServer
-          .from('teachers')
-          .update({
-            used_classin: true,
-            classin_uid: uid,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', data.id)
-
-        if (updateError) {
-          logger.error('更新老师 ClassIn UID 失败', { id: data.id, error: updateError })
-          return NextResponse.json(
-            { error: '注册成功但保存 UID 失败' },
-            { status: 500 }
-          )
-        }
-
-        // 同步到 teacher_classin 表
-        try {
-          await supabaseServer
-            .from('teacher_classin')
-            .upsert({
-              uid: uid,
-              name: insertData.name,
-              mobile: insertData.classin_phone,
-              is_del: 0,
-              updated_at: new Date().toISOString(),
-            }, {
-              onConflict: 'uid'
-            })
-
-          logger.info('老师信息同步到 teacher_classin 表成功', { uid })
-        } catch (error: any) {
-          logger.warn('同步到 teacher_classin 表失败（非致命）', {
-            message: error.message
-          })
-        }
-
-        // 将 uid 回填到响应
-        const merged = { ...data, classin_uid: uid, used_classin: true }
-        return NextResponse.json({ data: merged }, { status: 201 })
-      } catch (err: any) {
-        logger.error('注册老师到 ClassIn 异常', { message: err.message, stack: err.stack })
-        return NextResponse.json(
-          { error: err.message || '注册到 ClassIn 失败' },
-          { status: 500 }
-        )
-      }
-    }
-
-    return NextResponse.json({ data }, { status: 201 })
+    logger.info('创建老师成功', { id: data.id })
+    return NextResponse.json({ data: redactTeacherClassInSecrets(data, profile) }, { status: 201 })
   } catch (error: any) {
-    logger.error('创建老师异常', { message: error.message, stack: error.stack })
+    logger.error('创建老师异常', { error_summary: summarizeError(error) })
     return NextResponse.json(
-      { error: error.message || '创建老师失败' },
+      { error: '创建老师失败' },
       { status: 500 }
     )
   }
@@ -234,8 +334,10 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
+    const profile = await getCurrentProfile(request)
 
     const { id, ...updateData } = body
+    const updateSummary = summarizeTeacherPayload(updateData)
 
     if (!id) {
       return NextResponse.json(
@@ -244,11 +346,18 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    logger.debug('更新老师 - 接收到的数据', { id, updateData })
+    if (!profile) {
+      return NextResponse.json(
+        { error: '用户档案未配置，请联系管理员' },
+        { status: 403 }
+      )
+    }
+
+    logger.debug('更新老师 - 接收到的数据', { id, update_summary: updateSummary })
 
     const updatePayload: any = {}
     const optionalFields = [
-      'name', 'gender', 'wechat', 'classin_phone', 'location',
+      'name', 'teacher_level', 'status', 'gender', 'wechat', 'classin_phone', 'location',
       'subjects', 'grade_levels', 'used_classin', 'has_certificate',
       'education', 'university', 'available_times', 'textbook_versions',
       'student_regions', 'student_levels', 'teaching_years',
@@ -262,27 +371,47 @@ export async function PUT(request: NextRequest) {
       }
     })
 
-    logger.debug('更新老师 - 准备更新的数据', { id, updatePayload })
+    logger.debug('更新老师 - 准备更新的数据', {
+      id,
+      update_summary: summarizeTeacherPayload(updatePayload),
+    })
 
-    const { data, error } = await supabaseServer
+    const updateResult = await supabaseServer
       .from('teachers')
       .update(updatePayload)
       .eq('id', id)
-      .select()
+      .select(TEACHER_DETAIL_SELECT)
       .single()
+    let data = updateResult.data
+    let error = updateResult.error
+
+    if (error && isMissingTeacherColumnError(error)) {
+      logger.warn('更新老师遇到线上字段不兼容，使用基础字段重试', {
+        id,
+        error_summary: summarizeError(error),
+      })
+      const fallbackResult = await supabaseServer
+        .from('teachers')
+        .update(pickTeacherPayload(updatePayload))
+        .eq('id', id)
+        .select(TEACHER_DETAIL_SELECT)
+        .single()
+      data = fallbackResult.data
+      error = fallbackResult.error
+    }
 
     if (error) {
-      logger.error('更新老师失败', { id, message: error.message, code: error.code })
+      logger.error('更新老师失败', { id, error_summary: summarizeError(error) })
       const { message, status } = handleDatabaseError(error)
       return NextResponse.json({ error: message }, { status })
     }
 
-    logger.info('更新老师成功', { id, name: data.name })
-    return NextResponse.json({ data })
+    logger.info('更新老师成功', { id })
+    return NextResponse.json({ data: redactTeacherClassInSecrets(data, profile) })
   } catch (error: any) {
-    logger.error('更新老师异常', { message: error.message, stack: error.stack })
+    logger.error('更新老师异常', { error_summary: summarizeError(error) })
     return NextResponse.json(
-      { error: error.message || '更新老师失败' },
+      { error: '更新老师失败' },
       { status: 500 }
     )
   }
@@ -293,11 +422,19 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
+    const profile = await getCurrentProfile(request)
 
     if (!id) {
       return NextResponse.json(
         { error: '缺少老师ID' },
         { status: 400 }
+      )
+    }
+
+    if (!profile || profile.role !== 'admin') {
+      return NextResponse.json(
+        { error: '无权删除老师' },
+        { status: 403 }
       )
     }
 
@@ -309,7 +446,7 @@ export async function DELETE(request: NextRequest) {
       .eq('id', id)
 
     if (error) {
-      logger.error('删除老师失败', { id, message: error.message, code: error.code })
+      logger.error('删除老师失败', { id, error_summary: summarizeError(error) })
       const { message, status } = handleDatabaseError(error)
       return NextResponse.json({ error: message }, { status })
     }
@@ -317,9 +454,9 @@ export async function DELETE(request: NextRequest) {
     logger.info('删除老师成功', { id })
     return NextResponse.json({ success: true })
   } catch (error: any) {
-    logger.error('删除老师异常', { message: error.message, stack: error.stack })
+    logger.error('删除老师异常', { error_summary: summarizeError(error) })
     return NextResponse.json(
-      { error: error.message || '删除老师失败' },
+      { error: '删除老师失败' },
       { status: 500 }
     )
   }

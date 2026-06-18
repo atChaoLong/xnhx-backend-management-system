@@ -21,11 +21,9 @@ export function usePermission() {
    */
   const checkPermission = (resource: Resource, action: Action): boolean => {
     if (!user) {
-      console.warn('[usePermission] 用户未登录')
       return false
     }
     if (!role) {
-      console.warn('[usePermission] 用户角色未定义', user)
       return false
     }
     return hasPermission(role, resource, action)
@@ -97,6 +95,16 @@ export function usePermission() {
   }
 
   /**
+   * 快捷检查方法 - 课节
+   */
+  const classSessions = {
+    view: () => checkPermission(RESOURCES.classSessions, ACTIONS.view),
+    create: () => checkPermission(RESOURCES.classSessions, ACTIONS.create),
+    edit: () => checkPermission(RESOURCES.classSessions, ACTIONS.edit),
+    delete: () => checkPermission(RESOURCES.classSessions, ACTIONS.delete),
+  }
+
+  /**
    * 快捷检查方法 - 异动
    */
   const transactions = {
@@ -114,8 +122,12 @@ export function usePermission() {
    */
   const teacherCandidates = {
     view: () => checkPermission(RESOURCES.teacherCandidates, ACTIONS.view),
+    create: () => checkPermission(RESOURCES.teacherCandidates, ACTIONS.create),
+    edit: () => checkPermission(RESOURCES.teacherCandidates, ACTIONS.evaluate),
+    delete: () => checkPermission(RESOURCES.teacherCandidates, ACTIONS.delete),
     interview: () => checkPermission(RESOURCES.teacherCandidates, ACTIONS.interview),
     evaluate: () => checkPermission(RESOURCES.teacherCandidates, ACTIONS.evaluate),
+    confirmEntry: () => checkPermission(RESOURCES.teacherCandidates, ACTIONS.confirmEntry),
     uploadVideo: () => checkPermission(RESOURCES.teacherCandidates, ACTIONS.uploadVideo),
     reviewVideo: () => checkPermission(RESOURCES.teacherCandidates, ACTIONS.reviewVideo),
   }
@@ -142,6 +154,16 @@ export function usePermission() {
   }
 
   /**
+   * 快捷检查方法 - 待办
+   */
+  const todos = {
+    view: () => checkPermission(RESOURCES.todos, ACTIONS.view),
+    create: () => checkPermission(RESOURCES.todos, ACTIONS.create),
+    edit: () => checkPermission(RESOURCES.todos, ACTIONS.edit),
+    delete: () => checkPermission(RESOURCES.todos, ACTIONS.delete),
+  }
+
+  /**
    * 快捷检查方法 - 用户
    */
   const users = {
@@ -163,10 +185,12 @@ export function usePermission() {
     trialLessons,
     students,
     formalOrders,
+    classSessions,
     transactions,
     teacherCandidates,
     teachers,
     dictionaries,
+    todos,
     users,
   }
 }

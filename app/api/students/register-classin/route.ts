@@ -2,11 +2,31 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { getClassInSDKService } from "@/lib/services/classin-sdk/service"
 import { createLogger } from "@/lib/logger"
+import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getAccessibleStudentIds, restrictByIds } from "@/lib/server-business-scope"
+import { canViewStudentClassInSecrets } from "@/lib/server-student-redaction"
+import { summarizeError } from "@/lib/safe-error"
 
 const logger = createLogger('API:StudentsRegisterClassIn')
 
 export async function POST(request: NextRequest) {
   try {
+    const profile = await getCurrentProfile(request)
+
+    if (!profile) {
+      return NextResponse.json(
+        { error: '用户档案未配置，请联系管理员' },
+        { status: 403 }
+      )
+    }
+
+    if (!canViewStudentClassInSecrets(profile)) {
+      return NextResponse.json(
+        { error: '无权注册学生 ClassIn 账号' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const { studentId, telephone, nickname, password } = body
 
@@ -18,15 +38,22 @@ export async function POST(request: NextRequest) {
     }
 
     // 1. 获取学生信息
-    const { data: student, error: studentError } = await supabaseServer
+    const accessibleStudentIds = await getAccessibleStudentIds(profile)
+    let studentQuery = supabaseServer
       .from('students')
-      .select('*')
+      .select('id,student_name,parent_phone,classin_uid')
       .eq('id', studentId)
-      .single()
+
+    studentQuery = restrictByIds(studentQuery, 'id', accessibleStudentIds)
+
+    const { data: student, error: studentError } = await studentQuery.maybeSingle()
 
     if (studentError || !student) {
-      logger.error('获取学生信息失败', { studentId, error: studentError })
-      return NextResponse.json({ error: '学生不存在' }, { status: 404 })
+      logger.error('获取学生信息失败', { studentId, error_summary: summarizeError(studentError) })
+      return NextResponse.json(
+        { error: accessibleStudentIds === null ? '学生不存在' : '无权操作该学生' },
+        { status: accessibleStudentIds === null ? 404 : 403 }
+      )
     }
 
     // 2. 检查是否已经注册过 ClassIn
@@ -41,8 +68,8 @@ export async function POST(request: NextRequest) {
 
     logger.info('开始注册学生到 ClassIn', {
       studentId,
-      telephone,
-      nickname,
+      has_telephone: typeof telephone === 'string' && telephone.trim().length > 0,
+      has_nickname: typeof nickname === 'string' && nickname.trim().length > 0,
     })
 
     let uid: number
@@ -55,10 +82,7 @@ export async function POST(request: NextRequest) {
 
       logger.info('ClassIn 学生注册成功', { uid })
     } catch (error: any) {
-      logger.error('ClassIn 学生注册失败', {
-        message: error.message,
-        stack: error.stack
-      })
+      logger.error('ClassIn 学生注册失败', { error_summary: summarizeError(error) })
       throw error
     }
 
@@ -69,10 +93,12 @@ export async function POST(request: NextRequest) {
         studentName: nickname,
       })
 
-      logger.info('学生添加到机构成功', { studentAccount: telephone })
+      logger.info('学生添加到机构成功', {
+        has_student_account: typeof telephone === 'string' && telephone.trim().length > 0,
+      })
     } catch (error: any) {
       logger.warn('添加学生到机构失败（可能已存在）', {
-        message: error.message
+        error_summary: summarizeError(error)
       })
       // 这个错误不是致命的，继续执行
     }
@@ -87,7 +113,7 @@ export async function POST(request: NextRequest) {
       .eq('id', studentId)
 
     if (updateError) {
-      logger.error('更新学生 ClassIn UID 失败', { studentId, error: updateError })
+      logger.error('更新学生 ClassIn UID 失败', { studentId, error_summary: summarizeError(updateError) })
       return NextResponse.json({
         error: '注册成功但保存 UID 失败'
       }, { status: 500 })
@@ -101,12 +127,9 @@ export async function POST(request: NextRequest) {
       }
     })
   } catch (error: any) {
-    logger.error('注册学生到 ClassIn 异常', {
-      message: error.message,
-      stack: error.stack
-    })
+    logger.error('注册学生到 ClassIn 异常', { error_summary: summarizeError(error) })
     return NextResponse.json({
-      error: error.message || '注册到 ClassIn 失败'
+      error: '注册到 ClassIn 失败'
     }, { status: 500 })
   }
 }

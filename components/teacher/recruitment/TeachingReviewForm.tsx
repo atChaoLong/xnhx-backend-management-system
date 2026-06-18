@@ -10,8 +10,10 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2, X, Play } from "lucide-react"
-import { TeacherCandidate } from "@/lib/services/teacherCandidates"
+import { TeacherCandidate, TeacherCandidatesService } from "@/lib/services/teacherCandidates"
 import { useToast } from "@/hooks/use-toast"
+import { advanceToNextStep, rejectCandidate } from "@/lib/services/recruitmentFlow"
+import { getClientSafeErrorMessage } from "@/lib/safe-error"
 
 interface TeachingReviewFormProps {
   candidate: TeacherCandidate
@@ -67,6 +69,10 @@ export default function TeachingReviewForm({
     return !isNaN(num) && num >= 1 && num <= 10
   }
 
+  const optionalNumber = (value: string) => {
+    return value ? Number(value) : undefined
+  }
+
   const handleSubmit = async (e: React.FormEvent, decision: 'approve' | 'reject') => {
     e.preventDefault()
 
@@ -110,7 +116,30 @@ export default function TeachingReviewForm({
     setIsSubmitting(true)
 
     try {
-      // TODO: 调用 API 更新信息并推进到下一步
+      await TeacherCandidatesService.updateTeacherCandidate({
+        id: candidate.id,
+        interview_score: Number(formData.interview_score),
+        interview_rating: formData.interview_rating || undefined,
+        dress_appearance_score: optionalNumber(formData.dress_appearance_score),
+        logical_expression_score: optionalNumber(formData.logical_expression_score),
+        material_preparation_score: optionalNumber(formData.material_preparation_score),
+        affinity: formData.affinity || undefined,
+        service_awareness: formData.service_awareness || undefined,
+        research_ability: formData.research_ability || undefined,
+        teacher_characteristics: formData.teacher_characteristics.trim() || undefined,
+        mandarin_level: formData.mandarin_level || undefined,
+        initial_evaluation: formData.initial_evaluation.trim() || undefined,
+        review_status: decision === "approve" ? "已复核" : "不符合",
+        review_notes: formData.review_notes.trim() || undefined,
+      } as TeacherCandidate)
+
+      const result = decision === "approve"
+        ? await advanceToNextStep(candidate.id, "teaching_review", true)
+        : await rejectCandidate(candidate.id, "teaching_review", formData.review_notes.trim())
+
+      if (!result.success) {
+        throw new Error(result.error || "招聘流程推进失败")
+      }
 
       toast({
         title: decision === 'approve' ? "已通过复核" : "已拒绝",
@@ -120,11 +149,11 @@ export default function TeachingReviewForm({
       })
 
       onSuccess()
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "保存失败",
-        description: error.message || "无法保存复核信息",
+        description: getClientSafeErrorMessage(error, "无法保存复核信息，请稍后重试"),
       })
     } finally {
       setIsSubmitting(false)

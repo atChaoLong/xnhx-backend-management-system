@@ -20,8 +20,8 @@ export interface WechatAccount {
   team?: string                   // 所属团队
   account_type: string            // 账号类型
   phone: string                   // 手机号
-  login_password: string          // 登录密码
-  payment_password: string        // 支付密码
+  login_password?: string         // 登录密码（仅写入，不从接口返回）
+  payment_password?: string       // 支付密码（仅写入，不从接口返回）
   real_name_person: string        // 实名人
   status: 'active' | 'inactive'   // 状态
 }
@@ -79,7 +79,7 @@ export async function createWechatAccount(account: NewWechatAccount): Promise<We
 /**
  * 更新微信号信息
  */
-export async function updateWechatAccount(account: WechatAccount & { id?: string }): Promise<WechatAccount> {
+export async function updateWechatAccount(account: Partial<WechatAccount> & { id?: string }): Promise<WechatAccount> {
   const { id, ...updateData } = account
 
   if (!id) {

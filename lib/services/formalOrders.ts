@@ -8,12 +8,14 @@ export interface FormalOrder {
   // 关联字段
   student_id: string
   lead_id?: string
+  trial_lesson_id?: string
   previous_order_id?: string
 
   // 学生信息（关联查询）
   students?: {
     student_name: string
   }
+  student_name?: string
 
   // 订单基本信息
   order_number: string
@@ -36,17 +38,20 @@ export interface FormalOrder {
   payment_channel: string
   payment_amount: number
   hourly_rate: number
-  payment_proof: string
+  payment_proof: string | null
   payment_time: string
 
   // 状态管理
   status: string
+  computed_status?: string
+  computed_status_label?: string
 }
 
 export interface NewFormalOrder {
   // 关联字段
   student_id: string
   lead_id?: string
+  trial_lesson_id?: string
   previous_order_id?: string
 
   // 订单基本信息

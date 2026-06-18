@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Loader2, ArrowLeft, Edit, Video } from "lucide-react"
 import { TrialLessonsService, TrialLesson } from "@/lib/services/trialLessons"
 import { DictionaryService } from "@/lib/services/dictionary"
+import { api } from "@/lib/fetch"
 import { useToast } from "@/hooks/use-toast"
+import { usePermission } from "@/lib/hooks/usePermission"
 import Link from "next/link"
 import { format } from "date-fns"
 
@@ -15,12 +17,14 @@ export default function TrialLessonDetailPage() {
   const router = useRouter()
   const params = useParams()
   const { toast } = useToast()
+  const { trialLessons: trialLessonsPerm, isLoading: isPermissionLoading } = usePermission()
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingDict, setIsLoadingDict] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
   const [lesson, setLesson] = useState<TrialLesson | null>(null)
 
   const lessonId = params.id as string
+  const canCreateClassIn = !isPermissionLoading && trialLessonsPerm.addLink()
 
   // 字典数据
   const [dictOptions, setDictOptions] = useState<{
@@ -73,8 +77,12 @@ export default function TrialLessonDetailPage() {
           courseStatuses: dicts.trial_course_status || [],
           studentTypes: dicts.student_type || [],
         })
-      } catch (error) {
-        console.error("加载字典失败:", error)
+      } catch {
+        toast({
+          variant: "destructive",
+          title: "加载字典失败",
+          description: "无法加载试听课程字典",
+        })
       } finally {
         setIsLoadingDict(false)
       }
@@ -141,6 +149,15 @@ export default function TrialLessonDetailPage() {
 
   // 创建ClassIn课程
   const handleCreateClassIn = async () => {
+    if (!canCreateClassIn) {
+      toast({
+        variant: "destructive",
+        title: "权限不足",
+        description: "只有教务或管理员可以创建ClassIn课程",
+      })
+      return
+    }
+
     if (!lesson) return
 
     // 检查是否已确认教师
@@ -166,11 +183,7 @@ export default function TrialLessonDetailPage() {
     try {
       setIsCreating(true)
 
-      const response = await fetch('/api/trial-lessons/create-classin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trialLessonId: lesson.id })
-      })
+      const response = await api.post('/api/trial-lessons/create-classin', { trialLessonId: lesson.id })
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: '创建课程失败' }))
@@ -249,7 +262,7 @@ export default function TrialLessonDetailPage() {
                   <Video className="mr-2 h-4 w-4" />
                   ClassIn课程已创建
                 </Button>
-              ) : (
+              ) : canCreateClassIn ? (
                 <Button
                   onClick={handleCreateClassIn}
                   disabled={isCreating}
@@ -267,7 +280,7 @@ export default function TrialLessonDetailPage() {
                     </>
                   )}
                 </Button>
-              )}
+              ) : null}
               <Link href={`/dashboard/trial-lessons/${lesson.id}/edit`}>
                 <Button>
                   <Edit className="mr-2 h-4 w-4" />
@@ -286,12 +299,30 @@ export default function TrialLessonDetailPage() {
                 <span className="text-base font-medium">{lesson.child_name || "-"}</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-sm text-muted-foreground">关联线索ID</span>
-                <span className="text-base font-medium">{lesson.lead_id || "-"}</span>
+                <span className="text-sm text-muted-foreground">来源</span>
+                <span className="text-base font-medium">
+                  {lesson.lead?.report_number
+                    ? `线索 ${lesson.lead.report_number}`
+                    : lesson.student_id
+                    ? `正式生 ${lesson.student_id}`
+                    : "-"}
+                </span>
               </div>
               <div className="flex flex-col">
                 <span className="text-sm text-muted-foreground">手机号</span>
                 <span className="text-base font-medium">{lesson.phone || "-"}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm text-muted-foreground">ClassIn 学生账号</span>
+                <span className="text-base font-medium">
+                  {lesson.classin_student_uid
+                    ? `已绑定 UID ${lesson.classin_student_uid}`
+                    : lesson.classin_student_bound
+                    ? "已绑定"
+                    : lesson.classin_student_error
+                    ? `绑定失败：${lesson.classin_student_error}`
+                    : "-"}
+                </span>
               </div>
               <div className="flex flex-col">
                 <span className="text-sm text-muted-foreground">渠道</span>
@@ -439,7 +470,7 @@ export default function TrialLessonDetailPage() {
             <section className="mb-8">
               <h3 className="text-lg font-semibold mb-4 pb-2 border-b">付款凭证</h3>
               <div className="space-y-3">
-                {lesson.payment_proof.match(/\.(jpg|jpeg|png|gif|webp)/i) ? (
+                {lesson.payment_proof.match(/\.(jpg|jpeg|png|gif|webp|avif|heic|heif|bmp|tif|tiff)/i) ? (
                   // 如果是图片URL，显示图片
                   <div>
                     <img

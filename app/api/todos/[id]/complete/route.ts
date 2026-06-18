@@ -1,37 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
+import { summarizeError } from '@/lib/safe-error'
+import { getCurrentProfile } from '@/lib/server-data-scope'
+import { attachTodoSla } from '@/lib/todo-sla'
 
 const logger = createLogger('API:Todos:Complete')
 
-// 获取当前用户信息
-async function getCurrentProfile(request: NextRequest) {
-  try {
-    const authHeader = request.headers.get('authorization') ||
-                       globalThis?.localStorage?.getItem('supabase.auth.token')
-    const token = authHeader?.replace('Bearer ', '')
+const TODO_SELECT = `
+  id,
+  created_at,
+  updated_at,
+  created_by,
+  completed_at,
+  assigned_to,
+  assigned_by,
+  title,
+  description,
+  priority,
+  entity_type,
+  entity_id,
+  status,
+  due_date,
+  metadata,
+  is_auto_created,
+  auto_trigger_type
+`
 
-    if (!token) {
-      return null
-    }
-
-    const { data: { user }, error } = await supabaseServer.auth.getUser(token)
-    if (error || !user) {
-      return null
-    }
-
-    // 获取用户档案信息
-    const { data: profile } = await supabaseServer
-      .from('user_profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-
-    return profile
-  } catch (error) {
-    logger.error('获取用户信息失败', { error })
-    return null
-  }
+function todoError(message: string, status: number) {
+  return NextResponse.json({ error: message }, { status })
 }
 
 // POST: 标记待办为完成
@@ -42,48 +39,61 @@ export async function POST(
   try {
     const { id } = await params
 
-    // 获取当前用户
     const profile = await getCurrentProfile(request)
     if (!profile) {
-      return NextResponse.json({ error: '未登录' }, { status: 401 })
+      return todoError('未登录', 401)
     }
 
-    // 检查待办是否存在
-    const { data: existing } = await supabaseServer
+    const { data: existing, error: existingError } = await supabaseServer
       .from('todos')
-      .select('*')
+      .select('id, assigned_to, status')
       .eq('id', id)
       .single()
 
-    if (!existing) {
-      return NextResponse.json({ error: '待办不存在' }, { status: 404 })
+    if (existingError || !existing) {
+      logger.warn('查询待办失败', { id, error_summary: summarizeError(existingError) })
+      return todoError('待办不存在', 404)
     }
 
-    // 只有分配给该待办的用户可以标记完成
     if (existing.assigned_to !== profile.id) {
-      return NextResponse.json({ error: '只能完成分配给自己的待办' }, { status: 403 })
+      return todoError('只能完成分配给自己的待办', 403)
     }
 
-    // 更新为完成状态
+    if (existing.status === 'completed') {
+      const { data, error } = await supabaseServer
+        .from('todos')
+        .select(TODO_SELECT)
+        .eq('id', id)
+        .single()
+
+      if (error || !data) {
+        logger.warn('获取已完成待办失败', { id, error_summary: summarizeError(error) })
+        return todoError('待办不存在', 404)
+      }
+
+      return NextResponse.json({ data: attachTodoSla(data) })
+    }
+
     const { data, error } = await supabaseServer
       .from('todos')
       .update({
         status: 'completed',
         completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .eq('id', id)
-      .select()
+      .select(TODO_SELECT)
       .single()
 
     if (error) {
-      logger.error('标记待办完成失败', { id, error: error.message })
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      logger.error('标记待办完成失败', { id, error_summary: summarizeError(error) })
+      return todoError('标记完成失败', 500)
     }
 
     logger.info('标记待办完成成功', { id })
-    return NextResponse.json({ data })
+    return NextResponse.json({ data: attachTodoSla(data) })
   } catch (error: any) {
-    logger.error('标记待办完成异常', { message: error.message, stack: error.stack })
-    return NextResponse.json({ error: error.message || '标记完成失败' }, { status: 500 })
+    logger.error('标记待办完成异常', { error_summary: summarizeError(error) })
+    return todoError('标记完成失败', 500)
   }
 }

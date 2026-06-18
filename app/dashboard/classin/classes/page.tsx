@@ -19,6 +19,8 @@ import {
 import { Loader2, RefreshCw } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { usePagination } from "@/lib/hooks/usePagination"
+import { usePermission } from "@/lib/hooks/usePermission"
+import { api } from "@/lib/fetch"
 
 interface ClassInClass {
   course_id: number
@@ -41,6 +43,8 @@ export default function ClassInClassesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
   const { toast } = useToast()
+  const { teachers, isLoading: isPermissionLoading } = usePermission()
+  const canUseClassInOps = !isPermissionLoading && teachers.notes()
 
   const {
     currentPage,
@@ -66,7 +70,7 @@ export default function ClassInClassesPage() {
       const from = (page - 1) * size
       const to = from + size - 1
 
-      const response = await fetch(`/api/classin/classes?from=${from}&to=${to}`)
+      const response = await api.get(`/api/classin/classes?from=${from}&to=${to}`)
 
       if (!response.ok) {
         throw new Error('加载失败')
@@ -87,8 +91,35 @@ export default function ClassInClassesPage() {
   }
 
   useEffect(() => {
+    if (isPermissionLoading || !canUseClassInOps) return
     fetchClasses(1, pageSize)
-  }, [])
+  }, [isPermissionLoading, canUseClassInOps])
+
+  if (isPermissionLoading) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="ClassIn 班级" description="查看 ClassIn 平台的班级数据" />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!canUseClassInOps) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="ClassIn 班级" description="查看 ClassIn 平台的班级数据" />
+        <div className="flex-1 overflow-auto p-6">
+          <Card>
+            <CardContent className="p-6 text-sm text-muted-foreground">
+              当前角色无权访问 ClassIn 镜像数据。
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (
@@ -215,6 +246,7 @@ export default function ClassInClassesPage() {
                       <PaginationItem>
                         <PaginationPrevious
                           onClick={goToPreviousPage}
+                          disabled={!canGoPrevious}
                           className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
                         />
                       </PaginationItem>
@@ -231,6 +263,7 @@ export default function ClassInClassesPage() {
                             <PaginationLink
                               onClick={() => goToPage(page)}
                               isActive={page === currentPage}
+                              disabled={false}
                               className="cursor-pointer"
                             >
                               {page}
@@ -241,6 +274,7 @@ export default function ClassInClassesPage() {
                       <PaginationItem>
                         <PaginationNext
                           onClick={goToNextPage}
+                          disabled={!canGoNext}
                           className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
                         />
                       </PaginationItem>

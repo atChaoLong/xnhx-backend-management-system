@@ -12,6 +12,11 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2 } from "lucide-react"
 import { DailyLeadsService, DailyLead } from "@/lib/services/dailyLeads"
 import { useToast } from "@/hooks/use-toast"
+import {
+  LEAD_RESUME_ACCEPT,
+  uploadLeadResume,
+  validateLeadResumeFile,
+} from "@/lib/services/upload"
 import Link from "next/link"
 
 export default function EditDailyLeadPage() {
@@ -19,8 +24,10 @@ export default function EditDailyLeadPage() {
   const params = useParams()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isUploadingResume, setIsUploadingResume] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [lead, setLead] = useState<DailyLead | null>(null)
+  const [resumeFileName, setResumeFileName] = useState("")
 
   const leadId = params.id as string
 
@@ -69,6 +76,45 @@ export default function EditDailyLeadPage() {
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleResumeFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const validationError = validateLeadResumeFile(file)
+    if (validationError) {
+      toast({
+        variant: "destructive",
+        title: "文件不符合要求",
+        description: validationError,
+      })
+      e.target.value = ""
+      setResumeFileName("")
+      return
+    }
+
+    setIsUploadingResume(true)
+    setResumeFileName(file.name)
+
+    try {
+      const url = await uploadLeadResume(file)
+      handleInputChange("resume_attachment", url)
+      toast({
+        title: "上传成功",
+        description: "简历附件已上传",
+      })
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "上传失败",
+        description: error.message || "无法上传简历附件",
+      })
+      e.target.value = ""
+      setResumeFileName("")
+    } finally {
+      setIsUploadingResume(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -252,14 +298,45 @@ export default function EditDailyLeadPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="resume_attachment">简历附件</Label>
+                  <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                    <Input
+                      id="resume_attachment_file"
+                      type="file"
+                      accept={LEAD_RESUME_ACCEPT}
+                      onChange={handleResumeFileChange}
+                      disabled={isUploadingResume || isSubmitting}
+                      className="sr-only"
+                    />
+                    <Input
+                      value={resumeFileName || "未选择文件"}
+                      readOnly
+                      disabled={isUploadingResume}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isUploadingResume || isSubmitting}
+                      onClick={() => document.getElementById("resume_attachment_file")?.click()}
+                    >
+                      {isUploadingResume ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          上传中...
+                        </>
+                      ) : (
+                        "选择文件"
+                      )}
+                    </Button>
+                  </div>
                   <Input
                     id="resume_attachment"
-                    placeholder="简历附件URL"
+                    placeholder="也可以粘贴简历附件URL"
                     value={formData.resume_attachment}
                     onChange={(e) => handleInputChange("resume_attachment", e.target.value)}
+                    disabled={isUploadingResume}
                   />
                   <p className="text-xs text-muted-foreground">
-                    暂时只支持输入URL，文件上传功能即将推出
+                    支持 PDF、Word 或图片，最大 50MB
                   </p>
                 </div>
 
@@ -278,12 +355,17 @@ export default function EditDailyLeadPage() {
               {/* 操作按钮 */}
               <div className="flex justify-end gap-4 pt-4 border-t">
                 <Link href="/dashboard/daily-leads">
-                  <Button type="button" variant="outline" disabled={isSubmitting}>
+                  <Button type="button" variant="outline" disabled={isSubmitting || isUploadingResume}>
                     取消
                   </Button>
                 </Link>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
+                <Button type="submit" disabled={isSubmitting || isUploadingResume}>
+                  {isUploadingResume ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      上传中...
+                    </>
+                  ) : isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       更新中...

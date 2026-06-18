@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getClassInApiClient } from '@/lib/services/classin'
+import { requireClassInOpsProfile } from '@/lib/server-classin-ops'
+import { createLogger } from '@/lib/logger'
+import { summarizeError } from '@/lib/safe-error'
+
+const logger = createLogger('ClassIn:Login')
 
 /**
  * ClassIn 登录 API
@@ -8,6 +13,9 @@ import { getClassInApiClient } from '@/lib/services/classin'
  */
 export async function POST(request: NextRequest) {
   try {
+    const access = await requireClassInOpsProfile(request)
+    if (access.ok === false) return access.response
+
     const body = await request.json()
     const { cookie } = body
 
@@ -29,9 +37,10 @@ export async function POST(request: NextRequest) {
         expiresAt: session.expiresAt,
       },
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    logger.error('ClassIn Cookie 登录失败', summarizeError(error))
     return NextResponse.json(
-      { error: error.message || '登录失败' },
+      { error: '登录失败' },
       { status: 500 }
     )
   }

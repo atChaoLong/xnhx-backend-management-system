@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
+import { createSafeErrorResponse, summarizeError } from "@/lib/safe-error"
+import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getAccessibleCourseIds, hasScopedIdAccess } from "@/lib/server-business-scope"
 
 const logger = createLogger('API:ClassSessions:Sync')
+
+const SYNC_SESSION_FIELDS = 'id, course_id, classroom_id, session_number, status'
+
+const CLASSROOM_SYNC_FIELDS = 'class_id, end_time, actual_start_time, actual_end_time'
 
 /**
  * 同步课节状态（从 ClassIn 同步）
@@ -26,6 +33,9 @@ export async function POST(request: NextRequest) {
 
     logger.debug('同步课节状态', { courseId, sessionId })
 
+    const profile = await getCurrentProfile(request)
+    const accessibleCourseIds = await getAccessibleCourseIds(profile)
+
     let sessions: any[] = []
 
     // 1. 获取需要同步的课节列表
@@ -33,7 +43,7 @@ export async function POST(request: NextRequest) {
       // 同步单个课节
       const { data: session, error } = await supabaseServer
         .from('class_sessions')
-        .select('*')
+        .select(SYNC_SESSION_FIELDS)
         .eq('id', sessionId)
         .single()
 
@@ -42,18 +52,32 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: '课节不存在' }, { status: 404 })
       }
 
+      if (!hasScopedIdAccess(accessibleCourseIds, session.course_id)) {
+        logger.warn('同步单个课节失败 - 无权访问课程', {
+          sessionId,
+          courseId: session.course_id,
+          profileId: profile?.id,
+        })
+        return NextResponse.json({ error: '无权同步该课节' }, { status: 403 })
+      }
+
       sessions = [session]
     } else if (courseId) {
+      if (!hasScopedIdAccess(accessibleCourseIds, courseId)) {
+        logger.warn('同步课程课节失败 - 无权访问课程', { courseId, profileId: profile?.id })
+        return NextResponse.json({ error: '无权同步该课程课节' }, { status: 403 })
+      }
+
       // 同步整个课程的所有课节
       const { data: courseSessions, error } = await supabaseServer
         .from('class_sessions')
-        .select('*')
+        .select(SYNC_SESSION_FIELDS)
         .eq('course_id', courseId)
         .order('session_number', { ascending: true })
 
       if (error) {
-        logger.error('获取课节列表失败', { courseId, message: error.message })
-        return NextResponse.json({ error: error.message }, { status: 400 })
+        logger.error('获取课节列表失败', { courseId, error_summary: summarizeError(error) })
+        return NextResponse.json({ error: '获取课节列表失败' }, { status: 400 })
       }
 
       sessions = courseSessions || []
@@ -81,7 +105,7 @@ export async function POST(request: NextRequest) {
         // 从 classroom_classin 获取 ClassIn 课堂数据
         const { data: classroomClassin, error: classroomError } = await supabaseServer
           .from('classroom_classin')
-          .select('*')
+          .select(CLASSROOM_SYNC_FIELDS)
           .eq('class_id', session.classroom_id)
           .single()
 
@@ -126,15 +150,13 @@ export async function POST(request: NextRequest) {
         }
 
         // 更新课节
-        const { data: updatedSession, error: updateError } = await supabaseServer
+        const { error: updateError } = await supabaseServer
           .from('class_sessions')
           .update(updateData)
           .eq('id', session.id)
-          .select()
-          .single()
 
         if (updateError) {
-          logger.error('更新课节失败', { sessionId: session.id, message: updateError.message })
+          logger.error('更新课节失败', { sessionId: session.id, error_summary: summarizeError(updateError) })
           skipped++
           continue
         }
@@ -152,8 +174,8 @@ export async function POST(request: NextRequest) {
           status: updateData.status,
           hasActualTime: !!(updateData.actual_start_time && updateData.actual_end_time),
         })
-      } catch (e: any) {
-        logger.warn('同步课节失败', { sessionId: session.id, message: e?.message })
+      } catch (e) {
+        logger.warn('同步课节失败', { sessionId: session.id, error_summary: summarizeError(e) })
         skipped++
       }
     }
@@ -167,11 +189,9 @@ export async function POST(request: NextRequest) {
       skipped,
       results,
     })
-  } catch (error: any) {
-    logger.error('同步课节异常', { message: error.message, stack: error.stack })
-    return NextResponse.json(
-      { error: error.message || '同步课节失败' },
-      { status: 500 }
-    )
+  } catch (error) {
+    const safeError = createSafeErrorResponse(error, '同步课节失败')
+    logger.error('同步课节异常', safeError.log)
+    return NextResponse.json(safeError.response, { status: safeError.status })
   }
 }

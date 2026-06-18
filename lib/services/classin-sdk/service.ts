@@ -16,9 +16,12 @@ import {
   CompleteClassroomResult,
   APIError,
 } from './types'
+import { createLogger } from '@/lib/logger'
+import { summarizeError } from '@/lib/safe-error'
 
 // 引入 CommonJS SDK
 const ClassInSDK = require('./index')
+const logger = createLogger('ClassIn:SDKService')
 
 /**
  * ClassIn SDK 服务类
@@ -156,7 +159,7 @@ export class ClassInSDKService {
    * 统一错误处理
    */
   private handleError(error: any): Error {
-    console.error('ClassIn SDK Error:', error)
+    logger.error('ClassIn SDK 调用失败', summarizeError(error))
     
     const apiError: APIError = error
 

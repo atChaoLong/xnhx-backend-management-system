@@ -18,6 +18,11 @@ import { format } from "date-fns"
 import Link from "next/link"
 import { UsersService, UserProfile, ROLES } from "@/lib/services/users"
 import { useToast } from "@/hooks/use-toast"
+import { usePermission } from "@/lib/hooks/usePermission"
+import { getClientSafeErrorMessage } from "@/lib/safe-error"
+
+const ACCOUNTS_LOAD_ERROR = "无法加载用户列表"
+const ACCOUNTS_DELETE_ERROR = "无法删除用户"
 
 // 角色名称映射
 const getRoleName = (roleCode: string): string => {
@@ -32,6 +37,11 @@ export default function AccountsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null)
   const { toast } = useToast()
+  const { users: usersPerm } = usePermission()
+  const canCreateUser = usersPerm.create()
+  const canEditUser = usersPerm.edit()
+  const canDeleteUser = usersPerm.delete()
+  const canManageUsers = canEditUser || canDeleteUser
 
   // 加载用户列表
   const fetchUsers = useCallback(async () => {
@@ -39,11 +49,11 @@ export default function AccountsPage() {
       setIsLoading(true)
       const data = await UsersService.getUsers()
       setUsers(data)
-    } catch (error: any) {
+    } catch (error) {
       toast({
         variant: "destructive",
         title: "加载失败",
-        description: error.message || "无法加载用户列表",
+        description: getClientSafeErrorMessage(error, ACCOUNTS_LOAD_ERROR),
       })
     } finally {
       setIsLoading(false)
@@ -56,12 +66,31 @@ export default function AccountsPage() {
 
   // 删除用户
   const handleDeleteClick = (user: UserProfile) => {
+    if (!canDeleteUser) {
+      toast({
+        variant: "destructive",
+        title: "无权删除",
+        description: "当前账号没有删除用户的权限",
+      })
+      return
+    }
+
     setUserToDelete(user)
     setDeleteDialogOpen(true)
   }
 
   const handleDeleteConfirm = async () => {
     if (!userToDelete) return
+    if (!canDeleteUser) {
+      toast({
+        variant: "destructive",
+        title: "无权删除",
+        description: "当前账号没有删除用户的权限",
+      })
+      setDeleteDialogOpen(false)
+      setUserToDelete(null)
+      return
+    }
 
     try {
       setIsDeleting(userToDelete.id)
@@ -73,11 +102,11 @@ export default function AccountsPage() {
       fetchUsers()
       setDeleteDialogOpen(false)
       setUserToDelete(null)
-    } catch (error: any) {
+    } catch (error) {
       toast({
         variant: "destructive",
         title: "删除失败",
-        description: error.message || "无法删除用户",
+        description: getClientSafeErrorMessage(error, ACCOUNTS_DELETE_ERROR),
       })
     } finally {
       setIsDeleting(null)
@@ -119,12 +148,14 @@ export default function AccountsPage() {
                 <Button variant="outline" onClick={fetchUsers} disabled={isLoading}>
                   刷新
                 </Button>
-                <Link href="/dashboard/accounts/new">
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    新增用户
-                  </Button>
-                </Link>
+                {canCreateUser && (
+                  <Link href="/dashboard/accounts/new">
+                    <Button>
+                      <Plus className="mr-2 h-4 w-4" />
+                      新增用户
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
 
@@ -140,14 +171,14 @@ export default function AccountsPage() {
                     <TableHead>团队</TableHead>
                     <TableHead>状态</TableHead>
                     <TableHead>创建时间</TableHead>
-                    <TableHead className="text-right">操作</TableHead>
+                    {canManageUsers && <TableHead className="text-right">操作</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {users.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                        暂无数据，点击"新增用户"开始添加
+                      <TableCell colSpan={canManageUsers ? 9 : 8} className="text-center py-8 text-muted-foreground">
+                        {canCreateUser ? '暂无数据，点击"新增用户"开始添加' : '暂无数据'}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -193,28 +224,34 @@ export default function AccountsPage() {
                         <TableCell>
                           {user.created_at ? format(new Date(user.created_at), "yyyy-MM-dd") : "-"}
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Link href={`/dashboard/accounts/${user.id}/edit`}>
-                              <Button variant="ghost" size="icon" title="编辑">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </Link>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteClick(user)}
-                              disabled={isDeleting === user.id}
-                              title="删除"
-                            >
-                              {isDeleting === user.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4 text-destructive" />
+                        {canManageUsers && (
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              {canEditUser && (
+                                <Link href={`/dashboard/accounts/${user.id}/edit`}>
+                                  <Button variant="ghost" size="icon" title="编辑">
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                </Link>
                               )}
-                            </Button>
-                          </div>
-                        </TableCell>
+                              {canDeleteUser && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteClick(user)}
+                                  disabled={isDeleting === user.id}
+                                  title="删除"
+                                >
+                                  {isDeleting === user.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  )}
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))
                   )}
@@ -226,7 +263,7 @@ export default function AccountsPage() {
       </div>
 
       {/* 删除确认对话框 */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <Dialog open={canDeleteUser && deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <div className="flex items-center gap-2">

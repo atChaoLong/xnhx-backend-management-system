@@ -53,7 +53,7 @@ export function handleDatabaseError(error: any): { message: string; status: numb
 
   // 默认错误
   return {
-    message: errorMessage || '操作失败，请稍后重试',
+    message: '操作失败，请稍后重试',
     status: 500
   }
 }

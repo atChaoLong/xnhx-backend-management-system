@@ -21,8 +21,9 @@ import Link from "next/link"
 import { LeadsService, Lead } from "@/lib/services/leads"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { UserProfilesService, UserProfile } from "@/lib/services/userProfiles"
-import { uploadChatScreenshot } from "@/lib/services/upload"
+import { CHAT_SCREENSHOT_ACCEPT, uploadChatScreenshot, validateChatScreenshotFile } from "@/lib/services/upload"
 import { useToast } from "@/hooks/use-toast"
+import { summarizeError } from "@/lib/safe-error"
 
 export default function EditLeadPage() {
   const router = useRouter()
@@ -66,6 +67,8 @@ export default function EditLeadPage() {
     report_number: "",
     entry_date: new Date().toISOString().split("T")[0],
     xhs_source: "",
+    channel_platform: "",
+    customer_social_id: "",
     add_method_code: "",
     operator_id: "",
     grade_code: "",
@@ -91,7 +94,7 @@ export default function EditLeadPage() {
           sources: dicts.xhs_source || [],
         })
       } catch (error) {
-        console.error("加载字典失败:", error)
+        console.error("加载字典失败:", summarizeError(error))
       } finally {
         setIsLoadingDict(false)
       }
@@ -108,7 +111,7 @@ export default function EditLeadPage() {
         const profiles = await UserProfilesService.getAllOperators()
         setOperators(profiles)
       } catch (error) {
-        console.error("加载运营人员失败:", error)
+        console.error("加载运营人员失败:", summarizeError(error))
       } finally {
         setIsLoadingOperators(false)
       }
@@ -125,7 +128,7 @@ export default function EditLeadPage() {
         const profiles = await UserProfilesService.getUsers('sales')
         setSales(profiles)
       } catch (error) {
-        console.error("加载销售人员失败:", error)
+        console.error("加载销售人员失败:", summarizeError(error))
       } finally {
         setIsLoadingSales(false)
       }
@@ -147,6 +150,8 @@ export default function EditLeadPage() {
           report_number: data.report_number || "",
           entry_date: data.entry_date?.split("T")[0] || new Date().toISOString().split("T")[0],
           xhs_source: data.xhs_source || "",
+          channel_platform: data.channel_platform || "",
+          customer_social_id: data.customer_social_id || "",
           add_method_code: data.add_method_code || "",
           operator_id: data.operator_id || "",
           grade_code: data.grade_code || "",
@@ -187,6 +192,20 @@ export default function EditLeadPage() {
   const handleChatScreenshotChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files)
+      const validationError = files
+        .map((file) => validateChatScreenshotFile(file))
+        .find((message): message is string => Boolean(message))
+
+      if (validationError) {
+        e.target.value = ''
+        toast({
+          variant: "destructive",
+          title: "文件不可用",
+          description: validationError,
+        })
+        return
+      }
+
       setChatScreenshotFiles(prev => [...prev, ...files])
 
       // 上传所有文件到 Supabase Storage
@@ -226,9 +245,10 @@ export default function EditLeadPage() {
     try {
       const payload = {
         id: leadId,
-        report_number: formData.report_number,
         entry_date: formData.entry_date,
         xhs_source: formData.xhs_source,
+        channel_platform: formData.channel_platform,
+        customer_social_id: formData.customer_social_id,
         add_method_code: formData.add_method_code,
         operator_id: formData.operator_id,
         grade_code: formData.grade_code || undefined,
@@ -241,10 +261,12 @@ export default function EditLeadPage() {
         subject_codes: selectedSubjects,
       }
 
-      await LeadsService.updateLead(payload)
+      const updatedLead = await LeadsService.updateLead(payload)
       toast({
-        title: "保存成功",
-        description: "线索信息已更新",
+        title: updatedLead.duplicate_mark ? "保存成功，检测到重复线索" : "保存成功",
+        description: updatedLead.duplicate_mark
+          ? `线索信息已更新；疑似与 ${updatedLead.collision_operator || '已有线索'} 重复`
+          : "线索信息已更新",
       })
       router.push("/dashboard/leads")
     } catch (error: any) {
@@ -306,8 +328,8 @@ export default function EditLeadPage() {
                     <Input
                       id="report_number"
                       value={formData.report_number}
-                      onChange={(e) => handleInputChange("report_number", e.target.value)}
-                      placeholder="请输入报单序号"
+                      readOnly
+                      className="bg-muted"
                       required
                     />
                   </div>
@@ -337,6 +359,26 @@ export default function EditLeadPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="channel_platform">渠道平台</Label>
+                    <Input
+                      id="channel_platform"
+                      value={formData.channel_platform}
+                      onChange={(e) => handleInputChange("channel_platform", e.target.value)}
+                      placeholder="例如：小红书、抖音、微信"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="customer_social_id">客户社媒账号 ID</Label>
+                    <Input
+                      id="customer_social_id"
+                      value={formData.customer_social_id}
+                      onChange={(e) => handleInputChange("customer_social_id", e.target.value)}
+                      placeholder="请输入客户在该平台的账号 ID"
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -497,7 +539,7 @@ export default function EditLeadPage() {
                 <Input
                   id="chat_screenshots"
                   type="file"
-                  accept="image/*"
+                  accept={CHAT_SCREENSHOT_ACCEPT}
                   multiple
                   onChange={handleChatScreenshotChange}
                   disabled={isUploadingFile}

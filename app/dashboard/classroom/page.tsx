@@ -8,9 +8,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollableTable } from "@/components/ui/scrollable-table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SearchableSelect } from "@/components/ui/searchable-select"
-import { Loader2 } from "lucide-react"
+import { Download, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { api } from "@/lib/fetch"
+import { usePermission } from "@/lib/hooks/usePermission"
+import { summarizeError } from "@/lib/safe-error"
 
 interface Course {
   id: string
@@ -43,6 +49,43 @@ const COURSE_STATUS_MAP: Record<string, { label: string; color: string }> = {
   'cancelled': { label: '已取消', color: 'bg-red-100 text-red-800' },
 }
 
+const CLASS_SESSION_STATUS_OPTIONS = [
+  { value: "all", label: "全部状态" },
+  { value: "scheduled", label: "未开始" },
+  { value: "completed", label: "已完成" },
+  { value: "cancelled", label: "已取消" },
+  { value: "missed", label: "缺课" },
+  { value: "no-show", label: "未到课" },
+]
+
+function formatDateInputValue(date: Date) {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  return localDate.toISOString().slice(0, 10)
+}
+
+function getDefaultExportRange() {
+  const now = new Date()
+  return {
+    startDate: formatDateInputValue(new Date(now.getFullYear(), now.getMonth(), 1)),
+    endDate: formatDateInputValue(now),
+    status: "all",
+  }
+}
+
+function getFilenameFromDisposition(disposition: string | null, fallback: string) {
+  if (!disposition) return fallback
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i)
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1])
+    } catch {
+      return fallback
+    }
+  }
+  const quotedMatch = disposition.match(/filename="?([^";]+)"?/i)
+  return quotedMatch?.[1] || fallback
+}
+
 // 解析课程消耗信息
 const parseConsumptionInfo = (info: string | null | undefined): { totalSessions: number; completedSessions: number; progress: number } => {
   if (!info) return { totalSessions: 0, completedSessions: 0, progress: 0 }
@@ -58,29 +101,27 @@ export default function ClassroomPage() {
   const [courses, setCourses] = useState<Course[]>([])
   const [students, setStudents] = useState<Array<{ id: string; name: string }>>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isExporting, setIsExporting] = useState(false)
   const [totalCount, setTotalCount] = useState(0)
   const { toast } = useToast()
+  const { classSessions: classSessionsPermission, isLoading: isPermissionLoading } = usePermission()
+  const canExportClassSessions = !isPermissionLoading && classSessionsPermission.edit()
 
   // 筛选条件
   const [filters, setFilters] = useState({
     studentId: '',
   })
+  const [exportFilters, setExportFilters] = useState(getDefaultExportRange)
 
   const fetchCourses = async () => {
     try {
       setIsLoading(true)
-      const token = localStorage.getItem('supabase.auth.token')
-
       const params = new URLSearchParams()
       if (filters.studentId) {
         params.append('studentId', filters.studentId)
       }
 
-      const response = await fetch(`/api/classrooms/scheduled?${params.toString()}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
+      const response = await api.get(`/api/classrooms/scheduled?${params.toString()}`)
 
       if (!response.ok) {
         throw new Error('获取课程列表失败')
@@ -103,12 +144,7 @@ export default function ClassroomPage() {
   // 加载学生列表
   const fetchStudents = async () => {
     try {
-      const token = localStorage.getItem('supabase.auth.token')
-      const response = await fetch('/api/students', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
+      const response = await api.get('/api/students')
 
       if (response.ok) {
         const result = await response.json()
@@ -120,7 +156,91 @@ export default function ClassroomPage() {
         setStudents(formattedStudents)
       }
     } catch (error) {
-      console.error('加载学生列表失败:', error)
+      console.error('加载学生列表失败:', summarizeError(error))
+    }
+  }
+
+  const exportClassSessions = async () => {
+    if (!canExportClassSessions) {
+      toast({
+        variant: "destructive",
+        title: "权限不足",
+        description: "当前账号无权导出课节",
+      })
+      return
+    }
+
+    if (!exportFilters.startDate || !exportFilters.endDate) {
+      toast({
+        variant: "destructive",
+        title: "请选择日期范围",
+        description: "开始日期和结束日期都不能为空",
+      })
+      return
+    }
+
+    if (exportFilters.startDate > exportFilters.endDate) {
+      toast({
+        variant: "destructive",
+        title: "日期范围无效",
+        description: "开始日期不能晚于结束日期",
+      })
+      return
+    }
+
+    try {
+      setIsExporting(true)
+      const params = new URLSearchParams({
+        start_date: exportFilters.startDate,
+        end_date: exportFilters.endDate,
+      })
+
+      if (exportFilters.status !== "all") {
+        params.set("status", exportFilters.status)
+      }
+
+      const response = await api.get(`/api/class-sessions/export?${params.toString()}`)
+
+      if (!response.ok) {
+        let message = "导出课节失败"
+        try {
+          const result = await response.clone().json()
+          message = result.error || message
+        } catch {
+          // CSV endpoint may not return JSON on unexpected infrastructure errors.
+        }
+        throw new Error(message)
+      }
+
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = getFilenameFromDisposition(
+        response.headers.get("Content-Disposition"),
+        `class-sessions-${exportFilters.startDate}-to-${exportFilters.endDate}.csv`
+      )
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+
+      const rowCount = response.headers.get("X-Export-Row-Count") || "0"
+      const limited = response.headers.get("X-Export-Limited") === "true"
+      toast({
+        title: "导出完成",
+        description: limited
+          ? `已导出前 ${rowCount} 条课节，请缩小日期范围获取完整数据`
+          : `已导出 ${rowCount} 条课节`,
+      })
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "导出失败",
+        description: error.message || "无法导出课节",
+      })
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -154,7 +274,7 @@ export default function ClassroomPage() {
         <Card className="h-full flex flex-col">
           <CardContent className="flex-1 flex flex-col p-6 overflow-hidden">
             {/* 筛选条件 */}
-            <div className="mb-6 grid grid-cols-1 md:grid-cols-1 gap-4">
+            <div className="mb-6 space-y-4">
               <div className="flex items-center gap-2">
                 <div className="flex-1">
                   <SearchableSelect
@@ -177,6 +297,60 @@ export default function ClassroomPage() {
                   </Button>
                 )}
               </div>
+
+              {canExportClassSessions && (
+                <div className="grid grid-cols-1 gap-3 border-t pt-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(160px,200px)_auto] md:items-end">
+                  <div className="space-y-2">
+                    <Label htmlFor="export-start-date">导出开始日期</Label>
+                    <Input
+                      id="export-start-date"
+                      type="date"
+                      value={exportFilters.startDate}
+                      onChange={(event) => setExportFilters(prev => ({ ...prev, startDate: event.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="export-end-date">导出结束日期</Label>
+                    <Input
+                      id="export-end-date"
+                      type="date"
+                      value={exportFilters.endDate}
+                      onChange={(event) => setExportFilters(prev => ({ ...prev, endDate: event.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>课节状态</Label>
+                    <Select
+                      value={exportFilters.status}
+                      onValueChange={(value) => setExportFilters(prev => ({ ...prev, status: value }))}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CLASS_SESSION_STATUS_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={exportClassSessions}
+                    disabled={isExporting}
+                    className="w-full md:w-auto"
+                  >
+                    {isExporting ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="mr-2 h-4 w-4" />
+                    )}
+                    导出课节
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-between items-center mb-6 flex-shrink-0">

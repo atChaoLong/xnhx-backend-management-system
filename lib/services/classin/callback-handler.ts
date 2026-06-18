@@ -7,11 +7,230 @@ import { ClassInCallbackData, MessageHandler } from './callback-types';
 import crypto from 'crypto';
 import { supabaseServer } from '@/lib/supabase';
 import { createLogger } from '@/lib/logger';
+import { summarizeError } from '@/lib/safe-error';
 
 const logger = createLogger('ClassIn:Callback');
 
 // ClassIn 安全密钥，从环境变量获取
 const CLASSIN_SECRET = process.env.CLASSIN_SECRET || 'your-secret-key';
+
+type CallbackEventOptions = {
+  eventType: string;
+  details?: Record<string, any>;
+};
+
+function parseJsonMessage(data: ClassInCallbackData): Record<string, any> | null {
+  if (typeof data.Msg !== 'string' || !data.Msg.trim()) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(data.Msg);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : { value: parsed };
+  } catch {
+    return null;
+  }
+}
+
+function removeSensitiveCallbackFields(data: ClassInCallbackData): Record<string, any> {
+  const { SafeKey: _safeKey, ...safeData } = data;
+  return safeData;
+}
+
+function getFirstValue(data: ClassInCallbackData, msgData: Record<string, any> | null, keys: string[]): any {
+  for (const key of keys) {
+    if (data[key] !== undefined && data[key] !== null && data[key] !== '') {
+      return data[key];
+    }
+    if (msgData?.[key] !== undefined && msgData[key] !== null && msgData[key] !== '') {
+      return msgData[key];
+    }
+  }
+
+  return null;
+}
+
+function toNullableNumber(value: any): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function getCallbackEventTime(data: ClassInCallbackData, msgData: Record<string, any> | null): string | null {
+  const timestamp = toNullableNumber(getFirstValue(data, msgData, [
+    'TimeStamp',
+    'timestamp',
+    'time',
+    'Time',
+    'StartTime',
+  ]));
+
+  if (!timestamp) {
+    return null;
+  }
+
+  const milliseconds = timestamp > 10_000_000_000 ? timestamp : timestamp * 1000;
+  const date = new Date(milliseconds);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+async function findCallbackSessionId(
+  data: ClassInCallbackData,
+  msgData: Record<string, any> | null,
+  classId: number | null,
+  courseId: number | null
+): Promise<string | null> {
+  try {
+    if (classId) {
+      const { data: session, error } = await supabaseServer
+        .from('class_sessions')
+        .select('id')
+        .eq('classroom_id', classId.toString())
+        .maybeSingle();
+
+      if (error) {
+        logger.warn('按 ClassIn 课堂 ID 匹配课节失败', {
+          classroomId: classId,
+          ...summarizeError(error),
+        });
+      } else if (session?.id) {
+        return session.id;
+      }
+    }
+
+    if (!courseId) {
+      return null;
+    }
+
+    const { data: course, error: courseError } = await supabaseServer
+      .from('courses')
+      .select('id')
+      .eq('classin_course_id', courseId)
+      .maybeSingle();
+
+    if (courseError || !course?.id) {
+      if (courseError) {
+        logger.warn('按 ClassIn 课程 ID 匹配本地课程失败', {
+          courseId,
+          ...summarizeError(courseError),
+        });
+      }
+      return null;
+    }
+
+    const startTime = toNullableNumber(getFirstValue(data, msgData, ['StartTime', 'startTime', 'start_time']));
+    let query = supabaseServer
+      .from('class_sessions')
+      .select('id')
+      .eq('course_id', course.id)
+      .order('scheduled_date', { ascending: false })
+      .order('scheduled_time_start', { ascending: false })
+      .limit(1);
+
+    if (startTime) {
+      query = query.lte('scheduled_date', new Date(startTime * 1000).toISOString());
+    }
+
+    const { data: session, error: sessionError } = await query.maybeSingle();
+
+    if (sessionError) {
+      logger.warn('按 ClassIn 课程 ID 匹配课节失败', {
+        courseId,
+        localCourseId: course.id,
+        ...summarizeError(sessionError),
+      });
+      return null;
+    }
+
+    return session?.id || null;
+  } catch (error: unknown) {
+    logger.warn('匹配 ClassIn 回调课节异常', summarizeError(error));
+    return null;
+  }
+}
+
+async function persistCallbackEvent(data: ClassInCallbackData, options: CallbackEventOptions): Promise<void> {
+  const msgData = parseJsonMessage(data);
+  const classId = toNullableNumber(getFirstValue(data, msgData, ['ClassID', 'classId', 'class_id', 'ClassId']));
+  const courseId = toNullableNumber(getFirstValue(data, msgData, ['CourseID', 'courseId', 'course_id', 'CourseId']));
+  const activityId = toNullableNumber(getFirstValue(data, msgData, ['ActivityID', 'activityId', 'activity_id', 'ActivityId']));
+  const classinUid = toNullableNumber(getFirstValue(data, msgData, ['UID', 'uid', 'UserID', 'userId', 'user_id']));
+  const sid = toNullableNumber(data.SID);
+
+  try {
+    const sessionId = await findCallbackSessionId(data, msgData, classId, courseId);
+    const { error } = await supabaseServer
+      .from('classin_callback_events')
+      .insert({
+        event_type: options.eventType,
+        cmd: data.Cmd,
+        sid,
+        classin_uid: classinUid,
+        course_id: courseId,
+        classroom_id: classId,
+        activity_id: activityId,
+        session_id: sessionId,
+        event_time: getCallbackEventTime(data, msgData),
+        payload: {
+          callback: removeSensitiveCallbackFields(data),
+          parsed_msg: msgData,
+          details: options.details || {},
+        },
+      });
+
+    if (error) {
+      logger.warn('保存 ClassIn 回调事件失败', {
+        eventType: options.eventType,
+        cmd: data.Cmd,
+        ...summarizeError(error),
+      });
+      return;
+    }
+
+    logger.info('ClassIn 回调事件已保存', {
+      eventType: options.eventType,
+      cmd: data.Cmd,
+      sessionId,
+      hasClassinUid: Boolean(classinUid),
+    });
+  } catch (error: unknown) {
+    logger.warn('保存 ClassIn 回调事件异常', {
+      eventType: options.eventType,
+      cmd: data.Cmd,
+      ...summarizeError(error),
+    });
+  }
+}
+
+function summarizeCallbackData(data: ClassInCallbackData) {
+  const fields = Object.keys(data || {})
+    .filter((field) => field !== 'SafeKey' && field !== 'Msg')
+    .sort();
+
+  return {
+    cmd: data?.Cmd,
+    sid: data?.SID,
+    class_id: data?.ClassID || data?.classId,
+    course_id: data?.CourseID || data?.courseId,
+    timestamp: data?.TimeStamp,
+    has_uid: data?.UID !== undefined,
+    has_msg: Boolean(data?.Msg),
+    msg_length: typeof data?.Msg === 'string' ? data.Msg.length : undefined,
+    has_safe_key: Boolean(data?.SafeKey),
+    fields,
+  };
+}
+
+function logCallbackHandler(messageType: string, data: ClassInCallbackData): void {
+  logger.debug(`处理${messageType}`, summarizeCallbackData(data));
+}
 
 /**
  * 验证安全密钥
@@ -25,10 +244,10 @@ export function verifySafeKey(safeKey: string, timeStamp: number): boolean {
       .createHash('md5')
       .update(CLASSIN_SECRET + timeStamp)
       .digest('hex');
-    
+
     return safeKey === expectedSafeKey;
-  } catch (error) {
-    console.error('SafeKey verification error:', error);
+  } catch (error: unknown) {
+    logger.error('SafeKey 验证异常', summarizeError(error));
     return false;
   }
 }
@@ -39,149 +258,146 @@ export function verifySafeKey(safeKey: string, timeStamp: number): boolean {
  * @param data 消息数据
  */
 function logMessage(messageType: string, data: ClassInCallbackData): void {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] 收到 ClassIn 消息类型: ${messageType}`);
-  console.log('SID:', data.SID);
-  console.log('数据:', JSON.stringify(data, null, 2));
+  logger.debug('收到 ClassIn 回调消息', {
+    message_type: messageType,
+    ...summarizeCallbackData(data),
+  });
 }
 
 /**
  * 处理举手消息
  */
 async function handleRaiseHand(data: ClassInCallbackData): Promise<void> {
-  console.log('处理举手消息:', data);
-  // TODO: 保存举手记录到数据库
-  // await db.raiseHands.create({
-  //   data: {
-  //     userId: data.UID,
-  //     userName: data.userName,
-  //     lessonId: data.lessonId,
-  //     duration: data.duration,
-  //     timestamp: new Date()
-  //   }
-  // });
+  logCallbackHandler('举手消息', data);
+  await persistCallbackEvent(data, { eventType: 'raise_hand' });
 }
 
 /**
  * 处理奖励消息
  */
 async function handleReward(data: ClassInCallbackData): Promise<void> {
-  console.log('处理奖励消息:', data);
-  // TODO: 保存奖励记录到数据库
+  logCallbackHandler('奖励消息', data);
+  await persistCallbackEvent(data, { eventType: 'reward' });
 }
 
 /**
  * 处理进入教室消息
  */
 async function handleEnterRoom(data: ClassInCallbackData): Promise<void> {
-  console.log('处理进入教室消息:', data);
-  // TODO: 保存进入教室记录到数据库
+  logCallbackHandler('进入教室消息', data);
+  await persistCallbackEvent(data, { eventType: 'enter_room' });
 }
 
 /**
  * 处理退出教室消息
  */
 async function handleLeaveRoom(data: ClassInCallbackData): Promise<void> {
-  console.log('处理退出教室消息:', data);
-  // TODO: 保存退出教室记录到数据库
+  logCallbackHandler('退出教室消息', data);
+  await persistCallbackEvent(data, { eventType: 'leave_room' });
 }
 
 /**
  * 处理授权消息
  */
 async function handleAuth(data: ClassInCallbackData): Promise<void> {
-  console.log('处理授权消息:', data);
-  // TODO: 处理授权逻辑
+  logCallbackHandler('授权消息', data);
+  await persistCallbackEvent(data, { eventType: 'auth' });
 }
 
 /**
  * 处理全体静音消息
  */
 async function handleMuteAll(data: ClassInCallbackData): Promise<void> {
-  console.log('处理全体静音消息:', data);
+  logCallbackHandler('全体静音消息', data);
+  await persistCallbackEvent(data, { eventType: 'mute_all' });
 }
 
 /**
  * 处理个人静音消息
  */
 async function handleMute(data: ClassInCallbackData): Promise<void> {
-  console.log('处理个人静音消息:', data);
+  logCallbackHandler('个人静音消息', data);
+  await persistCallbackEvent(data, { eventType: 'mute' });
 }
 
 /**
  * 处理答题器消息
  */
 async function handleAnswer(data: ClassInCallbackData): Promise<void> {
-  console.log('处理答题器消息:', data);
-  // TODO: 保存答题结果到数据库
+  logCallbackHandler('答题器消息', data);
+  await persistCallbackEvent(data, { eventType: 'answer' });
 }
 
 /**
  * 处理抢答器消息
  */
 async function handleGrab(data: ClassInCallbackData): Promise<void> {
-  console.log('处理抢答器消息:', data);
-  // TODO: 保存抢答结果到数据库
+  logCallbackHandler('抢答器消息', data);
+  await persistCallbackEvent(data, { eventType: 'grab' });
 }
 
 /**
  * 处理上下台消息
  */
 async function handleOnStage(data: ClassInCallbackData): Promise<void> {
-  console.log('处理上下台消息:', data);
+  logCallbackHandler('上下台消息', data);
+  await persistCallbackEvent(data, { eventType: 'on_stage' });
 }
 
 /**
  * 处理课节网络状态
  */
 async function handleNetworkStatus(data: ClassInCallbackData): Promise<void> {
-  console.log('处理课节网络状态:', data);
-  // TODO: 保存网络状态到数据库
+  logCallbackHandler('课节网络状态', data);
+  await persistCallbackEvent(data, { eventType: 'network_status' });
 }
 
 /**
  * 处理设备检测消息
  */
 async function handleDeviceCheck(data: ClassInCallbackData): Promise<void> {
-  console.log('处理设备检测消息:', data);
+  logCallbackHandler('设备检测消息', data);
+  await persistCallbackEvent(data, { eventType: 'device_check' });
 }
 
 /**
  * 处理求助消息
  */
 async function handleHelp(data: ClassInCallbackData): Promise<void> {
-  console.log('处理求助消息:', data);
-  // TODO: 处理求助逻辑，可能需要发送通知
+  logCallbackHandler('求助消息', data);
+  await persistCallbackEvent(data, { eventType: 'help' });
 }
 
 /**
  * 处理延长课节时长消息
  */
 async function handleExtendLesson(data: ClassInCallbackData): Promise<void> {
-  console.log('处理延长课节时长消息:', data);
+  logCallbackHandler('延长课节时长消息', data);
+  await persistCallbackEvent(data, { eventType: 'extend_lesson' });
 }
 
 /**
  * 处理启动录课详情
  */
 async function handleRecordStart(data: ClassInCallbackData): Promise<void> {
-  console.log('处理启动录课详情:', data);
+  logCallbackHandler('启动录课详情', data);
+  await persistCallbackEvent(data, { eventType: 'record_start' });
 }
 
 /**
  * 处理大黑板板书图片
  */
 async function handleBlackboardImage(data: ClassInCallbackData): Promise<void> {
-  console.log('处理大黑板板书图片:', data);
-  // TODO: 保存板书图片到存储服务
+  logCallbackHandler('大黑板板书图片', data);
+  await persistCallbackEvent(data, { eventType: 'blackboard_image' });
 }
 
 /**
  * 处理直播相关消息
  */
 async function handleLive(data: ClassInCallbackData): Promise<void> {
-  console.log('处理直播相关消息:', data);
-  // TODO: 处理直播相关逻辑
+  logCallbackHandler('直播相关消息', data);
+  await persistCallbackEvent(data, { eventType: 'live' });
 }
 
 /**
@@ -190,7 +406,7 @@ async function handleLive(data: ClassInCallbackData): Promise<void> {
  */
 async function handleLessonSummary(data: ClassInCallbackData): Promise<void> {
   try {
-    logger.info('收到课后汇总回调', { data });
+    logger.info('收到课后汇总回调', summarizeCallbackData(data));
 
     // 从 Msg 中解析数据（可能是 JSON 字符串）
     let msgData: any = {};
@@ -198,7 +414,7 @@ async function handleLessonSummary(data: ClassInCallbackData): Promise<void> {
       try {
         msgData = JSON.parse(data.Msg);
       } catch (e) {
-        logger.warn('解析 Msg 数据失败', { Msg: data.Msg });
+        logger.warn('解析 Msg 数据失败', summarizeCallbackData(data));
       }
     } else {
       msgData = data;
@@ -208,7 +424,7 @@ async function handleLessonSummary(data: ClassInCallbackData): Promise<void> {
     const activityId = msgData.activity_id || data.activityId;
 
     if (!classId) {
-      logger.warn('课后汇总缺少 class_id', { data });
+      logger.warn('课后汇总缺少 class_id', summarizeCallbackData(data));
       return;
     }
 
@@ -220,7 +436,11 @@ async function handleLessonSummary(data: ClassInCallbackData): Promise<void> {
       .maybeSingle();
 
     if (classroomError || !classroomClassin) {
-      logger.warn('未找到对应的 classroom_classin 记录', { classId, error: classroomError?.message });
+      logger.warn('未找到对应的 classroom_classin 记录', {
+        classId,
+        hasDbError: Boolean(classroomError),
+        ...(classroomError ? summarizeError(classroomError) : {}),
+      });
       return;
     }
 
@@ -232,7 +452,11 @@ async function handleLessonSummary(data: ClassInCallbackData): Promise<void> {
       .single();
 
     if (sessionError || !session) {
-      logger.warn('未找到对应的课节记录', { classId, error: sessionError?.message });
+      logger.warn('未找到对应的课节记录', {
+        classId,
+        hasDbError: Boolean(sessionError),
+        ...(sessionError ? summarizeError(sessionError) : {}),
+      });
       return;
     }
 
@@ -251,7 +475,10 @@ async function handleLessonSummary(data: ClassInCallbackData): Promise<void> {
       .eq('id', session.id);
 
     if (updateError) {
-      logger.error('更新课节状态失败', { sessionId: session.id, error: updateError.message });
+      logger.error('更新课节状态失败', {
+        sessionId: session.id,
+        ...summarizeError(updateError),
+      });
       return;
     }
 
@@ -272,8 +499,8 @@ async function handleLessonSummary(data: ClassInCallbackData): Promise<void> {
       teacherId: session.teacher_id,
     });
 
-  } catch (error: any) {
-    logger.error('处理课后汇总时出错', { error: error.message, stack: error.stack });
+  } catch (error: unknown) {
+    logger.error('处理课后汇总时出错', summarizeError(error));
     // 不抛出错误，避免影响 ClassIn 回调
   }
 }
@@ -290,7 +517,10 @@ async function updateCourseStats(courseId: string): Promise<void> {
       .eq('course_id', courseId);
 
     if (sessionsError) {
-      logger.warn('获取课程所有课节失败', { courseId, message: sessionsError.message });
+      logger.warn('获取课程所有课节失败', {
+        courseId,
+        ...summarizeError(sessionsError),
+      });
       return;
     }
 
@@ -326,12 +556,15 @@ async function updateCourseStats(courseId: string): Promise<void> {
       .eq('id', courseId);
 
     if (updateError) {
-      logger.warn('更新课程统计信息失败', { courseId, message: updateError.message });
+      logger.warn('更新课程统计信息失败', {
+        courseId,
+        ...summarizeError(updateError),
+      });
     } else {
       logger.info('课程统计信息已更新', { courseId, totalSessions, completedSessions, progress });
     }
-  } catch (error: any) {
-    logger.warn('更新课程统计信息异常', { message: error.message });
+  } catch (error: unknown) {
+    logger.warn('更新课程统计信息异常', summarizeError(error));
   }
 }
 
@@ -351,12 +584,15 @@ async function updateTeacherHoursByName(teacherName: string, minutes: number): P
       .maybeSingle();
 
     if (fetchError) {
-      logger.warn('获取老师信息失败', { teacherName, message: fetchError.message });
+      logger.warn('获取老师信息失败', {
+        hasTeacherName: Boolean(teacherName),
+        ...summarizeError(fetchError),
+      });
       return;
     }
 
     if (!teacher) {
-      logger.warn('未找到对应的老师记录', { teacherName });
+      logger.warn('未找到对应的老师记录', { hasTeacherName: Boolean(teacherName) });
       return;
     }
 
@@ -372,18 +608,25 @@ async function updateTeacherHoursByName(teacherName: string, minutes: number): P
       .eq('id', teacher.id);
 
     if (updateError) {
-      logger.warn('更新老师课时失败', { teacherId: teacher.id, teacherName, message: updateError.message });
+      logger.warn('更新老师课时失败', {
+        teacherId: teacher.id,
+        hasTeacherName: Boolean(teacherName),
+        ...summarizeError(updateError),
+      });
     } else {
       logger.info('老师课时已更新', {
         teacherId: teacher.id,
-        teacherName,
+        hasTeacherName: Boolean(teacherName),
         previousHours: currentHours,
         addedHours: hours,
         newHours
       });
     }
-  } catch (error: any) {
-    logger.warn('更新老师课时异常', { teacherName, message: error.message });
+  } catch (error: unknown) {
+    logger.warn('更新老师课时异常', {
+      hasTeacherName: Boolean(teacherName),
+      ...summarizeError(error),
+    });
   }
 }
 
@@ -391,8 +634,8 @@ async function updateTeacherHoursByName(teacherName: string, minutes: number): P
  * 处理课节评价和评分
  */
 async function handleLessonEvaluation(data: ClassInCallbackData): Promise<void> {
-  console.log('处理课节评价和评分:', data);
-  // TODO: 保存评价数据到数据库
+  logCallbackHandler('课节评价和评分', data);
+  await persistCallbackEvent(data, { eventType: 'lesson_evaluation' });
 }
 
 /**
@@ -429,7 +672,11 @@ async function handleEnd(data: ClassInCallbackData): Promise<void> {
       .maybeSingle();
 
     if (courseError || !course) {
-      logger.warn('未找到对应的课程记录', { courseId, error: courseError?.message });
+      logger.warn('未找到对应的课程记录', {
+        courseId,
+        hasDbError: Boolean(courseError),
+        ...(courseError ? summarizeError(courseError) : {}),
+      });
       return;
     }
 
@@ -463,7 +710,11 @@ async function handleEnd(data: ClassInCallbackData): Promise<void> {
       .maybeSingle();
 
     if (sessionError) {
-      logger.warn('查询课节记录失败', { courseId, courseLocalId: course.id, error: sessionError.message });
+      logger.warn('查询课节记录失败', {
+        courseId,
+        courseLocalId: course.id,
+        ...summarizeError(sessionError),
+      });
       return;
     }
 
@@ -552,7 +803,10 @@ async function handleEnd(data: ClassInCallbackData): Promise<void> {
       .eq('id', session.id);
 
     if (updateError) {
-      logger.error('更新课节状态失败', { sessionId: session.id, error: updateError.message });
+      logger.error('更新课节状态失败', {
+        sessionId: session.id,
+        ...summarizeError(updateError),
+      });
       return;
     }
 
@@ -589,8 +843,8 @@ async function handleEnd(data: ClassInCallbackData): Promise<void> {
       finalCloseTime,
     });
 
-  } catch (error: any) {
-    logger.error('处理课堂结束时出错', { error: error.message, stack: error.stack });
+  } catch (error: unknown) {
+    logger.error('处理课堂结束时出错', summarizeError(error));
   }
 }
 
@@ -628,13 +882,13 @@ async function saveClassSessionStatistics(
     if (insertError) {
       logger.warn('保存课堂统计数据失败', {
         sessionId,
-        error: insertError.message,
+        ...summarizeError(insertError),
       });
     } else {
       logger.info('课堂统计数据已保存', { sessionId });
     }
-  } catch (error: any) {
-    logger.warn('保存课堂统计数据异常', { message: error.message });
+  } catch (error: unknown) {
+    logger.warn('保存课堂统计数据异常', summarizeError(error));
   }
 }
 
@@ -714,7 +968,7 @@ async function saveStudentParticipationRecords(
     if (insertError) {
       logger.warn('保存学生参与记录失败', {
         sessionId,
-        error: insertError.message,
+        ...summarizeError(insertError),
       });
     } else {
       logger.info('学生参与记录已保存', {
@@ -722,8 +976,8 @@ async function saveStudentParticipationRecords(
         count: participations.length,
       });
     }
-  } catch (error: any) {
-    logger.warn('保存学生参与记录异常', { message: error.message });
+  } catch (error: unknown) {
+    logger.warn('保存学生参与记录异常', summarizeError(error));
   }
 }
 
@@ -743,7 +997,10 @@ async function updateTeacherHours(teacherId: string, minutes: number): Promise<v
       .maybeSingle();
 
     if (fetchError) {
-      logger.warn('获取老师信息失败', { teacherId, message: fetchError.message });
+      logger.warn('获取老师信息失败', {
+        teacherId,
+        ...summarizeError(fetchError),
+      });
       return;
     }
 
@@ -762,7 +1019,10 @@ async function updateTeacherHours(teacherId: string, minutes: number): Promise<v
       .eq('id', teacherId);
 
     if (updateError) {
-      logger.warn('更新老师课时失败', { teacherId, message: updateError.message });
+      logger.warn('更新老师课时失败', {
+        teacherId,
+        ...summarizeError(updateError),
+      });
     } else {
       logger.info('老师课时已更新', {
         teacherId,
@@ -771,8 +1031,11 @@ async function updateTeacherHours(teacherId: string, minutes: number): Promise<v
         newHours,
       });
     }
-  } catch (error: any) {
-    logger.warn('更新老师课时异常', { teacherId, message: error.message });
+  } catch (error: unknown) {
+    logger.warn('更新老师课时异常', {
+      teacherId,
+      ...summarizeError(error),
+    });
   }
 }
 
@@ -780,56 +1043,56 @@ async function updateTeacherHours(teacherId: string, minutes: number): Promise<v
  * 处理录课文件
  */
 async function handleLessonRecord(data: ClassInCallbackData): Promise<void> {
-  console.log('处理录课文件:', data);
-  // TODO: 保存录课文件信息到数据库
+  logCallbackHandler('录课文件', data);
+  await persistCallbackEvent(data, { eventType: 'lesson_record' });
 }
 
 /**
  * 处理多人多题答题信息
  */
 async function handleQuizResult(data: ClassInCallbackData): Promise<void> {
-  console.log('处理多人多题答题信息:', data);
-  // TODO: 保存答题统计到数据库
+  logCallbackHandler('多人多题答题信息', data);
+  await persistCallbackEvent(data, { eventType: 'quiz_result' });
 }
 
 /**
  * 处理回放观看数据
  */
 async function handlePlayback(data: ClassInCallbackData): Promise<void> {
-  console.log('处理回放观看数据:', data);
-  // TODO: 保存观看记录到数据库
+  logCallbackHandler('回放观看数据', data);
+  await persistCallbackEvent(data, { eventType: 'playback' });
 }
 
 /**
  * 处理文件转换结果
  */
 async function handleFileConvert(data: ClassInCallbackData): Promise<void> {
-  console.log('处理文件转换结果:', data);
-  // TODO: 处理文件转换完成后的逻辑
+  logCallbackHandler('文件转换结果', data);
+  await persistCallbackEvent(data, { eventType: 'file_convert' });
 }
 
 /**
  * 处理账号注销
  */
 async function handleAccountCancel(data: ClassInCallbackData): Promise<void> {
-  console.log('处理账号注销:', data);
-  // TODO: 处理账号注销逻辑
+  logCallbackHandler('账号注销', data);
+  await persistCallbackEvent(data, { eventType: 'account_cancel' });
 }
 
 /**
  * 处理更换手机号
  */
 async function handleChangePhone(data: ClassInCallbackData): Promise<void> {
-  console.log('处理更换手机号:', data);
-  // TODO: 更新用户手机号
+  logCallbackHandler('更换手机号', data);
+  await persistCallbackEvent(data, { eventType: 'change_phone' });
 }
 
 /**
  * 处理设置子账号
  */
 async function handleSubAccount(data: ClassInCallbackData): Promise<void> {
-  console.log('处理设置子账号:', data);
-  // TODO: 处理子账号设置逻辑
+  logCallbackHandler('设置子账号', data);
+  await persistCallbackEvent(data, { eventType: 'sub_account' });
 }
 
 /**
@@ -843,7 +1106,7 @@ export async function handleMessage(cmd: string, data: ClassInCallbackData): Pro
   try {
     switch (cmd) {
       case 'Test':
-        console.log('✅ 收到测试消息');
+        logger.debug('收到 ClassIn 测试消息', summarizeCallbackData(data));
         break;
 
       case 'raiseHand':
@@ -960,12 +1223,17 @@ export async function handleMessage(cmd: string, data: ClassInCallbackData): Pro
         break;
 
       default:
-        console.log(`⚠️  未处理的消息类型: ${cmd}`);
-        console.log('数据:', JSON.stringify(data, null, 2));
+        logger.warn('未处理的 ClassIn 回调消息类型', {
+          message_type: cmd,
+          ...summarizeCallbackData(data),
+        });
         break;
     }
-  } catch (error) {
-    console.error(`处理消息 ${cmd} 时发生错误:`, error);
+  } catch (error: unknown) {
+    logger.error('处理 ClassIn 回调消息时发生错误', {
+      message_type: cmd,
+      ...summarizeError(error),
+    });
     // 不抛出错误，避免影响 ClassIn 的回调重试机制
     // ClassIn 期望收到成功响应，即使处理失败也要返回成功状态
   }

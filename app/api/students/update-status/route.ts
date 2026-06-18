@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { authenticateUser } from '@/lib/middleware'
 import { createLogger } from '@/lib/logger'
+import { getCurrentProfile } from '@/lib/server-data-scope'
+import { getAccessibleStudentIds, hasScopedIdAccess } from '@/lib/server-business-scope'
+import { summarizeError } from '@/lib/safe-error'
 
 const logger = createLogger('API:UpdateStudentStatus')
+const STUDENT_STATUS_UPDATE_SELECT = 'id,student_name,status,updated_at'
 
 export async function PUT(request: NextRequest) {
   try {
@@ -44,6 +48,23 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    const profile = await getCurrentProfile(request)
+    if (!profile) {
+      return NextResponse.json(
+        { error: '用户档案未配置，请联系管理员' },
+        { status: 403 }
+      )
+    }
+
+    const accessibleStudentIds = await getAccessibleStudentIds(profile)
+    if (!hasScopedIdAccess(accessibleStudentIds, studentId)) {
+      logger.warn('更新学生状态失败 - 无权访问学生', { studentId, user_id: profile.id, role: profile.role })
+      return NextResponse.json(
+        { error: '无权更新该学生状态' },
+        { status: 403 }
+      )
+    }
+
     // 4. 查询当前学生信息（使用 supabaseAdmin 绕过 RLS）
     const { data: student, error: fetchError } = await supabaseAdmin
       .from('students')
@@ -52,7 +73,7 @@ export async function PUT(request: NextRequest) {
       .single()
 
     if (fetchError || !student) {
-      logger.error('查询学生失败', { studentId, error: fetchError?.message })
+      logger.error('查询学生失败', { studentId, error_summary: summarizeError(fetchError) })
       return NextResponse.json(
         { error: '学生不存在' },
         { status: 404 }
@@ -75,11 +96,11 @@ export async function PUT(request: NextRequest) {
         updated_at: new Date().toISOString()
       })
       .eq('id', studentId)
-      .select()
+      .select(STUDENT_STATUS_UPDATE_SELECT)
       .single()
 
     if (updateError) {
-      logger.error('更新学生状态失败', { studentId, error: updateError.message })
+      logger.error('更新学生状态失败', { studentId, error_summary: summarizeError(updateError) })
       return NextResponse.json(
         { error: '更新失败' },
         { status: 500 }
@@ -101,17 +122,16 @@ export async function PUT(request: NextRequest) {
     if (historyError) {
       logger.warn('记录状态历史失败（不影响主流程）', {
         studentId,
-        error: historyError.message
+        error_summary: summarizeError(historyError)
       })
     }
 
     // 8. 记录操作日志
     logger.info('学生状态已更新', {
       studentId,
-      studentName: student.student_name,
       oldStatus: student.status,
       newStatus: status,
-      reason,
+      has_reason: typeof reason === 'string' && reason.trim().length > 0,
       changedBy: authResult.userId
     })
 
@@ -122,7 +142,7 @@ export async function PUT(request: NextRequest) {
     })
 
   } catch (error: any) {
-    logger.error('更新学生状态异常', { error: error.message, stack: error.stack })
+    logger.error('更新学生状态异常', { error_summary: summarizeError(error) })
     return NextResponse.json(
       { error: '服务器错误' },
       { status: 500 }

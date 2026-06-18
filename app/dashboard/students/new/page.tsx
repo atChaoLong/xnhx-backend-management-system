@@ -19,6 +19,7 @@ import { StudentsService, NewStudent } from "@/lib/services/students"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
+import { summarizeError } from "@/lib/safe-error"
 
 export default function NewStudentPage() {
   const router = useRouter()
@@ -57,7 +58,7 @@ export default function NewStudentPage() {
           regions: dicts.province || [],
         })
       } catch (error) {
-        console.error("加载字典失败:", error)
+        console.error("加载字典失败:", summarizeError(error))
       } finally {
         setIsLoadingDict(false)
       }

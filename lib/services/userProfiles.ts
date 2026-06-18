@@ -2,6 +2,10 @@
  * 用户档案服务
  */
 import { api } from '@/lib/fetch'
+import { createLogger } from '@/lib/logger'
+import { summarizeError } from '@/lib/safe-error'
+
+const logger = createLogger('UserProfilesService')
 
 export interface UserProfile {
   id: string
@@ -26,8 +30,8 @@ export const UserProfilesService = {
       }
       const { data } = await response.json()
       return data || []
-    } catch (error: any) {
-      console.error('获取用户失败:', error)
+    } catch (error: unknown) {
+      logger.warn('获取用户失败', summarizeError(error))
       throw error
     }
   },

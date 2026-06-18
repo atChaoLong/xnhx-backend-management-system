@@ -30,8 +30,6 @@ export default function EditWechatAccountPage() {
     team: "",
     account_type: "",
     phone: "",
-    login_password: "",
-    payment_password: "",
     real_name_person: "",
     status: "active" as 'active' | 'inactive',
   })
@@ -53,8 +51,6 @@ export default function EditWechatAccountPage() {
           team: data.team || "",
           account_type: data.account_type || "",
           phone: data.phone || "",
-          login_password: data.login_password || "",
-          payment_password: data.payment_password || "",
           real_name_person: data.real_name_person || "",
           status: data.status || "active",
         })
@@ -86,8 +82,6 @@ export default function EditWechatAccountPage() {
       { field: 'wechat_name', name: '微信昵称' },
       { field: 'account_type', name: '账号类型' },
       { field: 'phone', name: '手机号' },
-      { field: 'login_password', name: '登录密码' },
-      { field: 'payment_password', name: '支付密码' },
       { field: 'real_name_person', name: '实名人' },
     ]
 
@@ -114,8 +108,6 @@ export default function EditWechatAccountPage() {
         team: formData.team.trim() || undefined,
         account_type: formData.account_type.trim(),
         phone: formData.phone.trim(),
-        login_password: formData.login_password.trim(),
-        payment_password: formData.payment_password.trim(),
         real_name_person: formData.real_name_person.trim(),
         status: formData.status,
       }
@@ -292,41 +284,6 @@ export default function EditWechatAccountPage() {
                     value={formData.responsible_consultant}
                     onChange={(e) => handleInputChange("responsible_consultant", e.target.value)}
                   />
-                </div>
-              </div>
-
-              {/* 密码信息 */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold">密码信息</h3>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="login_password">
-                      登录密码 <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="login_password"
-                      type="password"
-                      placeholder="请输入登录密码"
-                      value={formData.login_password}
-                      onChange={(e) => handleInputChange("login_password", e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="payment_password">
-                      支付密码 <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="payment_password"
-                      type="password"
-                      placeholder="请输入支付密码"
-                      value={formData.payment_password}
-                      onChange={(e) => handleInputChange("payment_password", e.target.value)}
-                      required
-                    />
-                  </div>
                 </div>
               </div>
 

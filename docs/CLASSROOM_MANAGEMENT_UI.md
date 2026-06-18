@@ -45,9 +45,10 @@
 在 `.env.local` 文件中配置以下环境变量：
 
 ```env
-# ClassIn 认证信息（用于前端页面）
-NEXT_PUBLIC_CLASSIN_SID="your-classin-sid"
-NEXT_PUBLIC_CLASSIN_SAFEKEY="your-classin-safekey"
+# ClassIn API v2 认证信息（仅服务端读取）
+CLASSIN_SID="your-classin-sid"
+CLASSIN_SECRET="your-classin-secret"
+CLASSIN_API_URL="api.eeo.cn"
 ```
 
 ## API 集成
@@ -57,6 +58,8 @@ NEXT_PUBLIC_CLASSIN_SAFEKEY="your-classin-safekey"
 1. **获取课节列表**: `GET /api/classroom-classin`
 2. **修改课节**: `PUT /api/classin/classrooms`
 3. **删除课节**: `DELETE /api/classin/classrooms`
+
+`GET /api/classroom-classin` 会按当前用户可访问课程/课节过滤镜像数据；修改和删除 ClassIn 远端课堂仅限 admin / academic_affairs。
 
 ## 使用流程
 
@@ -78,8 +81,8 @@ NEXT_PUBLIC_CLASSIN_SAFEKEY="your-classin-safekey"
 
 ## 安全注意事项
 
-1. **认证信息**: ClassIn的SID和safeKey应妥善保管
-2. **权限控制**: 确保用户有相应的课节管理权限
+1. **认证信息**: ClassIn SID 和 SECRET 只能放在服务端环境变量，不要使用 `NEXT_PUBLIC_*`
+2. **权限控制**: 修改或删除远端 ClassIn 课堂仅限 admin / academic_affairs
 3. **操作确认**: 删除操作需要二次确认
 4. **错误处理**: 所有操作都有完善的错误提示
 
@@ -97,7 +100,7 @@ NEXT_PUBLIC_CLASSIN_SAFEKEY="your-classin-safekey"
 - `fetchClassrooms()`: 获取课节列表
 - `handleEditClassroom()`: 处理编辑操作
 - `handleDeleteClassroom()`: 处理删除操作
-- `getClassInAuth()`: 获取ClassIn认证信息
+- ClassIn 认证由后端 SDK 根据服务端环境变量生成签名
 
 ### UI组件使用
 - `shadcn/ui` 组件库
@@ -118,7 +121,7 @@ NEXT_PUBLIC_CLASSIN_SAFEKEY="your-classin-safekey"
 ### 常见问题
 
 1. **无法加载列表**: 检查API端点和网络连接
-2. **编辑失败**: 检查ClassIn认证信息是否正确
+2. **编辑失败**: 检查服务端 ClassIn 环境变量和当前用户权限是否正确
 3. **删除失败**: 确认课节是否存在且可删除
 4. **权限错误**: 检查用户是否有相应权限
 
@@ -126,5 +129,5 @@ NEXT_PUBLIC_CLASSIN_SAFEKEY="your-classin-safekey"
 
 1. 打开浏览器开发者工具查看网络请求
 2. 检查控制台错误信息
-3. 验证环境变量配置
+3. 验证服务端环境变量配置
 4. 查看后端API日志

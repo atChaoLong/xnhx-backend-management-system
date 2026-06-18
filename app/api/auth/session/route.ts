@@ -1,56 +1,78 @@
-import { supabaseServer } from '@/lib/supabase'
+import { supabaseAuthServer } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
 import { createLogger } from '@/lib/logger'
+import { summarizeError } from '@/lib/safe-error'
+import { getActiveUserProfile } from '@/lib/server-active-profile'
+import { getRequestAccessToken } from '@/lib/server-auth-token'
 
 const logger = createLogger('Auth:Session')
 
+function sessionJson(body: unknown, init?: ResponseInit) {
+  const response = NextResponse.json(body, init)
+  response.headers.set('Cache-Control', 'no-store, max-age=0')
+  return response
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization')
-    const token = authHeader?.replace('Bearer ', '')
+    const token = getRequestAccessToken(request)
 
     if (!token) {
       logger.warn('Session 验证请求缺少 token')
-      return NextResponse.json(
-        { error: '未认证', hint: '未找到 Authorization header 或 token' },
+      return sessionJson(
+        { error: '未认证', hint: '未找到 Authorization header 或登录 cookie' },
         { status: 401 }
       )
     }
 
-    logger.debug('验证用户 session', { tokenLength: token?.length })
+    logger.debug('验证用户 session')
 
-    const { data: { user }, error } = await supabaseServer.auth.getUser(token)
+    const { data: { user }, error } = await supabaseAuthServer.auth.getUser(token)
 
     if (error || !user) {
-      logger.warn('Token 验证失败', {
-        error: error?.message,
-        status: error?.status,
-      })
-      return NextResponse.json(
+      logger.warn('Token 验证失败', error ? summarizeError(error) : { has_user: false })
+      return sessionJson(
         {
           error: '未认证',
-          details: error?.message || '无效的 token 或 token 已过期',
           hint: '请重新登录',
         },
         { status: 401 }
       )
     }
 
-    logger.debug('Session 验证成功', { userId: user.id, email: user.email })
-    return NextResponse.json({
+    const profileResult = await getActiveUserProfile(user.id, { accessToken: token })
+    if (profileResult.ok === false) {
+      logger.warn('Session 用户档案校验失败', {
+        userId: user.id,
+        code: profileResult.code,
+      })
+      return sessionJson(
+        {
+          error: profileResult.error,
+          code: profileResult.code,
+          hint: '请联系管理员',
+        },
+        { status: profileResult.status }
+      )
+    }
+
+    const profile = profileResult.profile
+
+    logger.debug('Session 验证成功', { userId: user.id })
+    return sessionJson({
       data: {
         user: {
           id: user.id,
-          email: user.email,
-          name: user.user_metadata?.name || user.email?.split('@')[0],
-          role: user.user_metadata?.role || 'user',
+          email: profile.email || user.email,
+          name: profile.name || user.email?.split('@')[0],
+          role: profile.role,
         },
       },
     })
-  } catch (error: any) {
-    logger.error('Session API 异常', { message: error.message, stack: error.stack })
-    return NextResponse.json(
-      { error: '未授权', details: error.message },
+  } catch (error: unknown) {
+    logger.error('Session API 异常', summarizeError(error))
+    return sessionJson(
+      { error: '未授权' },
       { status: 401 }
     )
   }

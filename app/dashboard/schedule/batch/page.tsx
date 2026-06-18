@@ -15,7 +15,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { WeeklySchedulePicker, type WeeklySchedule } from "@/components/ui/weekly-schedule-picker"
 import { SearchableSelect } from "@/components/ui/searchable-select"
 import { TimePicker } from "@/components/ui/time-picker"
-import { Loader2, Plus, Trash2, Calendar, Clock, User, GraduationCap } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Loader2, Plus, RefreshCw, Trash2, Calendar, Clock, User, GraduationCap } from "lucide-react"
 import { FormalOrdersService } from "@/lib/services/formalOrders"
 import { StudentsService } from "@/lib/services/students"
 import { TeachersService } from "@/lib/services/teachers"
@@ -25,6 +25,7 @@ import Link from "next/link"
 import { format, getDay } from "date-fns"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/fetch"
+import { summarizeError } from "@/lib/safe-error"
 
 // 星期几映射
 const WEEKDAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
@@ -40,6 +41,15 @@ const getWeekdayDisplay = (dateStr: string): string => {
   }
 }
 
+const getOrderStudentName = (order: any): string => {
+  return order?.student_name || order?.students?.student_name || ""
+}
+
+const withOrderStudentName = (order: any) => ({
+  ...order,
+  student_name: getOrderStudentName(order),
+})
+
 interface ScheduleItem {
   id: string
   studentId: string
@@ -51,6 +61,12 @@ interface ScheduleItem {
   startTime: string
   endTime: string
   classroom?: string
+}
+
+interface SchedulePrecheckIssue {
+  index: number
+  type: "error" | "warning"
+  message: string
 }
 
 export default function BatchSchedulePage() {
@@ -79,6 +95,9 @@ export default function BatchSchedulePage() {
 
   // 排课列表
   const [scheduleList, setScheduleList] = useState<ScheduleItem[]>([])
+  const [precheckIssues, setPrecheckIssues] = useState<SchedulePrecheckIssue[]>([])
+  const [isPrechecking, setIsPrechecking] = useState(false)
+  const [precheckCheckedAt, setPrecheckCheckedAt] = useState<string | null>(null)
 
   // 已扣课时（小时）
   const [existingHoursCount, setExistingHoursCount] = useState(0)
@@ -115,20 +134,7 @@ export default function BatchSchedulePage() {
         // 只显示进行中的订单
         const activeOrders = orderData.filter((order: any) => order.status === 'active')
 
-        // 为每个订单加载学生信息
-        const ordersWithStudentNames = await Promise.all(
-          activeOrders.map(async (order: any) => {
-            if (!order.student_name && order.student_id) {
-              try {
-                const student = await StudentsService.getStudentById(order.student_id)
-                return { ...order, student_name: student.student_name }
-              } catch (error) {
-                return order
-              }
-            }
-            return order
-          })
-        )
+        const ordersWithStudentNames = activeOrders.map(withOrderStudentName)
 
         setOrders(ordersWithStudentNames)
 
@@ -202,6 +208,63 @@ export default function BatchSchedulePage() {
     }
     return time
   }
+
+  const isNewScheduleItem = (item: ScheduleItem): boolean => {
+    return item.id.startsWith('preview-') ||
+      item.id.startsWith('schedule-') ||
+      item.id.startsWith('manual-')
+  }
+
+  const isExistingScheduleItem = (item: ScheduleItem): boolean => !isNewScheduleItem(item)
+
+  const buildPrecheckPayloadItems = (items: ScheduleItem[]) => {
+    return items.map(item => ({
+      studentName: item.studentName,
+      teacherName: item.teacherName,
+      subject: item.subject,
+      date: item.date,
+      startTime: item.startTime,
+      endTime: item.endTime,
+    }))
+  }
+
+  const getScheduleDurationMinutes = (item: ScheduleItem): number => {
+    const startParts = normalizeTimeFormat(item.startTime).split(':').map(Number)
+    const endParts = normalizeTimeFormat(item.endTime).split(':').map(Number)
+
+    if (startParts.length < 2 || endParts.length < 2) {
+      return 0
+    }
+
+    const start = (startParts[0] || 0) * 60 + (startParts[1] || 0)
+    const end = (endParts[0] || 0) * 60 + (endParts[1] || 0)
+    return Math.max(end - start, 0)
+  }
+
+  const getLocalPrecheckIssues = (items: ScheduleItem[]): SchedulePrecheckIssue[] => {
+    if (!selectedOrder?.total_hours) {
+      return []
+    }
+
+    const newItems = items.filter(isNewScheduleItem)
+    const newHours = newItems.reduce((sum, item) => sum + getScheduleDurationMinutes(item), 0) / 60
+    const remainingHours = Math.max(Number(selectedOrder.total_hours) - existingHoursCount, 0)
+
+    if (newHours > remainingHours) {
+      return [{
+        index: 1,
+        type: "error",
+        message: `待创建课时 ${newHours.toFixed(2)} 小时超过订单剩余课时 ${remainingHours.toFixed(2)} 小时`,
+      }]
+    }
+
+    return []
+  }
+
+  const hasBlockingPrecheckIssue = precheckIssues.some(issue => issue.type === "error")
+  const precheckErrorCount = precheckIssues.filter(issue => issue.type === "error").length
+  const precheckWarningCount = precheckIssues.filter(issue => issue.type === "warning").length
+  const newScheduleCount = scheduleList.filter(isNewScheduleItem).length
 
   // 生成班级课"每周一样"模式的课表
   const generateSameWeeklySchedule = (
@@ -316,16 +379,25 @@ export default function BatchSchedulePage() {
         throw new Error("订单不存在")
       }
 
-      // 获取学生信息
-      const student = await StudentsService.getStudentById(order.student_id)
+      const studentNameFromOrder = getOrderStudentName(order)
+      let studentName = studentNameFromOrder
 
-      const orderWithStudent = { ...order, student_name: student.student_name }
+      if (!studentName && order.student_id) {
+        try {
+          const student = await StudentsService.getStudentById(order.student_id)
+          studentName = student.student_name
+        } catch {
+          studentName = "未知学生"
+        }
+      }
+
+      const orderWithStudent = { ...order, student_name: studentName }
       setSelectedOrder(orderWithStudent)
 
       // 自动生成班级名称：学生-老师科目课
       const teacherName = order.teacher_names?.[0] || ''
       const subject = order.subjects?.[0] || ''
-      const autoClassName = `${student.student_name}-${teacherName}${subject}课`
+      const autoClassName = `${studentName || "未知学生"}-${teacherName}${subject}课`
       setClassName(autoClassName)
 
       // 将订单的 frequency 转换为字典 code
@@ -377,7 +449,7 @@ export default function BatchSchedulePage() {
                 const existingSessions: ScheduleItem[] = sortedSessions.map((session: any) => ({
                   id: session.id,
                   studentId: order.student_id,
-                  studentName: student.student_name || "未知学生",
+                  studentName: studentName || "未知学生",
                   teacherId: session.teacher_id || "",
                   teacherName: session.teacher_name || "未分配",
                   subject: order.subjects?.[0] || "",
@@ -423,7 +495,7 @@ export default function BatchSchedulePage() {
                     newSessions.push({
                       id: `preview-${order.id}-${i}`,
                       studentId: order.student_id,
-                      studentName: student.student_name || "未知学生",
+                      studentName: studentName || "未知学生",
                       teacherId: order.teacher_names?.[0] || "",
                       teacherName: order.teacher_names?.[0] || "未分配",
                       subject: order.subjects?.[0] || "",
@@ -450,7 +522,7 @@ export default function BatchSchedulePage() {
         }
       } catch (error) {
         // 忽略加载已有课节的错误，继续生成
-        console.warn("加载已有课节失败:", error)
+        console.warn("加载已有课节失败:", summarizeError(error))
       }
 
       // 如果没有已有课节，根据当前模式生成课程
@@ -463,7 +535,7 @@ export default function BatchSchedulePage() {
         newSessions.push({
           id: `preview-${order.id}-0`,
           studentId: order.student_id,
-          studentName: student.student_name || "未知学生",
+          studentName: studentName || "未知学生",
           teacherId: order.teacher_names?.[0] || "",
           teacherName: order.teacher_names?.[0] || "未分配",
           subject: order.subjects?.[0] || "",
@@ -484,7 +556,7 @@ export default function BatchSchedulePage() {
           newSessions.push({
             id: `preview-${order.id}-${i}`,
             studentId: order.student_id,
-            studentName: student.student_name || "未知学生",
+            studentName: studentName || "未知学生",
             teacherId: order.teacher_names?.[0] || "",
             teacherName: order.teacher_names?.[0] || "未分配",
             subject: order.subjects?.[0] || "",
@@ -588,7 +660,7 @@ export default function BatchSchedulePage() {
           }
         }
       } catch (error) {
-        console.warn("加载已有课节失败:", error)
+        console.warn("加载已有课节失败:", summarizeError(error))
       }
 
       const { totalSessions, sessionDuration, startDate, startTime } = editableParams
@@ -615,10 +687,11 @@ export default function BatchSchedulePage() {
       } else {
         // 班级课模式：生成用户输入数量的新课节
         const baseDate = existingSessions.length > 0 ? lastDate : startDate
+        const remainingSessions = Math.max(totalSessions - existingSessions.length, 0)
 
         if (repeatMode === 'same') {
           // 每周开课时间一样
-          const scheduleData = generateSameWeeklySchedule(baseDate, startTime, totalSessions, sessionDuration)
+          const scheduleData = generateSameWeeklySchedule(baseDate, startTime, remainingSessions, sessionDuration)
           newSessions = scheduleData.map((session, i) => ({
             id: `preview-${selectedOrder.id}-${Date.now()}-${i}`,
             studentId: selectedOrder.student_id,
@@ -671,7 +744,7 @@ export default function BatchSchedulePage() {
   // 删除排课项
   const removeScheduleItem = (id: string) => {
     const item = scheduleList.find(i => i.id === id)
-    const isExisting = item && !item.id.startsWith('preview-') && !item.id.startsWith('schedule-') && !item.id.startsWith('manual-')
+    const isExisting = item && isExistingScheduleItem(item)
 
     setScheduleList(scheduleList.filter(item => item.id !== id))
 
@@ -713,7 +786,7 @@ export default function BatchSchedulePage() {
         }
       }
     } catch (error) {
-      console.error('重新计算已扣课时失败:', error)
+      console.error('重新计算已扣课时失败:', summarizeError(error))
     }
   }
 
@@ -722,9 +795,7 @@ export default function BatchSchedulePage() {
     // 检查是否删除了已创建的课节
     const hasExisting = scheduleList.some(item =>
       selectedItems.has(item.id) &&
-      !item.id.startsWith('preview-') &&
-      !item.id.startsWith('schedule-') &&
-      !item.id.startsWith('manual-')
+      isExistingScheduleItem(item)
     )
 
     setScheduleList(scheduleList.filter(item => !selectedItems.has(item.id)))
@@ -761,6 +832,70 @@ export default function BatchSchedulePage() {
     })
   }
 
+  const runSchedulePrecheck = async (items: ScheduleItem[] = scheduleList): Promise<SchedulePrecheckIssue[]> => {
+    const newSessions = items.filter(isNewScheduleItem)
+
+    if (!selectedOrderId || newSessions.length === 0) {
+      setPrecheckIssues([])
+      setPrecheckCheckedAt(null)
+      return []
+    }
+
+    const localIssues = getLocalPrecheckIssues(items)
+    setIsPrechecking(true)
+
+    try {
+      const resp = await api.post("/api/schedule/batch/precheck", {
+        orderId: selectedOrderId,
+        items: buildPrecheckPayloadItems(newSessions),
+      })
+      const result = await resp.json().catch(() => ({ issues: [], error: "预检失败" }))
+      const serverIssues: SchedulePrecheckIssue[] = Array.isArray(result.issues) ? result.issues : []
+      const issues = [
+        ...localIssues,
+        ...serverIssues,
+        ...(!resp.ok && serverIssues.length === 0 ? [{
+          index: 1,
+          type: "error" as const,
+          message: result.error || "预检失败，请稍后重试",
+        }] : []),
+      ]
+
+      setPrecheckIssues(issues)
+      setPrecheckCheckedAt(new Date().toISOString())
+      return issues
+    } catch (error) {
+      const issues = [
+        ...localIssues,
+        {
+          index: 1,
+          type: "warning" as const,
+          message: `预检接口暂不可用：${summarizeError(error)}`,
+        },
+      ]
+
+      setPrecheckIssues(issues)
+      setPrecheckCheckedAt(new Date().toISOString())
+      return issues
+    } finally {
+      setIsPrechecking(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!selectedOrderId || scheduleList.length === 0) {
+      setPrecheckIssues([])
+      setPrecheckCheckedAt(null)
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      void runSchedulePrecheck(scheduleList)
+    }, 600)
+
+    return () => window.clearTimeout(timer)
+  }, [selectedOrderId, scheduleList, existingHoursCount, selectedOrder?.total_hours])
+
   // 批量提交排课
   const handleSubmit = async () => {
     if (!selectedOrderId) {
@@ -782,16 +917,8 @@ export default function BatchSchedulePage() {
     }
 
     // 区分已有课节和新课节
-    const existingSessions = scheduleList.filter(item =>
-      !item.id.startsWith('preview-') &&
-      !item.id.startsWith('schedule-') &&
-      !item.id.startsWith('manual-')
-    )
-    const newSessions = scheduleList.filter(item =>
-      item.id.startsWith('preview-') ||
-      item.id.startsWith('schedule-') ||
-      item.id.startsWith('manual-')
-    )
+    const existingSessions = scheduleList.filter(isExistingScheduleItem)
+    const newSessions = scheduleList.filter(isNewScheduleItem)
 
     // 如果全部是已有课节，提示用户
     if (newSessions.length === 0) {
@@ -799,6 +926,17 @@ export default function BatchSchedulePage() {
         variant: "destructive",
         title: "没有新课节需要创建",
         description: `该订单已创建 ${existingSessions.length} 节课程，请添加新课节后再提交`,
+      })
+      return
+    }
+
+    const issues = await runSchedulePrecheck(scheduleList)
+    const errorIssues = issues.filter(issue => issue.type === "error")
+    if (errorIssues.length > 0) {
+      toast({
+        variant: "destructive",
+        title: "预检未通过",
+        description: errorIssues[0]?.message || "请先处理排课冲突后再提交",
       })
       return
     }
@@ -821,13 +959,18 @@ export default function BatchSchedulePage() {
       const resp = await api.post("/api/schedule/batch/create-classin", payload)
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ error: "批量排课失败" }))
-        throw new Error(err.error || "批量排课失败")
+        throw new Error(err.errors?.[0]?.error || err.error || "批量排课失败")
       }
       const result = await resp.json()
+      const failedCount = Number(result.failed) || 0
+      const firstError = result.errors?.[0]?.error
 
       toast({
-        title: "排课成功",
-        description: existingSessions.length > 0
+        variant: failedCount > 0 ? "destructive" : "default",
+        title: failedCount > 0 ? "排课部分完成" : "排课成功",
+        description: failedCount > 0
+          ? `成功 ${result.success}/${result.total} 节，失败 ${failedCount} 节：${firstError || "请查看服务端日志"}`
+          : existingSessions.length > 0
           ? `已跳过 ${existingSessions.length} 节已有课程，成功创建 ${result.success}/${result.total} 节新课`
           : `已成功创建 ${result.success}/${result.total} 节课程`,
       })
@@ -1140,40 +1283,35 @@ export default function BatchSchedulePage() {
                         </span>
                       )}
                       {/* 统计已有课节数量 */}
-                      {scheduleList.some(item =>
-                        !item.id.startsWith('preview-') &&
-                        !item.id.startsWith('schedule-') &&
-                        !item.id.startsWith('manual-')
-                      ) && (
+                      {scheduleList.some(isExistingScheduleItem) && (
                         <span className="text-sm font-normal text-green-600">
-                          已创建 {
-                            scheduleList.filter(item =>
-                              !item.id.startsWith('preview-') &&
-                              !item.id.startsWith('schedule-') &&
-                              !item.id.startsWith('manual-')
-                            ).length
-                          } 节
+                          已创建 {scheduleList.filter(isExistingScheduleItem).length} 节
                         </span>
                       )}
                       {/* 统计新课节数量 */}
-                      {scheduleList.some(item =>
-                        item.id.startsWith('preview-') ||
-                        item.id.startsWith('schedule-') ||
-                        item.id.startsWith('manual-')
-                      ) && (
+                      {scheduleList.some(isNewScheduleItem) && (
                         <span className="text-sm font-normal text-blue-600">
-                          待创建 {
-                            scheduleList.filter(item =>
-                              item.id.startsWith('preview-') ||
-                              item.id.startsWith('schedule-') ||
-                              item.id.startsWith('manual-')
-                            ).length
-                          } 节
+                          待创建 {newScheduleCount} 节
                         </span>
                       )}
                     </div>
                   </div>
                 <div className="flex gap-2">
+                  {newScheduleCount > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => runSchedulePrecheck(scheduleList)}
+                      disabled={isPrechecking}
+                    >
+                      {isPrechecking ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                      )}
+                      重新预检
+                    </Button>
+                  )}
                   {selectedItems.size > 0 && (
                     <Button
                       variant="destructive"
@@ -1186,6 +1324,54 @@ export default function BatchSchedulePage() {
                   )}
                 </div>
               </div>
+
+              {newScheduleCount > 0 && (
+                <div className={cn(
+                  "mb-4 rounded-md border p-3 text-sm",
+                  hasBlockingPrecheckIssue
+                    ? "border-red-200 bg-red-50 text-red-800"
+                    : precheckWarningCount > 0
+                    ? "border-yellow-200 bg-yellow-50 text-yellow-800"
+                    : "border-green-200 bg-green-50 text-green-800"
+                )}>
+                  <div className="flex items-start gap-2">
+                    {hasBlockingPrecheckIssue ? (
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    ) : isPrechecking ? (
+                      <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium">
+                        {isPrechecking
+                          ? "正在预检待创建课节"
+                          : hasBlockingPrecheckIssue
+                          ? `预检发现 ${precheckErrorCount} 个问题`
+                          : precheckWarningCount > 0
+                          ? `预检完成，${precheckWarningCount} 个提醒`
+                          : "预检通过"}
+                      </div>
+                      <div className="mt-1 text-xs opacity-80">
+                        待创建 {newScheduleCount} 节
+                        {precheckCheckedAt ? `，上次检查 ${format(new Date(precheckCheckedAt), 'HH:mm:ss')}` : ""}
+                      </div>
+                      {precheckIssues.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {precheckIssues.slice(0, 5).map((issue, index) => (
+                            <div key={`${issue.index}-${index}`}>
+                              第 {issue.index} 条：{issue.message}
+                            </div>
+                          ))}
+                          {precheckIssues.length > 5 && (
+                            <div>还有 {precheckIssues.length - 5} 条问题未显示</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {scheduleList.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
@@ -1214,9 +1400,7 @@ export default function BatchSchedulePage() {
                     </TableHeader>
                     <TableBody>
                       {scheduleList.map((item, index) => {
-                        const isExisting = !item.id.startsWith('preview-') &&
-                          !item.id.startsWith('schedule-') &&
-                          !item.id.startsWith('manual-')
+                        const isExisting = isExistingScheduleItem(item)
 
                         return (
                           <TableRow
@@ -1323,12 +1507,17 @@ export default function BatchSchedulePage() {
                     </Button>
                     <Button
                       onClick={handleSubmit}
-                      disabled={isSubmitting || scheduleList.length === 0}
+                      disabled={isSubmitting || isPrechecking || scheduleList.length === 0 || hasBlockingPrecheckIssue}
                     >
                       {isSubmitting ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           提交中...
+                        </>
+                      ) : isPrechecking ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          预检中...
                         </>
                       ) : (
                         <>

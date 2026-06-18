@@ -9,11 +9,119 @@ import { supabaseAdmin, supabaseServer } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
 
 const logger = createLogger('Init:Admin')
+const INIT_ADMIN_SECRET_HEADER = 'x-init-admin-secret'
+
+function isInitAdminApiEnabled(): boolean {
+  return process.env.NODE_ENV !== 'production' || process.env.ENABLE_INIT_ADMIN_API === 'true'
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function normalizeString(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function summarizeIdentifier(identifier: string) {
+  return {
+    input_type: identifier.includes('@') ? 'email' : 'account',
+    input_length: identifier.length,
+    has_at: identifier.includes('@'),
+  }
+}
+
+function summarizeError(error: unknown) {
+  const errorRecord: Record<string, unknown> = isRecord(error) ? error : {}
+  const message = error instanceof Error ? error.message : normalizeString(errorRecord.message)
+  const stack = error instanceof Error ? error.stack : normalizeString(errorRecord.stack)
+
+  return {
+    name: error instanceof Error ? error.name : normalizeString(errorRecord.name),
+    code: normalizeString(errorRecord.code),
+    status: typeof errorRecord.status === 'number' ? errorRecord.status : undefined,
+    has_message: Boolean(message),
+    has_stack: Boolean(stack),
+  }
+}
+
+async function readInitAdminBody(request: NextRequest): Promise<Record<string, unknown> | NextResponse> {
+  try {
+    const parsedBody = await request.json()
+    if (!isRecord(parsedBody)) {
+      return NextResponse.json(
+        { error: '请求体格式无效' },
+        { status: 400 }
+      )
+    }
+
+    return parsedBody
+  } catch (error: any) {
+    logger.warn('解析初始化管理员请求体失败', summarizeError(error))
+    return NextResponse.json(
+      { error: '请求体格式无效' },
+      { status: 400 }
+    )
+  }
+}
+
+function validateInitAdminSecret(
+  request: NextRequest,
+  body?: Record<string, unknown>
+): NextResponse | null {
+  if (!isInitAdminApiEnabled()) {
+    logger.warn('初始化管理员接口未启用：生产环境缺少 ENABLE_INIT_ADMIN_API=true')
+    return NextResponse.json(
+      { error: 'Not found' },
+      { status: 404 }
+    )
+  }
+
+  const configuredSecret = process.env.INIT_ADMIN_SECRET
+
+  if (!configuredSecret) {
+    logger.warn('初始化管理员接口未启用：缺少 INIT_ADMIN_SECRET')
+    return NextResponse.json(
+      { error: '初始化管理员接口未启用' },
+      { status: 403 }
+    )
+  }
+
+  const headerSecret = request.headers.get(INIT_ADMIN_SECRET_HEADER)
+  const bodySnakeSecret = normalizeString(body?.init_admin_secret)
+  const bodyCamelSecret = normalizeString(body?.initAdminSecret)
+  const providedSecret =
+    headerSecret ||
+    bodySnakeSecret ||
+    bodyCamelSecret
+
+  if (providedSecret !== configuredSecret) {
+    logger.warn('初始化管理员密钥校验失败', {
+      has_header_secret: Boolean(headerSecret),
+      has_body_secret: Boolean(bodySnakeSecret || bodyCamelSecret),
+    })
+    return NextResponse.json(
+      { error: '初始化管理员密钥无效' },
+      { status: 403 }
+    )
+  }
+
+  return null
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { email, password, full_name } = body
+    const body = await readInitAdminBody(request)
+    if (body instanceof NextResponse) return body
+
+    const secretError = validateInitAdminSecret(request, body)
+    if (secretError) return secretError
+
+    const email = normalizeString(body.email)
+    const password = typeof body.password === 'string' ? body.password : null
+    const fullName = normalizeString(body.full_name)
 
     // 验证必填字段
     if (!email || !password) {
@@ -29,10 +137,18 @@ export async function POST(request: NextRequest) {
     let finalEmail = email
     if (!email.includes('@')) {
       finalEmail = `${email}@xiaoniuhaoxue.com`
-      logger.info('账号转邮箱', { account: email, email: finalEmail })
+      logger.info('初始化账号已转换为邮箱格式', {
+        identifier: summarizeIdentifier(email),
+      })
     }
 
-    logger.info('开始创建超级管理员', { email: finalEmail, full_name })
+    const username = finalEmail.split('@')[0]
+    const profileName = fullName || username
+
+    logger.info('开始创建超级管理员', {
+      identifier: summarizeIdentifier(email),
+      has_name: Boolean(fullName),
+    })
 
     // 检查是否已经存在超级管理员
     const { data: existingAdmins, error: checkError } = await supabaseServer
@@ -41,7 +157,7 @@ export async function POST(request: NextRequest) {
       .eq('role', 'admin')
 
     if (checkError) {
-      logger.error('检查现有管理员失败', { error: checkError.message })
+      logger.error('检查现有管理员失败', summarizeError(checkError))
       return NextResponse.json(
         { error: '检查现有管理员失败' },
         { status: 500 }
@@ -54,7 +170,6 @@ export async function POST(request: NextRequest) {
         {
           error: '超级管理员已存在',
           count: existingAdmins.length,
-          hint: '如需重置管理员账号，请直接在数据库中操作'
         },
         { status: 400 }
       )
@@ -66,15 +181,18 @@ export async function POST(request: NextRequest) {
       password,
       email_confirm: true,
       user_metadata: {
-        name: full_name || finalEmail.split('@')[0],
+        name: profileName,
         role: 'admin',
       },
     })
 
     if (createError || !user) {
-      logger.error('创建用户失败', { error: createError?.message })
+      logger.error('创建用户失败', {
+        ...summarizeError(createError),
+        has_created_user: Boolean(user),
+      })
       return NextResponse.json(
-        { error: createError?.message || '创建用户失败' },
+        { error: '创建用户失败，请检查初始化参数或服务配置' },
         { status: 500 }
       )
     }
@@ -90,7 +208,7 @@ export async function POST(request: NextRequest) {
       .from('user_profiles')
       .select('id')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
     if (existingProfile) {
       logger.warn('发现已存在的 profile，准备删除', { userId: user.id })
@@ -102,13 +220,13 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. 使用 supabaseAdmin 创建 profile（绕过 RLS）
-    logger.info('创建 user_profile', { userId: user.id, email: finalEmail })
+    logger.info('创建 user_profile', { userId: user.id })
     const { error: profileError } = await supabaseAdmin
       .from('user_profiles')
       .insert({
         id: user.id,
-        username: finalEmail.split('@')[0],
-        name: full_name || finalEmail.split('@')[0],
+        username,
+        name: profileName,
         email: finalEmail,
         role: 'admin',
         team_name: '小牛好学',
@@ -117,21 +235,19 @@ export async function POST(request: NextRequest) {
 
     if (profileError) {
       logger.error('创建用户档案失败', {
-        error: profileError.message,
-        code: profileError.code,
+        ...summarizeError(profileError),
         userId: user.id
       })
       // 删除已创建的用户
       await supabaseAdmin.auth.admin.deleteUser(user.id)
       return NextResponse.json(
-        { error: `创建用户档案失败: ${profileError.message}` },
+        { error: '创建用户档案失败' },
         { status: 500 }
       )
     }
 
     logger.info('超级管理员创建成功', {
       userId: user.id,
-      email: user.email,
     })
 
     return NextResponse.json({
@@ -140,8 +256,6 @@ export async function POST(request: NextRequest) {
       data: {
         user: {
           id: user.id,
-          email: user.email,
-          full_name: full_name || finalEmail.split('@')[0],
         },
       },
       instructions: [
@@ -152,17 +266,20 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error: any) {
-    logger.error('初始化管理员异常', { message: error.message, stack: error.stack })
+    logger.error('初始化管理员异常', summarizeError(error))
     return NextResponse.json(
-      { error: error.message || '创建超级管理员失败' },
+      { error: '创建超级管理员失败' },
       { status: 500 }
     )
   }
 }
 
 // GET 方法返回初始化状态
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const secretError = validateInitAdminSecret(request)
+    if (secretError) return secretError
+
     // 检查是否已存在超级管理员
     const { data: existingAdmins, error } = await supabaseServer
       .from('user_profiles')
@@ -170,6 +287,7 @@ export async function GET() {
       .eq('role', 'admin')
 
     if (error) {
+      logger.error('检查管理员状态失败', summarizeError(error))
       return NextResponse.json(
         { error: '检查管理员状态失败' },
         { status: 500 }
@@ -185,8 +303,9 @@ export async function GET() {
     })
 
   } catch (error: any) {
+    logger.error('检查初始化管理员状态异常', summarizeError(error))
     return NextResponse.json(
-      { error: error.message || '检查失败' },
+      { error: '检查失败' },
       { status: 500 }
     )
   }

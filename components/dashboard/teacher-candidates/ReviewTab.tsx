@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -30,6 +30,12 @@ interface ReviewTabProps {
 export function ReviewTab({ formData, onInputChange, currentUser }: ReviewTabProps) {
   const { items: reviewResults, loading: reviewResultsLoading } = useDictionary('review_result')
   const { items: teacherLevels, loading: teacherLevelsLoading } = useDictionary('teacher_level')
+
+  useEffect(() => {
+    if (!formData.reviewed_by && currentUser?.name) {
+      onInputChange("reviewed_by", currentUser.name)
+    }
+  }, [currentUser?.name, formData.reviewed_by, onInputChange])
 
   return (
     <div className="space-y-6">

@@ -70,13 +70,7 @@ export async function getClassrooms(
 }
 
 export async function editClassroom(params: EditClassroomParams): Promise<any> {
-  const response = await api.put("/api/classin/classrooms", {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(params),
-  })
+  const response = await api.put("/api/classin/classrooms", params)
   
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: "修改课节失败" }))
@@ -103,4 +97,3 @@ export const ClassroomsService = {
   editClassroom,
   deleteClassroom,
 }
-

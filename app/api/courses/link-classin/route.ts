@@ -2,12 +2,18 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
 import { handleDatabaseError } from "@/lib/utils"
+import { requireClassInOpsProfile } from "@/lib/server-classin-ops"
+import { createSafeErrorResponse, summarizeError } from "@/lib/safe-error"
+import { COURSE_RESPONSE_SELECT, formatCourseResponse } from "@/lib/server-course-selects"
 
 const logger = createLogger('API:Courses:LinkClassIn')
 
 // POST: 关联 ClassIn 课程到本地订单
 export async function POST(request: NextRequest) {
   try {
+    const access = await requireClassInOpsProfile(request)
+    if (access.ok === false) return access.response
+
     const body = await request.json()
 
     const { orderId, classinCourseId } = body
@@ -97,15 +103,11 @@ export async function POST(request: NextRequest) {
           }),
         })
         .eq('id', existingCourse.id)
-        .select(`
-          *,
-          teacher:teacher_id(id, name),
-          formal_orders(id, order_number, student_id)
-        `)
+        .select(COURSE_RESPONSE_SELECT)
         .single()
 
       if (error) {
-        logger.error('更新课程失败', { message: error.message })
+        logger.error('更新课程失败', { error_summary: summarizeError(error) })
         const { message, status } = handleDatabaseError(error)
         return NextResponse.json({ error: message }, { status })
       }
@@ -138,15 +140,11 @@ export async function POST(request: NextRequest) {
       const { data, error } = await supabaseServer
         .from('courses')
         .insert(newCourseData)
-        .select(`
-          *,
-          teacher:teacher_id(id, name),
-          formal_orders(id, order_number, student_id)
-        `)
+        .select(COURSE_RESPONSE_SELECT)
         .single()
 
       if (error) {
-        logger.error('创建课程失败', { message: error.message })
+        logger.error('创建课程失败', { error_summary: summarizeError(error) })
         const { message, status } = handleDatabaseError(error)
         return NextResponse.json({ error: message }, { status })
       }
@@ -155,12 +153,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 格式化返回数据
-    const formattedData = {
-      ...courseData,
-      teacher_name: courseData.teacher?.name,
-      student_id: courseData.student_id || courseData.formal_orders?.student_id,
-      order_number: courseData.formal_orders?.order_number,
-    }
+    const formattedData = formatCourseResponse(courseData)
 
     logger.info('关联 ClassIn 课程成功', {
       orderId,
@@ -169,11 +162,12 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({ data: formattedData })
-  } catch (error: any) {
-    logger.error('关联 ClassIn 课程异常', { message: error.message, stack: error.stack })
+  } catch (error) {
+    const safeError = createSafeErrorResponse(error, '关联 ClassIn 课程失败')
+    logger.error('关联 ClassIn 课程异常', safeError.log)
     return NextResponse.json(
-      { error: error.message || '关联 ClassIn 课程失败' },
-      { status: 500 }
+      safeError.response,
+      { status: safeError.status }
     )
   }
 }

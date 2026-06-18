@@ -7,21 +7,79 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
-import { Loader2 } from "lucide-react"
+import { SearchableSelect } from "@/components/ui/searchable-select"
+import { Loader2, Upload } from "lucide-react"
 import { TrialLessonsService, NewTrialLesson } from "@/lib/services/trialLessons"
-import { LeadsService } from "@/lib/services/leads"
+import { LeadsService, type Lead } from "@/lib/services/leads"
+import { StudentsService } from "@/lib/services/students"
+import { type ClassInTeacherOption, TeachersService } from "@/lib/services/teachers"
 import { useDictionary } from "@/lib/hooks/useDictionary"
 import { useToast } from "@/hooks/use-toast"
-import { uploadPaymentProof } from "@/lib/services/upload"
+import {
+  PAYMENT_PROOF_ACCEPT,
+  isPaymentProofImageFile,
+  uploadPaymentProof,
+  validatePaymentProofFile,
+} from "@/lib/services/upload"
 import { toChinaTimeISO } from "@/lib/utils/timezone"
 import Link from "next/link"
+
+function firstText(...values: Array<unknown>) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim()
+    }
+  }
+
+  return ""
+}
+
+function getLeadChannel(lead: any) {
+  return firstText(lead.channel_platform, lead.xhs_source, lead.add_method_code)
+}
+
+function getLeadFirstSubject(lead: Lead) {
+  if (Array.isArray(lead.subject_codes)) {
+    return firstText(...lead.subject_codes)
+  }
+
+  return firstText(lead.subject_codes)
+}
+
+function getLeadStudentAlias(lead: Lead) {
+  return firstText(lead.customer_social_id, lead.report_number)
+}
+
+function getLeadSourceContact(lead: Lead) {
+  return firstText(lead.parent_wechat, lead.customer_social_id)
+}
+
+function getClassInContactFromLead(lead: Lead) {
+  const contact = getLeadSourceContact(lead)
+  if (!contact) return ""
+
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (emailPattern.test(contact)) return contact
+
+  const phoneLikePattern = /^\+?[\d\s\-()]{6,20}$/
+  const digits = contact.replace(/\D/g, "")
+
+  if (phoneLikePattern.test(contact) && digits.length >= 6 && digits.length <= 20) {
+    return contact
+  }
+
+  return ""
+}
 
 export default function NewTrialLessonPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
+  const leadIdFromUrl = searchParams.get('lead_id') || ""
+  const studentIdFromUrl = searchParams.get('student_id') || ""
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [isLoadingTeachers, setIsLoadingTeachers] = useState(true)
 
   // 字典数据
   const { items: regions, loading: regionsLoading } = useDictionary('province')
@@ -36,12 +94,15 @@ export default function NewTrialLessonPage() {
   const [previewUrl, setPreviewUrl] = useState<string>("")
 
   // 线索列表
-  const [leads, setLeads] = useState<any[]>([])
+  const [leads, setLeads] = useState<Lead[]>([])
+  const [teachers, setTeachers] = useState<ClassInTeacherOption[]>([])
+  const [selectedMatchedTeacherId, setSelectedMatchedTeacherId] = useState("")
 
   const [formData, setFormData] = useState({
     // 基本信息
     student_name: "",
     lead_id: "",
+    student_id: "",
 
     // 课程信息
     region: "",
@@ -69,41 +130,83 @@ export default function NewTrialLessonPage() {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  // 加载线索数据
-  useEffect(() => {
-    const loadLeads = async () => {
-      const leadsResult = await LeadsService.getLeads()
-      setLeads(leadsResult.data || [])
+  const handlePaymentProofChange = (file: File | undefined, input?: HTMLInputElement) => {
+    if (!file) return
+
+    const validationError = validatePaymentProofFile(file)
+    if (validationError) {
+      toast({
+        variant: "destructive",
+        title: "文件不符合要求",
+        description: validationError,
+      })
+      if (input) input.value = ""
+      setUploadedFile(null)
+      setPreviewUrl("")
+      handleInputChange("payment_proof", "")
+      return
     }
-    loadLeads()
+
+    setUploadedFile(file)
+    if (isPaymentProofImageFile(file)) {
+      const url = URL.createObjectURL(file)
+      setPreviewUrl(url)
+      handleInputChange("payment_proof", url)
+    } else {
+      setPreviewUrl("")
+      handleInputChange("payment_proof", file.name)
+    }
+  }
+
+  useEffect(() => {
+    const loadTeachers = async () => {
+      try {
+        setIsLoadingTeachers(true)
+        const data = await TeachersService.getClassInTeachers()
+        setTeachers(data || [])
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "加载老师失败",
+          description: "无法加载 ClassIn 老师目录",
+        })
+      } finally {
+        setIsLoadingTeachers(false)
+      }
+    }
+
+    loadTeachers()
   }, [])
 
   // 从 URL 参数加载线索信息并自动填充
   useEffect(() => {
-    const leadIdFromUrl = searchParams.get('lead_id')
     if (!leadIdFromUrl) return
 
     const loadLeadInfo = async () => {
       try {
         const lead = await LeadsService.getLeadById(leadIdFromUrl)
+        setLeads([lead])
 
         // 自动填充表单
+        const classInContact = getClassInContactFromLead(lead)
         setFormData((prev) => ({
           ...prev,
           lead_id: lead.id,
-          student_name: lead.parent_wechat || "", // 使用家长微信作为学生称呼
-          phone: lead.parent_wechat || "",
+          student_name: getLeadStudentAlias(lead),
+          phone: classInContact,
+          channel: getLeadChannel(lead),
           region: lead.region_ip || "",
           grade: lead.grade_code || "",
-          trial_subject: lead.subject_codes?.[0] || "", // 取第一个学科
+          trial_subject: getLeadFirstSubject(lead),
         }))
 
         toast({
           title: "线索信息已加载",
-          description: `已自动填充线索信息`,
+          description: classInContact
+            ? "已自动填充线索单号、渠道和联系方式"
+            : "已自动填充线索单号、渠道、年级和学科",
         })
       } catch (error: any) {
-        console.error('加载线索信息失败:', error)
         toast({
           variant: "destructive",
           title: "加载线索失败",
@@ -113,10 +216,56 @@ export default function NewTrialLessonPage() {
     }
 
     loadLeadInfo()
-  }, [searchParams])
+  }, [leadIdFromUrl])
+
+  // 从正式生详情创建新试听时，使用 student_id 作为来源。
+  useEffect(() => {
+    if (!studentIdFromUrl || leadIdFromUrl) return
+
+    const loadStudentInfo = async () => {
+      try {
+        const student = await StudentsService.getStudentById(studentIdFromUrl)
+
+        setFormData((prev) => ({
+          ...prev,
+          student_id: student.id,
+          student_name: student.student_name || "",
+          phone: student.parent_phone || "",
+          channel: "正式生",
+          region: student.region || "",
+          grade: student.grade_code || "",
+        }))
+
+        toast({
+          title: "正式生信息已加载",
+          description: "已自动填充学生信息",
+        })
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "加载正式生失败",
+          description: error.message || "无法加载正式生信息",
+        })
+      }
+    }
+
+    loadStudentInfo()
+  }, [studentIdFromUrl, leadIdFromUrl])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    const hasLeadSource = Boolean(leadIdFromUrl && formData.lead_id === leadIdFromUrl)
+    const hasFormalStudentSource = Boolean(studentIdFromUrl && formData.student_id === studentIdFromUrl)
+
+    if (!hasLeadSource && !hasFormalStudentSource) {
+      toast({
+        variant: "destructive",
+        title: "无法创建试听",
+        description: "试听课程必须从线索或正式生详情创建",
+      })
+      return
+    }
 
     // 验证必填字段
     const requiredFields = [
@@ -130,6 +279,11 @@ export default function NewTrialLessonPage() {
       { field: 'channel', name: '渠道' },
       { field: 'payment_proof', name: '付款凭证' },
     ]
+    if (hasLeadSource) {
+      requiredFields.unshift({ field: 'lead_id', name: '关联线索' })
+    } else {
+      requiredFields.unshift({ field: 'student_id', name: '来源正式生' })
+    }
 
     for (const { field, name } of requiredFields) {
       if (!formData[field as keyof typeof formData] || (typeof formData[field as keyof typeof formData] === 'string' && !formData[field as keyof typeof formData].trim())) {
@@ -170,6 +324,7 @@ export default function NewTrialLessonPage() {
       const payload: NewTrialLesson = {
         child_name: formData.student_name.trim(),
         lead_id: formData.lead_id || undefined,
+        student_id: formData.student_id || undefined,
         region: formData.region.trim(),
         grade: formData.grade.trim(),
         trial_subject: formData.trial_subject.trim(),
@@ -185,14 +340,24 @@ export default function NewTrialLessonPage() {
         matched_teacher: formData.matched_teacher || undefined,
       }
 
-      await TrialLessonsService.createTrialLesson(payload)
+      const createdLesson = await TrialLessonsService.createTrialLesson(payload)
 
-      toast({
-        title: "创建成功",
-        description: "试听课程已创建",
-      })
+      if (createdLesson.classin_student_error) {
+        toast({
+          variant: "destructive",
+          title: "试听已创建，ClassIn 学生账号创建失败",
+          description: createdLesson.classin_student_error,
+        })
+      } else {
+        toast({
+          title: "创建成功",
+          description: createdLesson.classin_student_uid || createdLesson.classin_student_bound
+            ? "试听课程已创建，ClassIn 学生账号已绑定"
+            : "试听课程已创建",
+        })
+      }
 
-      router.push("/dashboard/trial-lessons")
+      router.push(studentIdFromUrl ? `/dashboard/students/${studentIdFromUrl}` : "/dashboard/trial-lessons")
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -203,6 +368,39 @@ export default function NewTrialLessonPage() {
       setIsSubmitting(false)
     }
   }
+
+  if (!leadIdFromUrl && !studentIdFromUrl) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header
+          title="新增试听课程"
+          description="试听课程必须从线索或正式生详情创建"
+        />
+
+        <div className="flex-1 overflow-auto p-6">
+          <Card className="max-w-2xl mx-auto">
+            <CardContent className="p-6 space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold">缺少关联线索</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  请先在线索页面选择要转试听的线索，或从正式生详情中创建新试听。
+                </p>
+              </div>
+              <div className="flex justify-end">
+                <Link href="/dashboard/leads">
+                  <Button type="button">返回线索页面</Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  const sourceLead = leads[0]
+  const sourceLeadContact = sourceLead ? getLeadSourceContact(sourceLead) : ""
+  const sourceLeadClassInContact = sourceLead ? getClassInContactFromLead(sourceLead) : ""
 
   return (
     <div className="flex flex-col h-full">
@@ -233,23 +431,62 @@ export default function NewTrialLessonPage() {
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="lead_id">关联线索</Label>
-                    <select
-                      id="lead_id"
-                      value={formData.lead_id}
-                      onChange={(e) => handleInputChange("lead_id", e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                    >
-                      <option value="">请选择关联线索</option>
-                      {leads.map((lead) => (
-                        <option key={lead.id} value={lead.id}>
-                          {lead.report_number} - {lead.parent_wechat || '无微信'}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {leadIdFromUrl ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="lead_id">
+                        关联线索 <span className="text-destructive">*</span>
+                      </Label>
+                      <select
+                        id="lead_id"
+                        value={formData.lead_id}
+                        disabled
+                        className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm ring-offset-background"
+                        required
+                      >
+                        <option value="">线索加载中...</option>
+                        {leads.map((lead) => (
+                          <option key={lead.id} value={lead.id}>
+                            {lead.report_number} - {getLeadChannel(lead) || '无渠道'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label htmlFor="student_id">
+                        来源正式生 <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="student_id"
+                        value={formData.student_name || "正式生信息加载中..."}
+                        disabled
+                        className="bg-muted"
+                        required
+                      />
+                    </div>
+                  )}
                 </div>
+
+                {sourceLead && (
+                  <div className="grid grid-cols-2 gap-3 rounded-md border bg-muted/40 p-3 text-sm">
+                    <div className="min-w-0">
+                      <p className="text-xs text-muted-foreground">线索单号</p>
+                      <p className="truncate font-medium">{sourceLead.report_number || "-"}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-muted-foreground">渠道</p>
+                      <p className="truncate font-medium">{getLeadChannel(sourceLead) || "-"}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-muted-foreground">线索联系方式</p>
+                      <p className="truncate font-medium">{sourceLeadContact || "-"}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-muted-foreground">客户社媒账号</p>
+                      <p className="truncate font-medium">{sourceLead.customer_social_id || "-"}</p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -263,6 +500,11 @@ export default function NewTrialLessonPage() {
                       onChange={(e) => handleInputChange("phone", e.target.value)}
                       required
                     />
+                    {sourceLeadContact && !sourceLeadClassInContact && (
+                      <p className="text-xs text-muted-foreground">
+                        线索联系方式为 {sourceLeadContact}，请填写可用于 ClassIn 建号的手机号或邮箱。
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -400,36 +642,44 @@ export default function NewTrialLessonPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="payment_proof">
+                    <Label>
                       付款凭证 <span className="text-destructive">*</span>
                     </Label>
-                    <Input
-                      id="payment_proof"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0]
-                        if (file) {
-                          setUploadedFile(file)
-                          // 创建本地预览URL
-                          const url = URL.createObjectURL(file)
-                          setPreviewUrl(url)
-                          handleInputChange("payment_proof", url)
-                        }
-                      }}
-                      required
-                    />
-                    {previewUrl && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label
+                        className="relative inline-flex h-9 cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-md border bg-background px-4 py-2 text-sm font-medium shadow-xs transition-all hover:bg-accent hover:text-accent-foreground focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]"
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        {uploadedFile ? "重新选择付款凭证" : "选择付款凭证"}
+                        <input
+                          id="payment_proof"
+                          type="file"
+                          accept={PAYMENT_PROOF_ACCEPT}
+                          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                          onChange={(e) => handlePaymentProofChange(e.target.files?.[0], e.currentTarget)}
+                          required
+                        />
+                      </label>
+                      {uploadedFile && (
+                        <span className="max-w-full truncate text-sm text-muted-foreground">
+                          {uploadedFile.name}
+                        </span>
+                      )}
+                    </div>
+                    {(previewUrl || uploadedFile) && (
                       <div className="mt-2">
                         <p className="text-xs text-muted-foreground mb-1">预览：</p>
-                        <img
-                          src={previewUrl}
-                          alt="付款凭证预览"
-                          className="max-w-xs h-auto border rounded"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          已选择: {uploadedFile?.name}
-                        </p>
+                        {previewUrl ? (
+                          <img
+                            src={previewUrl}
+                            alt="付款凭证预览"
+                            className="max-w-xs h-auto border rounded"
+                          />
+                        ) : (
+                          <p className="text-sm text-muted-foreground break-all">
+                            已选择: {uploadedFile?.name}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -477,12 +727,25 @@ export default function NewTrialLessonPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="matched_teacher">匹配老师</Label>
-                  <Input
+                  <SearchableSelect
                     id="matched_teacher"
-                    placeholder="请输入匹配老师"
-                    value={formData.matched_teacher}
-                    onChange={(e) => handleInputChange("matched_teacher", e.target.value)}
+                    label="匹配老师"
+                    placeholder="请输入老师姓名或科目搜索..."
+                    value={selectedMatchedTeacherId}
+                    onChange={(value) => {
+                      setSelectedMatchedTeacherId(value)
+                      const teacher = teachers.find(item => item.id === value)
+                      handleInputChange("matched_teacher", teacher?.teacher_name || "")
+                    }}
+                    options={teachers.map((teacher) => ({
+                      id: teacher.id,
+                      name: [
+                        teacher.teacher_name,
+                        teacher.teacher_subject,
+                        "已绑定ClassIn",
+                      ].filter(Boolean).join(" - "),
+                    }))}
+                    loading={isLoadingTeachers}
                   />
                 </div>
 

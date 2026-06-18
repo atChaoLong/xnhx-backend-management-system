@@ -9,6 +9,10 @@ export interface TrialLesson {
   child_name: string
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
   lead_id?: string
+  student_id?: string
+  lead?: {
+    report_number?: string | null
+  } | null
 
   // 课程信息
   region: string
@@ -23,7 +27,7 @@ export interface TrialLesson {
 
   // 财务信息
   trial_amount?: number
-  payment_proof: string
+  payment_proof: string | null
 
   // 优先级
   urgency_level?: 'low' | 'medium' | 'high' | 'urgent'
@@ -43,16 +47,22 @@ export interface TrialLesson {
   classin_class_id?: number
   classin_unit_id?: number
   classin_activity_id?: number
+  classin_student_uid?: number
+  classin_student_bound?: boolean
+  classin_student_registered_at?: string
+  classin_student_error?: string
   class_link?: string
   lesson_status?: string
   lesson_status_name?: string
   is_converted?: boolean
+  is_converted_calculated?: boolean
 }
 
 export interface NewTrialLesson {
   // 基本信息
   child_name: string
   lead_id?: string
+  student_id?: string
 
   // 课程信息
   region: string
@@ -63,6 +73,7 @@ export interface NewTrialLesson {
 
   // 联系信息
   phone: string
+  channel: string
 
   // 财务信息
   trial_amount?: number

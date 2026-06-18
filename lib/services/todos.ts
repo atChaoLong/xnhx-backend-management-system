@@ -3,13 +3,15 @@
  */
 
 import { api } from '@/lib/fetch'
-import type { Todo, CreateTodoRequest, UpdateTodoRequest, TodoFilters } from '@/lib/types/todo'
+import type { Todo, CreateTodoRequest, UpdateTodoRequest, TodoFilters, TodoStats } from '@/lib/types/todo'
+
+export type { Todo, CreateTodoRequest, UpdateTodoRequest, TodoFilters, TodoStats } from '@/lib/types/todo'
 
 export const TodosService = {
   /**
    * 获取待办列表（支持分页）
    */
-  async getTodos(from: number = 0, to: number = 19, filters?: TodoFilters): Promise<{ data: Todo[], count: number }> {
+  async getTodos(from: number = 0, to: number = 19, filters?: TodoFilters): Promise<{ data: Todo[], count: number, stats: TodoStats }> {
     const params = new URLSearchParams({
       from: from.toString(),
       to: to.toString(),
@@ -28,7 +30,11 @@ export const TodosService = {
       throw new Error(error.error || '获取待办列表失败')
     }
     const result = await response.json()
-    return { data: result.data as Todo[], count: result.count || 0 }
+    return {
+      data: result.data as Todo[],
+      count: result.count || 0,
+      stats: result.stats as TodoStats,
+    }
   },
 
   /**
@@ -132,7 +138,10 @@ export const TodosService = {
     due_date?: string
     metadata?: Record<string, any>
   }): Promise<Todo> {
-    const response = await api.post('/api/todos/auto', params)
+    const response = await api.post('/api/todos', {
+      ...params,
+      is_auto_created: true,
+    })
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: '自动创建待办失败' }))

@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Loader2, AlertTriangle } from "lucide-react"
+import { Loader2, AlertTriangle, Copy, ExternalLink, QrCode } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -35,11 +35,12 @@ export default function EditTeacherCandidatePage() {
   const router = useRouter()
   const params = useParams()
   const { toast } = useToast()
-  const { role, teacherCandidates } = usePermission()
+  const { user, role, teacherCandidates } = usePermission()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [candidate, setCandidate] = useState<TeacherCandidate | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [teacherFormUrl, setTeacherFormUrl] = useState("")
 
   const candidateId = params.id as string
 
@@ -52,6 +53,8 @@ export default function EditTeacherCandidatePage() {
   const canViewPostInterview = isRecruiter
   const canViewReview = isAcademic
   const canViewSalary = isRecruiter
+  const canEditCandidate = teacherCandidates.interview() || teacherCandidates.evaluate() || teacherCandidates.uploadVideo() || teacherCandidates.reviewVideo()
+  const canDeleteCandidate = teacherCandidates.delete()
 
   const [formData, setFormData] = useState({
     // 基本信息
@@ -124,6 +127,7 @@ export default function EditTeacherCandidatePage() {
         setIsLoading(true)
         const data = await TeacherCandidatesService.getTeacherCandidateById(candidateId)
         setCandidate(data)
+        setTeacherFormUrl(data.qr_code_url || `${window.location.origin}/teacher-form?candidate_id=${data.id}`)
 
         // 设置表单数据
         setFormData({
@@ -204,6 +208,15 @@ export default function EditTeacherCandidatePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!canEditCandidate) {
+      toast({
+        variant: "destructive",
+        title: "权限不足",
+        description: "你没有更新面试记录的权限",
+      })
+      return
+    }
 
     if (!formData.name.trim()) {
       toast({
@@ -294,6 +307,16 @@ export default function EditTeacherCandidatePage() {
   }
 
   const handleDelete = async () => {
+    if (!canDeleteCandidate) {
+      toast({
+        variant: "destructive",
+        title: "权限不足",
+        description: "只有超级管理员可以删除面试记录",
+      })
+      setDeleteDialogOpen(false)
+      return
+    }
+
     try {
       await TeacherCandidatesService.deleteTeacherCandidate(candidateId)
       toast({
@@ -306,6 +329,33 @@ export default function EditTeacherCandidatePage() {
         variant: "destructive",
         title: "删除失败",
         description: error.message || "无法删除面试记录",
+      })
+    }
+  }
+
+  const handleCopyTeacherFormUrl = async () => {
+    if (!candidate || !teacherFormUrl) return
+
+    try {
+      await navigator.clipboard.writeText(teacherFormUrl)
+
+      if (candidate.qr_code_url !== teacherFormUrl && canEditCandidate) {
+        const updatedCandidate = await TeacherCandidatesService.updateTeacherCandidate({
+          id: candidate.id,
+          qr_code_url: teacherFormUrl,
+        } as any)
+        setCandidate(updatedCandidate)
+      }
+
+      toast({
+        title: "已复制",
+        description: "老师信息采集链接已复制",
+      })
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "复制失败",
+        description: error.message || "无法复制表单链接",
       })
     }
   }
@@ -348,6 +398,29 @@ export default function EditTeacherCandidatePage() {
       <div className="flex-1 overflow-auto p-6">
         <Card className="max-w-4xl mx-auto">
           <CardContent className="p-6">
+            {isRecruiter && teacherFormUrl && (
+              <div className="mb-6 flex flex-col gap-3 rounded-md border bg-muted/30 p-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                  <QrCode className="mt-0.5 h-5 w-5 flex-shrink-0 text-muted-foreground" />
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium">老师信息采集链接</div>
+                    <div className="truncate text-xs text-muted-foreground">{teacherFormUrl}</div>
+                  </div>
+                </div>
+                <div className="flex flex-shrink-0 gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={handleCopyTeacherFormUrl}>
+                    <Copy className="mr-2 h-4 w-4" />
+                    复制
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" asChild>
+                    <a href={teacherFormUrl} target="_blank" rel="noreferrer">
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      打开
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Tab 导航 */}
               <Tabs defaultValue="basic" className="w-full">
@@ -424,8 +497,8 @@ export default function EditTeacherCandidatePage() {
                         }}
                         onInputChange={handleInputChange}
                         currentUser={{
-                          id: "current-user-id", // TODO: 从登录信息获取
-                          name: "系统用户", // TODO: 从登录信息获取
+                          id: user?.id || "",
+                          name: user?.name || user?.email || "",
                         }}
                       />
                     </TabsContent>
@@ -452,16 +525,18 @@ export default function EditTeacherCandidatePage() {
                       取消
                     </Button>
                   </Link>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        更新中...
-                      </>
-                    ) : (
-                      "保存"
-                    )}
-                  </Button>
+                  {canEditCandidate && (
+                    <Button type="submit" disabled={isSubmitting}>
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          更新中...
+                        </>
+                      ) : (
+                        "保存"
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
             </form>
@@ -470,7 +545,7 @@ export default function EditTeacherCandidatePage() {
       </div>
 
       {/* 删除确认对话框 */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      {canDeleteCandidate && <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <div className="flex items-center gap-2">
@@ -490,7 +565,7 @@ export default function EditTeacherCandidatePage() {
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog>}
     </div>
   )
 }

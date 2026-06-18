@@ -31,6 +31,7 @@ import Link from "next/link"
 import { TeacherCandidatesService, TeacherCandidate } from "@/lib/services/teacherCandidates"
 import { useToast } from "@/hooks/use-toast"
 import { usePagination } from "@/lib/hooks/usePagination"
+import { usePermission } from "@/lib/hooks/usePermission"
 
 export default function TeacherCandidatesPage() {
   const [candidates, setCandidates] = useState<TeacherCandidate[]>([])
@@ -40,6 +41,12 @@ export default function TeacherCandidatesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [candidateToDelete, setCandidateToDelete] = useState<string | null>(null)
   const { toast } = useToast()
+  const { teacherCandidates } = usePermission()
+
+  const canCreateCandidate = teacherCandidates.create()
+  const canEditCandidate = teacherCandidates.interview() || teacherCandidates.evaluate() || teacherCandidates.uploadVideo() || teacherCandidates.reviewVideo()
+  const canDeleteCandidate = teacherCandidates.delete()
+  const canEnterTeacher = teacherCandidates.evaluate()
 
   const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
 
@@ -86,12 +93,30 @@ export default function TeacherCandidatesPage() {
 
   // 删除面试
   const handleDeleteClick = (id: string) => {
+    if (!canDeleteCandidate) {
+      toast({
+        variant: "destructive",
+        title: "权限不足",
+        description: "只有超级管理员可以删除面试记录",
+      })
+      return
+    }
     setCandidateToDelete(id)
     setDeleteDialogOpen(true)
   }
 
   const handleDeleteConfirm = async () => {
     if (!candidateToDelete) return
+    if (!canDeleteCandidate) {
+      toast({
+        variant: "destructive",
+        title: "权限不足",
+        description: "只有超级管理员可以删除面试记录",
+      })
+      setDeleteDialogOpen(false)
+      setCandidateToDelete(null)
+      return
+    }
 
     try {
       setIsDeleting(candidateToDelete)
@@ -123,6 +148,8 @@ export default function TeacherCandidatesPage() {
 
   // 计算候选人的当前状态
   const calculateCandidateStatus = (candidate: TeacherCandidate): string => {
+    if (candidate.interview_status_name) return candidate.interview_status_name
+
     // 如果已手动设置状态，使用该状态
     if (candidate.candidate_status === 'review_rejected') return '复核拒绝'
     if (candidate.candidate_status === 'pending_entry') return '待入库'
@@ -168,6 +195,8 @@ export default function TeacherCandidatesPage() {
         return 'bg-green-100 text-green-800'
       case '待入库':
         return 'bg-cyan-100 text-cyan-800'
+      case '已入库':
+        return 'bg-emerald-100 text-emerald-800'
       case '复核拒绝':
         return 'bg-red-100 text-red-800'
       case '可排试听':
@@ -220,12 +249,14 @@ export default function TeacherCandidatesPage() {
                 <Button variant="outline" onClick={() => fetchCandidates(currentPage, pageSize)} disabled={isLoading}>
                   刷新
                 </Button>
-                <Link href="/dashboard/teacher-candidates/new">
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    新增面试
-                  </Button>
-                </Link>
+                {canCreateCandidate && (
+                  <Link href="/dashboard/teacher-candidates/new">
+                    <Button>
+                      <Plus className="mr-2 h-4 w-4" />
+                      新增面试
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
 
@@ -274,18 +305,21 @@ export default function TeacherCandidatesPage() {
                           </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            {candidate.review_result === '通过' && !candidate.is_hired && (
+                            {canEnterTeacher && candidate.review_result === '通过' && !candidate.is_hired && (
                               <Link href={`/dashboard/teacher-candidates/${candidate.id}/entry`}>
                                 <Button size="sm">
                                   入库
                                 </Button>
                               </Link>
                             )}
-                            <Link href={`/dashboard/teacher-candidates/${candidate.id}/edit`}>
-                              <Button variant="ghost" size="icon">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </Link>
+                            {canEditCandidate && (
+                              <Link href={`/dashboard/teacher-candidates/${candidate.id}/edit`}>
+                                <Button variant="ghost" size="icon">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                            )}
+                            {canDeleteCandidate && (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -298,6 +332,7 @@ export default function TeacherCandidatesPage() {
                                   <Trash2 className="h-4 w-4 text-destructive" />
                                 )}
                               </Button>
+                            )}
                             </div>
                           </TableCell>
                         </TableRow>

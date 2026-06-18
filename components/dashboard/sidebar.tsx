@@ -29,7 +29,6 @@ import {
   Database,
   TestTube,
   ClipboardList,
-  Phone,
   AlertTriangle,
 } from "lucide-react"
 import { useState } from "react"
@@ -41,6 +40,7 @@ interface MenuItem {
   href: string
   icon: any
   permission?: { resource: string; action: string }  // 权限检查
+  roles?: string[]  // 允许访问的角色列表
 }
 
 // 菜单组类型
@@ -63,7 +63,7 @@ const navigationGroups: MenuGroup[] = [
     roles: ['admin', 'operator', 'sales', 'head_teacher'],
     items: [
       { name: "线索跟进", href: "/dashboard/leads", icon: Target, permission: { resource: 'leads', action: 'view' } },
-      { name: "回访管理", href: "/dashboard/feedback", icon: Phone, permission: { resource: 'leads', action: 'view' } },
+      { name: "公共线索池", href: "/dashboard/public-leads", icon: List, permission: { resource: 'leads', action: 'assign' } },
     ]
   },
   {
@@ -72,33 +72,53 @@ const navigationGroups: MenuGroup[] = [
     items: [
       { name: "试听课", href: "/dashboard/trial-lessons", icon: BookOpen, permission: { resource: 'trialLessons', action: 'view' } },
       { name: "正式课", href: "/dashboard/formal-orders", icon: FileText, permission: { resource: 'formalOrders', action: 'view' } },
+      { name: "老师库（销售版）", href: "/dashboard/teachers/sales", icon: GraduationCap, permission: { resource: 'teachers', action: 'view' } },
     ]
   },
   {
     title: "招师管理",
-    roles: ['admin', 'teacher_recruiter'],
+    roles: ['admin'],
     items: [
       { name: "面试管理", href: "/dashboard/teacher-candidates", icon: ClipboardList, permission: { resource: 'teacherCandidates', action: 'view' } },
+      { name: "老师约面", href: "/dashboard/teacher-candidates/interview", icon: Calendar, permission: { resource: 'teacherCandidates', action: 'interview' } },
+      { name: "初试录像上传", href: "/dashboard/teacher-candidates/upload", icon: Video, permission: { resource: 'teacherCandidates', action: 'uploadVideo' } },
+      { name: "储备候选人", href: "/dashboard/teacher-candidates/reserve", icon: ClipboardList, permission: { resource: 'teacherCandidates', action: 'view' } },
     ]
   },
   {
     title: "教务管理",
-    roles: ['admin', 'academic_affairs', 'head_teacher'],
+    roles: ['admin', 'academic_affairs', 'head_teacher', 'hr', 'finance', 'teacher_recruiter'],
     items: [
       { name: "试听课", href: "/dashboard/trial-lessons", icon: BookOpen, permission: { resource: 'trialLessons', action: 'view' } },
-      { name: "面试管理", href: "/dashboard/teacher-candidates", icon: ClipboardList, permission: { resource: 'teacherCandidates', action: 'view' } },
+      { name: "待试听匹配", href: "/dashboard/academic/pending-trials", icon: ClipboardList, roles: ['admin', 'academic_affairs'], permission: { resource: 'trialLessons', action: 'view' } },
+      { name: "面试管理", href: "/dashboard/teacher-candidates", icon: ClipboardList, roles: ['admin', 'academic_affairs', 'teacher_recruiter'], permission: { resource: 'teacherCandidates', action: 'view' } },
+      { name: "教学复核", href: "/dashboard/teacher-candidates/review", icon: Video, roles: ['admin', 'academic_affairs'], permission: { resource: 'teacherCandidates', action: 'reviewVideo' } },
+      { name: "待入库老师", href: "/dashboard/teacher-candidates/pending", icon: ClipboardList, roles: ['admin', 'academic_affairs', 'hr', 'finance'], permission: { resource: 'teacherCandidates', action: 'confirmEntry' } },
+      { name: "储备候选人", href: "/dashboard/teacher-candidates/reserve", icon: ClipboardList, roles: ['admin', 'academic_affairs'], permission: { resource: 'teacherCandidates', action: 'view' } },
       { name: "老师库存管理", href: "/dashboard/teachers", icon: GraduationCap, permission: { resource: 'teachers', action: 'view' } },
+      { name: "老师库（教学版）", href: "/dashboard/teachers/teaching", icon: GraduationCap, roles: ['admin', 'academic_affairs'], permission: { resource: 'teachers', action: 'view' } },
+      { name: "新入库异常", href: "/dashboard/teachers/exceptions", icon: AlertTriangle, roles: ['admin', 'academic_affairs'], permission: { resource: 'teachers', action: 'view' } },
       { name: "学生管理", href: "/dashboard/students", icon: Users, permission: { resource: 'students', action: 'view' } },
-      { name: "排课管理", href: "/dashboard/schedule/batch", icon: Calendar },
-      { name: "课堂管理", href: "/dashboard/classroom", icon: Video },
-      { name: "课程日历", href: "/dashboard/calendar", icon: Calendar },
+      { name: "学生库（教务版）", href: "/dashboard/academic/students", icon: School, roles: ['admin', 'academic_affairs'], permission: { resource: 'students', action: 'view' } },
+      { name: "正式生管理", href: "/dashboard/formal-students", icon: School, permission: { resource: 'students', action: 'view' } },
+      { name: "排课管理", href: "/dashboard/schedule/batch", icon: Calendar, permission: { resource: 'classSessions', action: 'create' } },
+      { name: "课堂管理", href: "/dashboard/classroom", icon: Video, permission: { resource: 'classSessions', action: 'view' } },
+      { name: "课程日历", href: "/dashboard/calendar", icon: Calendar, permission: { resource: 'classSessions', action: 'view' } },
+    ]
+  },
+  {
+    title: "质检系统",
+    roles: ['admin', 'academic_affairs', 'head_teacher'],
+    items: [
+      { name: "试听转化质检", href: "/dashboard/quality/trial-conversion", icon: TestTube, permission: { resource: 'trialLessons', action: 'view' } },
+      { name: "课后服务质检", href: "/dashboard/quality/service", icon: Eye, permission: { resource: 'students', action: 'view' } },
     ]
   },
   {
     title: "待办事项",
     roles: ['admin', 'operator', 'sales', 'head_teacher', 'academic_affairs'],
     items: [
-      { name: "任务列表", href: "/dashboard/todos", icon: ClipboardList },
+      { name: "任务列表", href: "/dashboard/todos", icon: ClipboardList, permission: { resource: 'todos', action: 'view' } },
     ]
   },
   {
@@ -124,7 +144,7 @@ const navigationGroups: MenuGroup[] = [
 
 interface SidebarProps {
   user: any
-  onLogout: () => void
+  onLogout: () => void | Promise<void>
 }
 
 export function Sidebar({ user, onLogout }: SidebarProps) {
@@ -156,6 +176,10 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
 
   // 检查用户是否有权限访问某个菜单项
   const canAccessItem = (item: MenuItem): boolean => {
+    if (item.roles && !item.roles.includes(role || '')) {
+      return false
+    }
+
     // 如果没有权限要求，默认可以访问
     if (!item.permission) {
       return true
@@ -166,6 +190,10 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
 
   // 过滤并处理菜单组
   const visibleGroups = navigationGroups.filter(group => canAccessGroup(group))
+
+  const handleLogoutClick = () => {
+    void onLogout()
+  }
 
   return (
     <div className="flex h-full w-56 flex-col border-r bg-card">
@@ -242,7 +270,7 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
             <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
           </div>
         </div>
-        <Button variant="outline" size="sm" className="w-full bg-transparent" onClick={onLogout}>
+        <Button variant="outline" size="sm" className="w-full bg-transparent" onClick={handleLogoutClick}>
           <LogOut className="mr-2 h-4 w-4" />
           退出登录
         </Button>

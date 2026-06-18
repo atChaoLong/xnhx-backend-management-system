@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { getCurrentProfile } from '@/lib/server-data-scope'
+import { createLogger } from '@/lib/logger'
+import { summarizeError } from '@/lib/safe-error'
+
+const logger = createLogger('API:Sync:Students')
 
 // ClassIn API 响应类型（使用 camelCase）
 interface ClassInStudentResponse {
@@ -24,6 +29,11 @@ interface ClassInStudentResponse {
  */
 export async function POST(request: NextRequest) {
   try {
+    const profile = await getCurrentProfile(request)
+    if (!profile || !['admin', 'academic_affairs'].includes(profile.role)) {
+      return NextResponse.json({ error: '权限不足' }, { status: 403 })
+    }
+
     const body = await request.json()
     const { limit = 100, cookie } = body
 
@@ -104,11 +114,11 @@ export async function POST(request: NextRequest) {
 
         // 由于使用 upsert，无法区分是新增还是更新，统一计入 success
         results.success++
-      } catch (error: any) {
+      } catch (error: unknown) {
         results.failed++
         results.errors.push({
           name: student.studentName || '未知',
-          error: error.message,
+          error: '该学生同步失败',
         })
       }
     }
@@ -117,9 +127,10 @@ export async function POST(request: NextRequest) {
       success: true,
       data: results,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    logger.error('同步学生数据失败', summarizeError(error))
     return NextResponse.json(
-      { error: error.message || '同步学生数据失败' },
+      { error: '同步学生数据失败' },
       { status: 500 }
     )
   }

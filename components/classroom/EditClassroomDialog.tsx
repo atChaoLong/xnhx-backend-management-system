@@ -16,6 +16,8 @@ import { Switch } from "@/components/ui/switch"
 import { Loader2 } from "lucide-react"
 import { Classroom, EditClassroomParams } from "@/lib/services/classrooms"
 import { useToast } from "@/hooks/use-toast"
+import { api } from "@/lib/fetch"
+import { getClientSafeErrorMessage } from "@/lib/safe-error"
 
 interface EditClassroomDialogProps {
   classroom: Classroom | null
@@ -53,17 +55,10 @@ export function EditClassroomDialog({ classroom, isOpen, onClose, onSuccess }: E
         ...formData,
       }
       
-      const response = await fetch('/api/classin/classrooms', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(params),
-      })
+      const response = await api.put('/api/classin/classrooms', params)
       
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || '修改课节失败')
+        throw new Error('修改课节失败')
       }
       
       toast({
@@ -73,11 +68,13 @@ export function EditClassroomDialog({ classroom, isOpen, onClose, onSuccess }: E
       
       onSuccess()
       onClose()
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "修改失败",
-        description: error.message || "修改课节失败",
+        description: getClientSafeErrorMessage(error, "修改课节失败", [
+          "修改课节失败",
+        ]),
       })
     } finally {
       setIsLoading(false)

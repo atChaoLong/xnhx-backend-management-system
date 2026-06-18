@@ -1,1 +1,16 @@
-{"projectId":"prj_W8C0TLXhqmFmLVz45IJQvupu7fbC","orgId":"team_zCb4KqcVlo9qWh222GBZL5HW","projectName":"xiaoniuhaoxue-next"}
+{
+  "projectId": "prj_W8C0TLXhqmFmLVz45IJQvupu7fbC",
+  "orgId": "team_zCb4KqcVlo9qWh222GBZL5HW",
+  "projectName": "xiaoniuhaoxue-next",
+  "settings": {
+    "createdAt": 1766583155292,
+    "framework": "nextjs",
+    "devCommand": null,
+    "installCommand": null,
+    "buildCommand": null,
+    "outputDirectory": null,
+    "rootDirectory": null,
+    "directoryListing": false,
+    "nodeVersion": "24.x"
+  }
+}

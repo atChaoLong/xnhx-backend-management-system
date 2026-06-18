@@ -3,13 +3,26 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { School, Loader2 } from "lucide-react"
 import { api } from "@/lib/fetch"
+import { createLogger } from "@/lib/logger"
+import { getDisplayErrorMessage, summarizeError } from "@/lib/safe-error"
+
+const logger = createLogger('LoginPage')
+const LOGOUT_INTENT_KEY = 'xnhx_logout_intent'
+
+function buildStoredSession(data: any) {
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    expires_at: data.expires_at,
+    user: data.user?.id ? { id: data.user.id } : null,
+  }
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -21,26 +34,21 @@ export default function LoginPage() {
   // 检查是否已登录
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('supabase.auth.token')
-      if (!token) {
-        return // 没有token，停留在登录页
-      }
-
-      // 验证token是否有效
+      // 验证 session 是否有效；支持 localStorage token 和服务端登录 cookie。
       try {
-        const response = await fetch('/api/auth/session', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        })
+        if (typeof window !== 'undefined' && window.localStorage.getItem(LOGOUT_INTENT_KEY)) {
+          return
+        }
+
+        const response = await api.get('/api/auth/session')
 
         if (response.ok) {
-          // token有效，跳转到dashboard
+          // session 有效，跳转到 dashboard
           router.replace("/dashboard")
         }
-        // token无效，停留在登录页
+        // session 无效，停留在登录页
       } catch (error) {
-        console.error('验证token失败:', error)
+        logger.warn('验证 session 失败', summarizeError(error))
         // 出错时停留在登录页
       }
     }
@@ -70,17 +78,12 @@ export default function LoginPage() {
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('currentUser')
         localStorage.removeItem('user')
+        localStorage.removeItem(LOGOUT_INTENT_KEY)
       }
 
-      // 保存完整 session 到 localStorage
+      // 保存最小 session 到 localStorage，用户资料通过 /api/auth/profile 按需读取。
       if (data.access_token && data.refresh_token) {
-        const sessionData = {
-          access_token: data.access_token,
-          refresh_token: data.refresh_token,
-          expires_at: data.expires_at,
-          user: data.user
-        }
-        localStorage.setItem('supabase.auth.session', JSON.stringify(sessionData))
+        localStorage.setItem('supabase.auth.session', JSON.stringify(buildStoredSession(data)))
 
         // 兼容：同时保存 access_token 到旧位置
         localStorage.setItem('supabase.auth.token', data.access_token)
@@ -89,19 +92,10 @@ export default function LoginPage() {
         localStorage.setItem('supabase.auth.token', data.access_token)
       }
 
-      // 保存用户信息
-      if (data.user) {
-        localStorage.setItem('user', JSON.stringify({
-          id: data.user.id,
-          email: data.user.email,
-          name: data.user.user_metadata?.name || data.user.email?.split('@')[0],
-        }))
-      }
-
       router.push("/dashboard")
-    } catch (err: any) {
-      console.error("登录错误:", err)
-      setError(err.message || "登录失败，请检查邮箱和密码")
+    } catch (err: unknown) {
+      logger.warn('登录请求失败', summarizeError(err))
+      setError(getDisplayErrorMessage(err, "登录失败，请检查邮箱和密码"))
     } finally {
       setLoading(false)
     }
@@ -156,20 +150,6 @@ export default function LoginPage() {
               登录
             </Button>
           </form>
-          {/* <div className="mt-6 text-center text-sm">
-            <span className="text-muted-foreground">还没有账户？</span>{" "}
-            <Link href="/signup" className="text-primary hover:underline font-medium">
-              立即注册
-            </Link>
-          </div>
-          <div className="mt-4 p-3 bg-muted/50 rounded-md">
-            <p className="text-xs text-muted-foreground text-center">
-              首次使用？请先{" "}
-              <Link href="/signup" className="text-primary hover:underline">
-                创建账户
-              </Link>
-            </p>
-          </div> */}
         </CardContent>
       </Card>
     </div>

@@ -28,21 +28,22 @@ import {
   PaginationPageSize,
   PaginationInfo,
 } from "@/components/ui/pagination"
-import { Plus, Edit, Trash2, Loader2, AlertTriangle, Video, MessageCircle, Bell } from "lucide-react"
+import { Plus, Edit, Trash2, Loader2, AlertTriangle, Video, MessageCircle, Bell, Eye, ChevronLeft, ChevronRight } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { LeadsService, Lead } from "@/lib/services/leads"
 import { TodosService } from "@/lib/services/todos"
 import { DictionaryService } from "@/lib/services/dictionary"
-import { uploadChatScreenshot } from "@/lib/services/upload"
+import { CHAT_SCREENSHOT_ACCEPT, uploadChatScreenshot, validateChatScreenshotFile } from "@/lib/services/upload"
+import { api } from "@/lib/fetch"
 import { useToast } from "@/hooks/use-toast"
 import { usePermission } from "@/lib/hooks/usePermission"
 import { usePagination } from "@/lib/hooks/usePagination"
 
 export default function LeadsPage() {
   const router = useRouter()
-  const { leads: leadsPerm, user } = usePermission()
+  const { leads: leadsPerm, user, isLoading: isUserLoading } = usePermission()
   const [leads, setLeads] = useState<Lead[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
@@ -50,6 +51,9 @@ export default function LeadsPage() {
   const [isLoadingDict, setIsLoadingDict] = useState(true)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [leadToDelete, setLeadToDelete] = useState<string | null>(null)
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
+  const [previewImages, setPreviewImages] = useState<string[]>([])
+  const [previewImageIndex, setPreviewImageIndex] = useState(0)
   const { toast } = useToast()
 
   const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
@@ -75,7 +79,8 @@ export default function LeadsPage() {
       setIsLoading(true)
       const from = (page - 1) * size
       const to = from + size - 1
-      const { data, count } = await LeadsService.getLeads(from, to)
+      const scope = user?.role === 'sales' ? 'owned' : undefined
+      const { data, count } = await LeadsService.getLeads(from, to, { scope })
       setLeads(data)
       setTotalCount(count)
     } catch (error: any) {
@@ -124,8 +129,8 @@ export default function LeadsPage() {
           regions: new Map((dicts.province || []).map(item => [item.code, item.label])),
           sources: new Map((dicts.xhs_source || []).map(item => [item.code, item.label])),
         })
-      } catch (error) {
-        console.error("加载字典失败:", error)
+      } catch {
+        // 字典加载失败时保留原始字段值展示。
       } finally {
         setIsLoadingDict(false)
       }
@@ -135,17 +140,73 @@ export default function LeadsPage() {
   }, [])
 
   useEffect(() => {
-    fetchLeads(1, pageSize)
-  }, [])
+    if (!isUserLoading) {
+      fetchLeads(1, pageSize)
+    }
+  }, [isUserLoading, user?.role])
+
+  const canWriteLead = (lead: Lead) => {
+    if (!user) return false
+    if (user.role === 'admin') return true
+
+    const meName = user.name || ''
+
+    if (user.role === 'operator') {
+      return lead.operator_id === user.id || lead.created_by === meName
+    }
+
+    if (user.role === 'sales') {
+      return isLeadAssignedToCurrentUser(lead) ||
+        lead.created_by === meName
+    }
+
+    if (user.role === 'head_teacher') {
+      return lead.operator_id === user.id || lead.grab_user_id === user.id || lead.created_by === meName
+    }
+
+    return false
+  }
+
+  const normalizeLeadText = (value?: string | null) => value?.trim() || ''
+
+  const isLeadAssignedToCurrentUser = (lead: Lead) => {
+    if (!user) return false
+    if (lead.grab_user_id && lead.grab_user_id === user.id) return true
+    const grabWechat = normalizeLeadText(lead.grab_wechat)
+    const userName = normalizeLeadText(user.name)
+    return Boolean(grabWechat && userName && grabWechat === userName)
+  }
+
+  const getUrgeKey = (lead: Lead, target: 'sales' | 'operator') => `${lead.id}:${target}`
 
   // 删除线索
-  const handleDeleteClick = (id: string) => {
-    setLeadToDelete(id)
+  const handleDeleteClick = (lead: Lead) => {
+    if (!leadsPerm.delete() || !canWriteLead(lead)) {
+      toast({
+        variant: "destructive",
+        title: "无法删除",
+        description: "当前角色无权删除该线索",
+      })
+      return
+    }
+
+    setLeadToDelete(lead.id)
     setDeleteDialogOpen(true)
   }
 
   const handleDeleteConfirm = async () => {
     if (!leadToDelete) return
+    const lead = leads.find((item) => item.id === leadToDelete)
+    if (!lead || !leadsPerm.delete() || !canWriteLead(lead)) {
+      toast({
+        variant: "destructive",
+        title: "无法删除",
+        description: "当前角色无权删除该线索",
+      })
+      setDeleteDialogOpen(false)
+      setLeadToDelete(null)
+      return
+    }
 
     try {
       setIsDeleting(leadToDelete)
@@ -183,7 +244,20 @@ export default function LeadsPage() {
   const handleFeedbackScreenshotChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files)
-      
+      const validationError = files
+        .map((file) => validateChatScreenshotFile(file))
+        .find((message): message is string => Boolean(message))
+
+      if (validationError) {
+        e.target.value = ''
+        toast({
+          variant: "destructive",
+          title: "文件不可用",
+          description: validationError,
+        })
+        return
+      }
+
       try {
         setIsUploadingFeedback(true)
         const uploadPromises = files.map(file => uploadChatScreenshot(file))
@@ -212,31 +286,51 @@ export default function LeadsPage() {
     setFeedbackScreenshots(prev => prev.filter((_, i) => i !== index))
   }
 
+  const getScreenshots = (value?: string) => {
+    if (!value) return []
+    return value.split(',').map(url => url.trim()).filter(Boolean)
+  }
+
+  const openImagePreview = (images: string[], index = 0) => {
+    setPreviewImages(images)
+    setPreviewImageIndex(index)
+    setImagePreviewOpen(true)
+  }
+
+  const showPreviousPreviewImage = () => {
+    setPreviewImageIndex(index => Math.max(index - 1, 0))
+  }
+
+  const showNextPreviewImage = () => {
+    setPreviewImageIndex(index => Math.min(index + 1, previewImages.length - 1))
+  }
+
   const submitFeedback = async () => {
     if (!feedbackLead || !feedbackStatus) {
       toast({ variant: "destructive", title: "验证失败", description: "请选择反馈结果（已添加或未添加）" })
       return
     }
     try {
-      const response = await fetch('/api/leads/feedback', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token')}`,
-        },
-        body: JSON.stringify({
-          id: feedbackLead.id,
-          add_status: feedbackStatus,
-          chat_screenshots: feedbackScreenshots.length > 0 ? feedbackScreenshots.join(',') : undefined,
-        })
+      const response = await api.post('/api/leads/feedback', {
+        id: feedbackLead.id,
+        add_status: feedbackStatus,
+        chat_screenshots: feedbackScreenshots.length > 0 ? feedbackScreenshots.join(',') : undefined,
       })
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: '反馈失败' }))
         throw new Error(error.error || '反馈失败')
       }
+      const result = await response.json().catch(() => ({ data: null }))
+      const updatedLead = result.data as Lead | null
+      const fallbackScreenshots = feedbackScreenshots.length > 0 ? feedbackScreenshots.join(',') : undefined
       setLeads(prev => prev.map(l =>
         l.id === feedbackLead.id
-          ? { ...l, add_status: feedbackStatus, chat_screenshots: feedbackScreenshots.length > 0 ? feedbackScreenshots.join(',') : undefined }
+          ? {
+              ...l,
+              ...(updatedLead || {}),
+              add_status: updatedLead?.add_status || feedbackStatus,
+              chat_screenshots: updatedLead?.chat_screenshots ?? fallbackScreenshots,
+            }
           : l
       ))
       setFeedbackDialogOpen(false)
@@ -247,13 +341,55 @@ export default function LeadsPage() {
     }
   }
 
+  const getLeadConversionStatus = (lead: Lead) => {
+    const status = (lead as any).convert_status || lead.conversion_status || ''
+    return typeof status === 'string' ? status.trim() : ''
+  }
+
+  const hasLeadConversion = (lead: Lead) => {
+    const status = getLeadConversionStatus(lead)
+    return Boolean(status) && status !== 'empty'
+  }
+
+  const canCreateTrialFromLead = (lead: Lead) => {
+    if (!leadsPerm.convert() || lead.add_status !== 'added') return false
+    if (hasLeadConversion(lead)) return false
+    if (!user) return false
+
+    return (
+      isLeadAssignedToCurrentUser(lead) ||
+      lead.operator_id === user.id ||
+      (Boolean(lead.created_by) && Boolean(user.name) && lead.created_by === user.name)
+    )
+  }
+
+  const isLeadHandledBySales = (lead: Lead) => {
+    return lead.add_status === 'added' || lead.add_status === 'not_added' || hasLeadConversion(lead)
+  }
+
+  const isLeadAwaitingFeedback = (lead: Lead) => {
+    return !isLeadHandledBySales(lead)
+  }
+
+  const canReleaseLead = (lead: Lead) => {
+    return user?.role === 'sales' && isLeadAssignedToCurrentUser(lead) && !isLeadHandledBySales(lead)
+  }
+
   // 创建试听课程
   const handleCreateTrialLesson = (lead: Lead) => {
+    if (!canCreateTrialFromLead(lead)) {
+      toast({
+        variant: "destructive",
+        title: "无法创建试听",
+        description: "只能从自己负责的已添加线索创建试听",
+      })
+      return
+    }
+
     // 跳转到试听新增页面，并传递线索ID
     router.push(`/dashboard/trial-lessons/new?lead_id=${lead.id}`)
   }
 
-  const [isGrabbing, setIsGrabbing] = useState<string | null>(null)
   const [isReleasing, setIsReleasing] = useState<string | null>(null)
   const [isUrging, setIsUrging] = useState<string | null>(null)
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false)
@@ -262,43 +398,19 @@ export default function LeadsPage() {
   const [feedbackScreenshots, setFeedbackScreenshots] = useState<string[]>([])
   const [isUploadingFeedback, setIsUploadingFeedback] = useState(false)
 
-  const handleGrabLead = async (lead: Lead) => {
-    try {
-      setIsGrabbing(lead.id)
-      const token = localStorage.getItem('supabase.auth.token')
-      const resp = await fetch('/api/leads/grab', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ id: lead.id }),
-      })
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({ error: '抢单失败' }))
-        throw new Error(err.error || '抢单失败')
-      }
-      toast({ title: '抢单成功', description: '该线索已分配给你' })
-      fetchLeads(currentPage, pageSize)
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: '抢单失败', description: error.message || '无法抢单' })
-    } finally {
-      setIsGrabbing(null)
-    }
-  }
-
   const handleReleaseLead = async (lead: Lead) => {
+    if (!canReleaseLead(lead)) {
+      toast({
+        variant: 'destructive',
+        title: '无法丢弃',
+        description: '线索已处理，不能再丢弃',
+      })
+      return
+    }
+
     try {
       setIsReleasing(lead.id)
-      const token = localStorage.getItem('supabase.auth.token')
-      const resp = await fetch('/api/leads/release', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ id: lead.id }),
-      })
+      const resp = await api.post('/api/leads/release', { id: lead.id })
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ error: '释放失败' }))
         throw new Error(err.error || '释放失败')
@@ -312,32 +424,38 @@ export default function LeadsPage() {
     }
   }
 
-  const handleUrgeLead = async (lead: Lead) => {
-    // 检查线索是否已分配给销售人员
-    if (!lead.grab_user_id && (!lead.grab_wechat || lead.grab_wechat.trim() === '')) {
+  const handleUrgeLead = async (lead: Lead, target: 'sales' | 'operator') => {
+    const reportNumber = lead.report_number || '未命名线索'
+    const targetUserId = target === 'sales' ? lead.grab_user_id : lead.operator_id
+
+    if (!targetUserId) {
       toast({
         variant: 'destructive',
         title: '无法催促',
-        description: '该线索未分配给销售人员',
+        description: target === 'sales' ? '该线索未分配给销售人员' : '该线索未绑定负责运营',
       })
       return
     }
 
     try {
-      setIsUrging(lead.id)
+      setIsUrging(getUrgeKey(lead, target))
 
       // 创建待办事项
       await TodosService.createTodo({
-        assigned_to: lead.grab_user_id || '',
-        title: `尽快跟进线索：${lead.report_number || '未命名'}`,
-        description: `该线索尚未处理，请尽快联系。家长微信：${lead.parent_wechat || '未填写'}`,
+        assigned_to: targetUserId,
+        title: target === 'sales' ? `尽快反馈线索：${reportNumber}` : `协助处理线索：${reportNumber}`,
+        description: target === 'sales'
+          ? '该线索尚未反馈添加结果，请在自己的线索列表中查看并尽快处理。'
+          : '销售已请求运营协助处理该线索，请在可访问线索范围内查看并跟进。',
         priority: 'high',
+        entity_type: 'lead',
+        entity_id: lead.id,
         due_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16), // 明天这个时候
       })
 
       toast({
         title: '催促成功',
-        description: '已创建待办事项提醒销售人员',
+        description: target === 'sales' ? '已创建待办提醒销售人员' : '已创建待办提醒负责运营',
       })
     } catch (error: any) {
       toast({
@@ -389,7 +507,10 @@ export default function LeadsPage() {
     return <Badge variant="outline">-</Badge>
   }
 
-  if (isLoading) {
+  const leadPendingDelete = leadToDelete ? leads.find((item) => item.id === leadToDelete) : null
+  const canDeletePendingLead = Boolean(leadPendingDelete && leadsPerm.delete() && canWriteLead(leadPendingDelete))
+
+  if (isLoading || isUserLoading) {
     return (
       <div className="flex flex-col h-full">
         <Header title="线索管理" description="管理和查看所有销售线索信息" />
@@ -444,10 +565,14 @@ export default function LeadsPage() {
                     <TableHead className="sticky left-[140px] z-30 bg-background w-[140px] min-w-[140px]">咨询学科</TableHead>
                     <TableHead>录单日期</TableHead>
                     <TableHead>小红书账号来源</TableHead>
+                    <TableHead>渠道平台</TableHead>
+                    <TableHead>客户社媒账号 ID</TableHead>
+                    <TableHead>重复标记</TableHead>
                     <TableHead>年级</TableHead>
                     <TableHead>地域</TableHead>
                     <TableHead>添加方式</TableHead>
                     <TableHead>家长微信</TableHead>
+                    <TableHead>聊天截图</TableHead>
                     <TableHead>抢单微信</TableHead>
                     <TableHead>添加状态</TableHead>
                     <TableHead>转化状态</TableHead>
@@ -459,32 +584,58 @@ export default function LeadsPage() {
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={14} className="text-center py-8">
+                      <TableCell colSpan={18} className="text-center py-8">
                         <Loader2 className="h-6 w-6 animate-spin inline mr-2" />
                         加载中...
                       </TableCell>
                     </TableRow>
                   ) : leads.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={18} className="text-center py-8 text-muted-foreground">
                         暂无数据，点击&quot;新增线索&quot;开始添加
                       </TableCell>
                     </TableRow>
                   ) : (
-                    leads.map((lead) => (
-                      <TableRow key={lead.id}>
-                        <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 font-medium w-[140px] min-w-[140px]">{lead.report_number || "-"}</TableCell>
-                        <TableCell className="sticky left-[140px] z-20 bg-background group-hover:bg-muted/50 w-[140px] min-w-[140px]">
+                    leads.map((lead) => {
+                      const isDuplicate = Boolean(lead.duplicate_mark)
+                      const stickyCellBg = isDuplicate ? "bg-sky-50" : "bg-background group-hover:bg-muted/50"
+                      const screenshots = getScreenshots(lead.chat_screenshots)
+                      const canEditThisLead = leadsPerm.edit() && canWriteLead(lead)
+                      const canDeleteThisLead = leadsPerm.delete() && canWriteLead(lead)
+
+                      return (
+                      <TableRow key={lead.id} className={isDuplicate ? "bg-sky-50 hover:bg-sky-100/70" : undefined}>
+                        <TableCell className={`sticky left-0 z-20 ${stickyCellBg} font-medium w-[140px] min-w-[140px]`}>{lead.report_number || "-"}</TableCell>
+                        <TableCell className={`sticky left-[140px] z-20 ${stickyCellBg} w-[140px] min-w-[140px]`}>
                           {formatSubjects(lead.subject_codes)}
                         </TableCell>
                         <TableCell>
                           {lead.entry_date ? format(new Date(lead.entry_date), "yyyy-MM-dd") : "-"}
                         </TableCell>
                         <TableCell>{getLabel(lead.xhs_source, dictMaps.sources)}</TableCell>
+                        <TableCell>{lead.channel_platform || "-"}</TableCell>
+                        <TableCell>{lead.customer_social_id || "-"}</TableCell>
+                        <TableCell>
+                          {isDuplicate ? (
+                            <Badge className="bg-sky-500">疑似重复</Badge>
+                          ) : (
+                            <Badge variant="outline">-</Badge>
+                          )}
+                        </TableCell>
                         <TableCell>{getLabel(lead.grade_code, dictMaps.grades)}</TableCell>
                         <TableCell>{getLabel(lead.region_ip, dictMaps.regions)}</TableCell>
                         <TableCell>{getLabel(lead.add_method_code, dictMaps.addMethods)}</TableCell>
                         <TableCell>{lead.parent_wechat || "-"}</TableCell>
+                        <TableCell>
+                          {screenshots.length > 0 ? (
+                            <Button variant="outline" size="sm" onClick={() => openImagePreview(screenshots)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              {screenshots.length} 张
+                            </Button>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
                         <TableCell>{lead.grab_wechat || "-"}</TableCell>
                         <TableCell>{getStatusBadge(lead.add_status || "")}</TableCell>
                         <TableCell>{getConvertStatusBadge((lead as any).convert_status || (lead as any).conversion_status || "")}</TableCell>
@@ -499,23 +650,29 @@ export default function LeadsPage() {
                                 <span className="text-sm">{lead.updated_by}</span>
                               </>
                             )}
+                            {lead.collision_operator && (
+                              <>
+                                <span className="text-xs text-muted-foreground">重复来源</span>
+                                <span className="text-sm">{lead.collision_operator}</span>
+                              </>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            {/* 运营催促按钮 - 仅运营可见且线索已分配给销售且未添加时显示 */}
-                            {user?.role === 'operator' &&
-                             (lead.grab_user_id || (lead.grab_wechat && lead.grab_wechat.trim() !== '')) &&
-                             lead.add_status !== 'added' && (
+                            {/* 运营/Admin 催促销售：线索已分配给销售且未添加时显示 */}
+                            {(user?.role === 'operator' || user?.role === 'admin') &&
+                             lead.grab_user_id &&
+                             isLeadAwaitingFeedback(lead) && (
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleUrgeLead(lead)}
-                                disabled={isUrging === lead.id}
+                                onClick={() => handleUrgeLead(lead, 'sales')}
+                                disabled={isUrging === getUrgeKey(lead, 'sales')}
                                 title="创建待办提醒销售尽快处理"
                                 className="text-orange-600 border-orange-600 hover:bg-orange-50"
                               >
-                                {isUrging === lead.id ? (
+                                {isUrging === getUrgeKey(lead, 'sales') ? (
                                   <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                     催促中...
@@ -523,33 +680,39 @@ export default function LeadsPage() {
                                 ) : (
                                   <>
                                     <Bell className="mr-2 h-4 w-4" />
-                                    催促
+                                    催促销售
                                   </>
                                 )}
                               </Button>
                             )}
-                            {/* 销售抢单：仅未分配时显示 */}
-                            {user?.role === 'sales' && (!lead.grab_wechat || lead.grab_wechat.trim() === '') && (
+                            {/* 销售催促运营：仅自己负责的线索可提醒负责运营 */}
+                            {user?.role === 'sales' &&
+                              isLeadAssignedToCurrentUser(lead) &&
+                              lead.operator_id &&
+                              isLeadAwaitingFeedback(lead) && (
                               <Button
-                                variant="default"
+                                variant="outline"
                                 size="sm"
-                                onClick={() => handleGrabLead(lead)}
-                                disabled={isGrabbing === lead.id}
+                                onClick={() => handleUrgeLead(lead, 'operator')}
+                                disabled={isUrging === getUrgeKey(lead, 'operator')}
+                                title="创建待办提醒负责运营协助处理"
+                                className="text-blue-600 border-blue-600 hover:bg-blue-50"
                               >
-                                {isGrabbing === lead.id ? (
+                                {isUrging === getUrgeKey(lead, 'operator') ? (
                                   <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    抢单中...
+                                    催促中...
                                   </>
                                 ) : (
-                                  '抢单'
+                                  <>
+                                    <Bell className="mr-2 h-4 w-4" />
+                                    催促运营
+                                  </>
                                 )}
                               </Button>
                             )}
                             {/* 销售释放：仅分配给自己时显示 */}
-                            {user?.role === 'sales' &&
-                              (lead.grab_user_id === user?.id ||
-                                (lead.grab_wechat && user?.name && lead.grab_wechat.includes(user?.name))) && (
+                            {canReleaseLead(lead) && (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -569,10 +732,8 @@ export default function LeadsPage() {
                             {/* 销售反馈按钮 - 只在未反馈时显示 */}
                             {/* 显示条件：有反馈权限 + 派给自己 + 未反馈（add_status为空） */}
                             {leadsPerm.feedback() &&
-                              (lead.grab_user_id === user?.id ||
-                               (lead.grab_wechat && user?.name && lead.grab_wechat.includes(user?.name))
-                              ) &&
-                              (lead.add_status != 'added' && lead.add_status != 'not_added') && (
+                              isLeadAssignedToCurrentUser(lead) &&
+                              isLeadAwaitingFeedback(lead) && (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -584,7 +745,7 @@ export default function LeadsPage() {
                               </Button>
                             )}
                             {/* 创建试听按钮 - 只在已添加状态下显示 */}
-                            {leadsPerm.convert() && lead.add_status === 'added' && (
+                            {canCreateTrialFromLead(lead) && (
                               <Button
                                 variant="default"
                                 size="sm"
@@ -596,7 +757,7 @@ export default function LeadsPage() {
                               </Button>
                             )}
                             {/* 运营编辑按钮 - 只有运营和管理员可以看到 */}
-                            {leadsPerm.edit() && (
+                            {canEditThisLead && (
                               <Link href={`/dashboard/leads/${lead.id}/edit`}>
                                 <Button variant="ghost" size="icon" title="编辑">
                                   <Edit className="h-4 w-4" />
@@ -604,11 +765,11 @@ export default function LeadsPage() {
                               </Link>
                             )}
                             {/* 运营删除按钮 - 只有运营和管理员可以看到 */}
-                            {leadsPerm.delete() && (
+                            {canDeleteThisLead && (
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => handleDeleteClick(lead.id)}
+                                onClick={() => handleDeleteClick(lead)}
                                 disabled={isDeleting === lead.id}
                                 title="删除"
                               >
@@ -622,7 +783,8 @@ export default function LeadsPage() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
+                      )
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -688,7 +850,10 @@ export default function LeadsPage() {
       </div>
 
       {/* 删除确认对话框 */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <Dialog
+        open={deleteDialogOpen && canDeletePendingLead}
+        onOpenChange={(open) => !open && handleDeleteCancel()}
+      >
         <DialogContent>
           <DialogHeader>
             <div className="flex items-center gap-2">
@@ -741,7 +906,7 @@ export default function LeadsPage() {
               <Label>聊天截图</Label>
               <Input
                 type="file"
-                accept="image/*"
+                accept={CHAT_SCREENSHOT_ACCEPT}
                 multiple
                 onChange={handleFeedbackScreenshotChange}
                 disabled={isUploadingFeedback}
@@ -761,7 +926,8 @@ export default function LeadsPage() {
                         <img
                           src={screenshot}
                           alt={`聊天截图 ${index + 1}`}
-                          className="w-full h-auto border rounded"
+                          className="w-full h-auto border rounded cursor-zoom-in"
+                          onClick={() => openImagePreview(feedbackScreenshots, index)}
                         />
                         <button
                           type="button"
@@ -783,6 +949,48 @@ export default function LeadsPage() {
             <Button variant="outline" onClick={() => setFeedbackDialogOpen(false)}>取消</Button>
             <Button onClick={submitFeedback}>提交反馈</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* 图片预览对话框 */}
+      <Dialog open={imagePreviewOpen} onOpenChange={setImagePreviewOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>聊天截图</DialogTitle>
+            <DialogDescription>
+              {previewImages.length > 0 ? `${previewImageIndex + 1} / ${previewImages.length}` : "无图片"}
+            </DialogDescription>
+          </DialogHeader>
+          {previewImages.length > 0 && (
+            <div className="space-y-4">
+              <div className="max-h-[70vh] overflow-auto rounded border bg-muted/30">
+                <img
+                  src={previewImages[previewImageIndex]}
+                  alt={`聊天截图 ${previewImageIndex + 1}`}
+                  className="mx-auto max-h-[70vh] w-auto max-w-full object-contain"
+                />
+              </div>
+              {previewImages.length > 1 && (
+                <div className="flex justify-between">
+                  <Button
+                    variant="outline"
+                    onClick={showPreviousPreviewImage}
+                    disabled={previewImageIndex === 0}
+                  >
+                    <ChevronLeft className="mr-2 h-4 w-4" />
+                    上一张
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={showNextPreviewImage}
+                    disabled={previewImageIndex >= previewImages.length - 1}
+                  >
+                    下一张
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

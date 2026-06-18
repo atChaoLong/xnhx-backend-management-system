@@ -2,16 +2,24 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
 import { handleDatabaseError } from "@/lib/utils"
+import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getAccessibleCourseIds, hasScopedIdAccess } from "@/lib/server-business-scope"
+import { createSafeErrorResponse, summarizeError } from "@/lib/safe-error"
+import { COURSE_RESPONSE_SELECT, formatCourseResponse } from "@/lib/server-course-selects"
 
 const logger = createLogger('API:Courses:SyncStats')
+
+function isCompletedClassroom(classroom: { end_time?: number | null }, nowSeconds: number) {
+  return typeof classroom.end_time === 'number' && classroom.end_time > 0 && classroom.end_time < nowSeconds
+}
 
 // POST: 同步课程统计信息（从 class_classin）
 export async function POST(
   request: NextRequest,
-  { params }: { params: { courseId: string } }
+  { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
-    const { courseId } = params
+    const { courseId } = await params
 
     if (!courseId) {
       return NextResponse.json(
@@ -21,6 +29,17 @@ export async function POST(
     }
 
     logger.debug('同步课程统计信息', { courseId })
+
+    const profile = await getCurrentProfile(request)
+    const accessibleCourseIds = await getAccessibleCourseIds(profile)
+
+    if (!hasScopedIdAccess(accessibleCourseIds, courseId)) {
+      logger.warn('同步课程统计失败 - 无权访问课程', { courseId, profileId: profile?.id })
+      return NextResponse.json(
+        { error: '无权同步该课程统计' },
+        { status: 403 }
+      )
+    }
 
     // 1. 获取本地课程信息
     const { data: course, error: courseError } = await supabaseServer
@@ -63,11 +82,11 @@ export async function POST(
     // 3. 从 classroom_classin 统计课时信息
     const { data: classrooms, error: classroomsError } = await supabaseServer
       .from('classroom_classin')
-      .select('class_id')
+      .select('class_id, end_time')
       .eq('course_id', course.classin_course_id)
 
     if (classroomsError) {
-      logger.error('获取课堂记录失败', { courseId, message: classroomsError.message })
+      logger.error('获取课堂记录失败', { courseId, error_summary: summarizeError(classroomsError) })
       return NextResponse.json(
         { error: '获取课堂记录失败' },
         { status: 400 }
@@ -75,10 +94,12 @@ export async function POST(
     }
 
     // 4. 计算统计数据
+    const nowSeconds = Math.floor(Date.now() / 1000)
     const totalSessions = classrooms?.length || 0
-    // 注意：completedSessions 需要根据实际业务逻辑判断，这里暂时假设所有都是已完成的
-    const completedSessions = totalSessions
-    const progress = totalSessions > 0 ? 100 : 0
+    const completedSessions = classrooms?.filter((classroom: any) =>
+      isCompletedClassroom(classroom, nowSeconds)
+    ).length || 0
+    const progress = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0
 
     // 5. 构建消耗信息
     const consumptionInfo = {
@@ -97,26 +118,17 @@ export async function POST(
         course_consumption_info: JSON.stringify(consumptionInfo),
       })
       .eq('id', courseId)
-      .select(`
-        *,
-        teacher:teacher_id(id, name),
-        formal_orders(id, order_number, student_id)
-      `)
+      .select(COURSE_RESPONSE_SELECT)
       .single()
 
     if (updateError) {
-      logger.error('更新课程失败', { courseId, message: updateError.message })
+      logger.error('更新课程失败', { courseId, error_summary: summarizeError(updateError) })
       const { message, status } = handleDatabaseError(updateError)
       return NextResponse.json({ error: message }, { status })
     }
 
     // 格式化返回数据
-    const formattedData = {
-      ...updatedCourse,
-      teacher_name: updatedCourse.teacher?.name,
-      student_id: updatedCourse.student_id || updatedCourse.formal_orders?.student_id,
-      order_number: updatedCourse.formal_orders?.order_number,
-    }
+    const formattedData = formatCourseResponse(updatedCourse)
 
     logger.info('同步课程统计信息成功', {
       courseId,
@@ -126,11 +138,12 @@ export async function POST(
     })
 
     return NextResponse.json({ data: formattedData })
-  } catch (error: any) {
-    logger.error('同步课程统计信息异常', { message: error.message, stack: error.stack })
+  } catch (error) {
+    const safeError = createSafeErrorResponse(error, '同步课程统计信息失败')
+    logger.error('同步课程统计信息异常', safeError.log)
     return NextResponse.json(
-      { error: error.message || '同步课程统计信息失败' },
-      { status: 500 }
+      safeError.response,
+      { status: safeError.status }
     )
   }
 }

@@ -2,28 +2,38 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
 import { handleDatabaseError } from '@/lib/utils'
+import { getCurrentProfile } from '@/lib/server-data-scope'
+import { summarizeError } from '@/lib/safe-error'
 
 const logger = createLogger('API:LeadsGrab')
 
-async function getCurrentProfile(request: NextRequest): Promise<{ id: string; name: string; role: string } | null> {
-  try {
-    const authHeader = request.headers.get('authorization')
-    const token = authHeader?.replace('Bearer ', '')
-    if (!token) return null
-    const { data: { user }, error } = await supabaseServer.auth.getUser(token)
-    if (error || !user) return null
-    const { data: profile } = await supabaseServer
-      .from('user_profiles')
-      .select('id, name, role')
-      .eq('id', user.id)
-      .single()
-    if (!profile) return null
-    return profile as any
-  } catch (e) {
-    logger.error('获取当前用户档案失败', { error: e })
-    return null
-  }
-}
+const LEAD_SELECT = `
+  id,
+  created_at,
+  updated_at,
+  report_number,
+  entry_date,
+  xhs_source,
+  add_method_code,
+  operator_id,
+  grade_code,
+  channel_platform,
+  customer_social_id,
+  subject_codes,
+  region_ip,
+  parent_wechat,
+  chat_screenshots,
+  duplicate_mark,
+  collision_operator,
+  grab_wechat,
+  grab_user_id,
+  add_feedback,
+  feedback_time,
+  add_status,
+  conversion_status,
+  created_by,
+  updated_by
+`
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,12 +53,18 @@ export async function POST(request: NextRequest) {
 
     const { data: lead, error: fetchErr } = await supabaseServer
       .from('leads')
-      .select('*')
+      .select('id, grab_user_id, grab_wechat')
       .eq('id', id)
       .single()
     if (fetchErr || !lead) {
-      const { message, status } = handleDatabaseError(fetchErr)
-      return NextResponse.json({ error: message || '线索不存在' }, { status: status || 404 })
+      if (fetchErr) {
+        logger.warn('抢单前查询线索失败', {
+          leadId: id,
+          userId: profile.id,
+          ...summarizeError(fetchErr),
+        })
+      }
+      return NextResponse.json({ error: '线索不存在' }, { status: 404 })
     }
 
     if (lead.grab_user_id || (lead.grab_wechat && lead.grab_wechat.trim() !== '')) {
@@ -60,23 +76,31 @@ export async function POST(request: NextRequest) {
       .update({
         grab_user_id: profile.id,
         grab_wechat: profile.name,
+        add_status: null,
+        add_feedback: null,
+        feedback_time: null,
+        conversion_status: null,
         updated_at: new Date().toISOString(),
         updated_by: profile.name,
       })
       .eq('id', id)
-      .select('*')
+      .select(LEAD_SELECT)
       .single()
 
     if (error) {
+      logger.error('抢单失败', {
+        leadId: id,
+        userId: profile.id,
+        ...summarizeError(error),
+      })
       const { message, status } = handleDatabaseError(error)
       return NextResponse.json({ error: message }, { status })
     }
 
     logger.info('抢单成功', { leadId: id, userId: profile.id })
     return NextResponse.json({ data })
-  } catch (error: any) {
-    logger.error('抢单异常', { message: error.message, stack: error.stack })
-    return NextResponse.json({ error: error.message || '抢单失败' }, { status: 500 })
+  } catch (error) {
+    logger.error('抢单异常', summarizeError(error))
+    return NextResponse.json({ error: '抢单失败' }, { status: 500 })
   }
 }
-

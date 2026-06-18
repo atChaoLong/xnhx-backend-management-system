@@ -188,15 +188,11 @@ export async function createClassSession(session: NewClassSession): Promise<Clas
  * 批量创建课时
  */
 export async function createClassSessions(sessions: NewClassSession[]): Promise<ClassSession[]> {
-  const response = await api.post("/api/class-sessions/batch", { sessions })
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: '批量创建课时失败' }))
-    throw new Error(error.error || '批量创建课时失败')
+  if (sessions.length === 0) {
+    return []
   }
 
-  const { data } = await response.json()
-  return data as ClassSession[]
+  return Promise.all(sessions.map((session) => createClassSession(session)))
 }
 
 /**

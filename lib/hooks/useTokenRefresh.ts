@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { tokenRefreshManager } from '@/lib/tokenRefreshManager'
 import { createLogger } from '@/lib/logger'
+import { summarizeError } from '@/lib/safe-error'
 
 const logger = createLogger('useTokenRefresh')
 
@@ -48,7 +49,7 @@ export function useTokenRefresh(config: TokenRefreshConfig = {}) {
       logger.debug('BroadcastChannel 已创建')
     } catch (error) {
       // 浏览器可能不支持 BroadcastChannel
-      logger.warn('浏览器不支持 BroadcastChannel', { error })
+      logger.warn('浏览器不支持 BroadcastChannel', summarizeError(error))
     }
 
     // 定时检查 token
@@ -63,48 +64,25 @@ export function useTokenRefresh(config: TokenRefreshConfig = {}) {
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === 'supabase.auth.session' && event.newValue) {
         logger.debug('检测到其他标签页更新了 session')
-        try {
-          const newSession = JSON.parse(event.newValue)
 
-          // 触发自定义事件
-          window.dispatchEvent(new CustomEvent('token:updated', {
-            detail: { session: newSession }
-          }))
-        } catch (error) {
-          logger.error('解析其他标签页的 session 失败', { error })
-        }
+        // 触发自定义事件；不通过事件 detail 广播 token。
+        window.dispatchEvent(new CustomEvent('token:updated', {
+          detail: { hasSession: true }
+        }))
       }
     }
 
     // 监听 BroadcastChannel 消息
     const handleBroadcastMessage = (event: MessageEvent) => {
-      if (event.data.type === 'TOKEN_REFRESHED') {
+      if (event.data?.type === 'TOKEN_REFRESHED') {
         logger.debug('收到其他标签页的刷新通知')
 
-        // 更新本地 session
-        if (event.data.session) {
-          try {
-            localStorage.setItem(
-              'supabase.auth.session',
-              JSON.stringify(event.data.session)
-            )
-
-            // 更新 access_token
-            if (event.data.session.access_token) {
-              localStorage.setItem(
-                'supabase.auth.token',
-                event.data.session.access_token
-              )
-            }
-
-            // 触发自定义事件
-            window.dispatchEvent(new CustomEvent('token:updated', {
-              detail: { session: event.data.session }
-            }))
-          } catch (error) {
-            logger.error('同步其他标签页的 session 失败', { error })
+        // localStorage 已由刷新标签页写入；这里只通知页面状态更新。
+        window.dispatchEvent(new CustomEvent('token:updated', {
+          detail: {
+            hasSession: Boolean(localStorage.getItem('supabase.auth.session')),
           }
-        }
+        }))
       }
     }
 
@@ -147,13 +125,12 @@ export function useTokenRefresh(config: TokenRefreshConfig = {}) {
       if (broadcastChannelRef.current) {
         broadcastChannelRef.current.postMessage({
           type: 'TOKEN_REFRESHED',
-          session
         })
         logger.debug('已通知其他标签页 token 已刷新')
       }
 
     } catch (error) {
-      logger.error('token 刷新异常', { error })
+      logger.error('token 刷新异常', summarizeError(error))
     }
   }
 

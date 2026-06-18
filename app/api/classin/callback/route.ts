@@ -6,11 +6,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ClassInCallbackData, CallbackResponse } from '@/lib/services/classin/callback-types';
 import { verifySafeKey, handleMessage } from '@/lib/services/classin/callback-handler';
+import { createLogger } from '@/lib/logger';
+import { summarizeError } from '@/lib/safe-error';
+
+const logger = createLogger('API:ClassInCallback');
 
 // 设置运行时为 Node.js，支持 crypto 模块
 export const runtime = 'nodejs';
 // 强制动态渲染，确保每次请求都能处理
 export const dynamic = 'force-dynamic';
+
+function summarizeHeaders(request: NextRequest) {
+  return {
+    content_type: request.headers.get('content-type') || null,
+    user_agent_present: Boolean(request.headers.get('user-agent')),
+    forwarded_for_present: Boolean(request.headers.get('x-forwarded-for')),
+  };
+}
+
+function summarizeCallbackBody(body: ClassInCallbackData) {
+  const fields = Object.keys(body || {})
+    .filter((field) => field !== 'SafeKey' && field !== 'Msg')
+    .sort();
+
+  return {
+    sid: body?.SID,
+    cmd: body?.Cmd,
+    timestamp: body?.TimeStamp,
+    has_msg: Boolean(body?.Msg),
+    has_safe_key: Boolean(body?.SafeKey),
+    fields,
+  };
+}
 
 /**
  * POST /api/classin/callback
@@ -18,25 +45,17 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest): Promise<NextResponse<CallbackResponse>> {
   try {
-    // 记录请求信息
-    console.log('🔔 收到 ClassIn 回调请求');
-    console.log('请求头:', Object.fromEntries(request.headers.entries()));
-    
+    logger.info('收到 ClassIn 回调请求', { headers: summarizeHeaders(request) });
+
     // 解析请求体
     const body: ClassInCallbackData = await request.json();
-    const { SID, Cmd, Msg, SafeKey, TimeStamp } = body;
+    const { SID, Cmd, SafeKey, TimeStamp } = body;
 
-    console.log('回调数据概览:', {
-      SID,
-      Cmd,
-      hasMsg: !!Msg,
-      SafeKey: SafeKey ? `${SafeKey.substring(0, 8)}...` : null,
-      TimeStamp
-    });
+    logger.debug('ClassIn 回调数据概览', summarizeCallbackBody(body));
 
     // 验证必要字段
     if (!SID || !Cmd || !SafeKey || !TimeStamp) {
-      console.error('❌ 缺少必要字段:', { SID, Cmd, hasSafeKey: !!SafeKey, TimeStamp });
+      logger.warn('ClassIn 回调缺少必要字段', summarizeCallbackBody(body));
       return NextResponse.json<CallbackResponse>({
         error_info: {
           errno: 0,
@@ -49,16 +68,23 @@ export async function POST(request: NextRequest): Promise<NextResponse<CallbackR
     const currentTime = Math.floor(Date.now() / 1000);
     const timeDiff = Math.abs(currentTime - TimeStamp);
     if (timeDiff > 300) { // 5分钟内的请求认为是有效的
-      console.warn(`⚠️ 时间戳差异过大: ${timeDiff}秒`);
+      logger.warn('ClassIn 回调时间戳差异过大', {
+        sid: SID,
+        cmd: Cmd,
+        time_diff_seconds: timeDiff,
+      });
     }
 
     // 验证 SafeKey
     if (!verifySafeKey(SafeKey, TimeStamp)) {
-      console.error('❌ SafeKey 验证失败');
-      console.log('接收到的 SafeKey:', SafeKey);
-      console.log('时间戳:', TimeStamp);
-      console.log('当前时间戳:', currentTime);
-      
+      logger.warn('ClassIn 回调 SafeKey 验证失败', {
+        sid: SID,
+        cmd: Cmd,
+        timestamp: TimeStamp,
+        current_timestamp: currentTime,
+        has_safe_key: true,
+      });
+
       return NextResponse.json<CallbackResponse>({
         error_info: {
           errno: 0,
@@ -67,7 +93,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CallbackR
       }, { status: 401 });
     }
 
-    console.log('✅ SafeKey 验证通过');
+    logger.debug('ClassIn 回调 SafeKey 验证通过', { sid: SID, cmd: Cmd });
 
     // 处理消息
     await handleMessage(Cmd, body);
@@ -80,12 +106,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<CallbackR
       }
     };
 
-    console.log('✅ 回调处理完成，返回成功响应');
+    logger.info('ClassIn 回调处理完成', { sid: SID, cmd: Cmd });
     return NextResponse.json(response);
 
-  } catch (error) {
-    console.error('❌ 处理 ClassIn 回调时出错:', error);
-    
+  } catch (error: unknown) {
+    logger.error('处理 ClassIn 回调时出错', summarizeError(error));
+
     // 即使出错也要返回格式化的响应，避免 ClassIn 重试
     return NextResponse.json<CallbackResponse>({
       error_info: {
@@ -104,7 +130,7 @@ export async function GET(): Promise<NextResponse> {
   return NextResponse.json({
     error: 'Method not allowed. Please use POST.',
     message: 'ClassIn 回调接口仅支持 POST 请求'
-  }, { 
+  }, {
     status: 405,
     headers: {
       'Allow': 'POST'
@@ -119,7 +145,7 @@ export async function GET(): Promise<NextResponse> {
 export async function PUT(): Promise<NextResponse> {
   return NextResponse.json({
     error: 'Method not allowed. Please use POST.'
-  }, { 
+  }, {
     status: 405,
     headers: {
       'Allow': 'POST'
@@ -134,7 +160,7 @@ export async function PUT(): Promise<NextResponse> {
 export async function DELETE(): Promise<NextResponse> {
   return NextResponse.json({
     error: 'Method not allowed. Please use POST.'
-  }, { 
+  }, {
     status: 405,
     headers: {
       'Allow': 'POST'

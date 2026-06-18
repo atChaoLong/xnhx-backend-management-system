@@ -15,11 +15,56 @@ export interface NetworkTestResult {
   details?: any
 }
 
+function getSafeErrorLabel(error: unknown): string {
+  if (error instanceof Error && error.name === 'AbortError') {
+    return 'request_timeout_or_aborted'
+  }
+
+  return 'network_request_failed'
+}
+
+function redactHostname(hostname: string): string {
+  if (!hostname) return 'unknown'
+  if (hostname.endsWith('.supabase.co')) return '***.supabase.co'
+
+  return '[configured-host]'
+}
+
+function describeSupabaseUrl(supabaseUrl: string | undefined): {
+  configured: boolean
+  host: string | undefined
+  region: string
+} {
+  if (!supabaseUrl) {
+    return {
+      configured: false,
+      host: undefined,
+      region: '未配置',
+    }
+  }
+
+  try {
+    const url = new URL(supabaseUrl)
+
+    return {
+      configured: true,
+      host: redactHostname(url.hostname),
+      region: extractRegionFromUrl(supabaseUrl),
+    }
+  } catch {
+    return {
+      configured: true,
+      host: 'invalid-url',
+      region: '配置格式无效',
+    }
+  }
+}
+
 /**
  * 测试 Supabase 连接
  */
 export async function testSupabaseConnection(): Promise<{
-  supabaseUrl: string
+  supabaseHost: string
   region: string
   tests: NetworkTestResult[]
   summary: string
@@ -34,8 +79,9 @@ export async function testSupabaseConnection(): Promise<{
   // 解析 Supabase URL 获取区域信息
   const url = new URL(supabaseUrl)
   const region = extractRegionFromUrl(supabaseUrl)
+  const supabaseHost = redactHostname(url.hostname)
 
-  logger.info('开始网络连接测试', { supabaseUrl, region })
+  logger.info('开始网络连接测试', { supabaseHost, region })
 
   // 测试 1: DNS 解析
   results.push(await testDnsResolution(url.hostname))
@@ -53,10 +99,14 @@ export async function testSupabaseConnection(): Promise<{
   const successCount = results.filter((r) => r.success).length
   const summary = `网络测试完成: ${successCount}/${results.length} 通过`
 
-  logger.info(summary, { results })
+  logger.info('网络测试完成', {
+    success: successCount,
+    total: results.length,
+    failed: results.length - successCount,
+  })
 
   return {
-    supabaseUrl,
+    supabaseHost,
     region,
     tests: results,
     summary,
@@ -108,7 +158,7 @@ async function testDnsResolution(hostname: string): Promise<NetworkTestResult> {
         test: 'DNS 解析',
         success: answers.length > 0,
         duration,
-        details: { hostname, answers },
+        details: { host: redactHostname(hostname), answerCount: answers.length },
       }
     }
 
@@ -123,7 +173,7 @@ async function testDnsResolution(hostname: string): Promise<NetworkTestResult> {
       test: 'DNS 解析',
       success: false,
       duration: Date.now() - startTime,
-      error: error.message,
+      error: getSafeErrorLabel(error),
     }
   }
 }
@@ -154,16 +204,16 @@ async function testTcpConnection(
       test: `TCP 连接 (端口 ${port})`,
       success: true,
       duration,
-      details: { hostname, port, status: response.status },
+      details: { host: redactHostname(hostname), port, status: response.status },
     }
   } catch (error: any) {
     return {
       test: `TCP 连接 (端口 ${port})`,
       success: false,
       duration: Date.now() - startTime,
-      error: error.message,
+      error: getSafeErrorLabel(error),
       details: {
-        hostname,
+        host: redactHostname(hostname),
         port,
         isVercel: process.env.VERCEL === '1',
         vercelEnv: process.env.VERCEL_ENV,
@@ -205,7 +255,7 @@ async function testHttpRequest(supabaseUrl: string): Promise<NetworkTestResult> 
       test: 'HTTP 请求到 Supabase REST API',
       success: false,
       duration: Date.now() - startTime,
-      error: error.message,
+      error: getSafeErrorLabel(error),
     }
   }
 }
@@ -241,7 +291,7 @@ async function testSupabaseHealth(supabaseUrl: string): Promise<NetworkTestResul
       test: 'Supabase 项目访问',
       success: false,
       duration: Date.now() - startTime,
-      error: error.message,
+      error: getSafeErrorLabel(error),
       details: {
         isVercel: process.env.VERCEL === '1',
         vercelEnv: process.env.VERCEL_ENV,
@@ -259,17 +309,20 @@ export function getEnvironmentDiagnostics(): {
   vercelEnv: string | undefined
   vercelRegion: string | undefined
   nodeVersion: string
-  supabaseUrl: string | undefined
+  supabaseUrlConfigured: boolean
+  supabaseHost: string | undefined
   supabaseRegion: string
 } {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseUrlInfo = describeSupabaseUrl(supabaseUrl)
 
   return {
     isVercel: process.env.VERCEL === '1',
     vercelEnv: process.env.VERCEL_ENV,
     vercelRegion: process.env.VERCEL_REGION,
     nodeVersion: process.version,
-    supabaseUrl,
-    supabaseRegion: supabaseUrl ? extractRegionFromUrl(supabaseUrl) : '未配置',
+    supabaseUrlConfigured: supabaseUrlInfo.configured,
+    supabaseHost: supabaseUrlInfo.host,
+    supabaseRegion: supabaseUrlInfo.region,
   }
 }

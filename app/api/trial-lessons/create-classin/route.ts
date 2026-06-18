@@ -2,29 +2,79 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { getClassInSDKService } from "@/lib/services/classin-sdk/service"
 import { ensureChinaTimezone } from "@/lib/utils/timezone"
- 
+import { ensureClassInStudentAccount } from "@/lib/server-classin-students"
+import { summarizeError } from "@/lib/safe-error"
 import { createLogger } from "@/lib/logger"
+import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getAccessibleTrialLessonIds, hasScopedIdAccess } from "@/lib/server-business-scope"
 
 const logger = createLogger('API:TrialLessonscreateClassIn')
+const CLASSIN_STUDENT_ERROR_MESSAGE = '创建 ClassIn 学生账号失败'
+
+const TRIAL_CLASSIN_LESSON_SELECT = `
+  id,
+  child_name,
+  phone,
+  trial_subject,
+  trial_time,
+  trial_duration,
+  confirmed_teacher,
+  classin_course_id,
+  classin_unit_id,
+  classin_class_id,
+  classin_activity_id,
+  classin_student_uid
+`
+
+const CLASSIN_TEACHER_SELECT = `
+  uid,
+  name
+`
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { trialLessonId } = body
+    const trialLessonId = String(body.trialLessonId || '').trim()
 
     if (!trialLessonId) {
       return NextResponse.json({ error: '试听课程ID不能为空' }, { status: 400 })
     }
 
+    const profile = await getCurrentProfile(request)
+
+    if (!profile) {
+      return NextResponse.json(
+        { error: '用户档案未配置，请联系管理员' },
+        { status: 403 }
+      )
+    }
+
+    const accessibleTrialLessonIds = await getAccessibleTrialLessonIds(profile)
+
+    if (!hasScopedIdAccess(accessibleTrialLessonIds, trialLessonId)) {
+      logger.warn('创建 ClassIn 课程失败 - 无权访问试听课程', {
+        trialLessonId,
+        user_id: profile.id,
+        role: profile.role,
+      })
+      return NextResponse.json(
+        { error: '无权为该试听课程创建 ClassIn 课程' },
+        { status: 403 }
+      )
+    }
+
     // 1. 获取试听课程信息
     const { data: lesson, error: lessonError } = await supabaseServer
       .from('trial_lessons')
-      .select('*')
+      .select(TRIAL_CLASSIN_LESSON_SELECT)
       .eq('id', trialLessonId)
       .single()
 
     if (lessonError || !lesson) {
-      logger.error('获取试听课程失败', { trialLessonId, error: lessonError })
+      logger.error('获取试听课程失败', {
+        trialLessonId,
+        error_summary: lessonError ? summarizeError(lessonError) : undefined,
+      })
       return NextResponse.json({ error: '试听课程不存在' }, { status: 404 })
     }
 
@@ -38,16 +88,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '请先确认教师后再创建课程' }, { status: 400 })
     }
 
+    if (!lesson.phone) {
+      return NextResponse.json({ error: '缺少学生手机号（用于注册 ClassIn 学生账号）' }, { status: 400 })
+    }
+
     // 4. 从 teacher_classin 表获取教师信息
     const { data: teacherData, error: teacherError } = await supabaseServer
       .from('teacher_classin')
-      .select('*')
+      .select(CLASSIN_TEACHER_SELECT)
       .eq('name', lesson.confirmed_teacher)
       .eq('is_del', 0)
       .single()
 
     if (teacherError || !teacherData) {
-      logger.error('获取教师ClassIn信息失败', { teacherName: lesson.confirmed_teacher, error: teacherError })
+      logger.error('获取教师ClassIn信息失败', {
+        trialLessonId,
+        error_summary: teacherError ? summarizeError(teacherError) : undefined,
+      })
       return NextResponse.json({ error: '教师未在ClassIn系统中找到，请检查教师姓名是否正确' }, { status: 400 })
     }
 
@@ -69,9 +126,36 @@ export async function POST(request: NextRequest) {
     // 6. 使用 SDK 创建课程和课堂
     const sdk = getClassInSDKService()
 
+    let studentUid: number | undefined = lesson.classin_student_uid
+      ? Number(lesson.classin_student_uid)
+      : undefined
+    let classinStudentUpdate: Record<string, any> = {}
+
+    if (!studentUid) {
+      const classinStudent = await ensureClassInStudentAccount({
+        telephone: lesson.phone,
+        nickname: lesson.child_name || '学生',
+      })
+
+      studentUid = classinStudent.uid
+      classinStudentUpdate = {
+        classin_student_uid: classinStudent.uid || null,
+        classin_student_registered_at: classinStudent.uid ? new Date().toISOString() : null,
+        classin_student_error: classinStudent.uid
+          ? null
+          : CLASSIN_STUDENT_ERROR_MESSAGE,
+      }
+
+      if (!studentUid) {
+        logger.warn('未能获得试听学生 ClassIn UID，后续将跳过添加课程学生', {
+          trialLessonId,
+          error_summary: summarizeError(classinStudent.error),
+        })
+      }
+    }
+
     // 课程名称和课堂名称
     const courseName = `【试听】${lesson.child_name} ${subjectLabel}课`
-    const unitName = '试听单元'
     const classroomName = `【试听】${lesson.child_name} ${subjectLabel}课`
 
     // 计算开始和结束时间（确保使用中国时区）
@@ -82,14 +166,11 @@ export async function POST(request: NextRequest) {
     const endTime = new Date(trialTime.getTime() + durationMs)
 
     logger.info('开始创建完整的ClassIn课程', {
-      courseName,
-      teacherName: lesson.confirmed_teacher,
+      trialLessonId,
       teacherUid: teacherData.uid,
-      trialTime: trialTime.toISOString(),
       trial_duration_minutes: lesson.trial_duration,
       durationInHours,
       durationMs,
-      endTime: endTime.toISOString(),
       durationMinutes: (endTime.getTime() - trialTime.getTime()) / 60000
     })
 
@@ -131,10 +212,10 @@ export async function POST(request: NextRequest) {
 
       logger.info('创建课堂成功', { classId, activityId })
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('创建ClassIn课程失败', {
-        message: error.message,
-        stack: error.stack
+        trialLessonId,
+        error_summary: summarizeError(error),
       })
       throw error
     }
@@ -155,27 +236,55 @@ export async function POST(request: NextRequest) {
         }, {
           onConflict: 'course_id'
         })
-      logger.info('写入 class_classin 成功', { courseId, courseName })
-    } catch (error: any) {
-      logger.warn('写入 class_classin 失败（非致命）', { message: error.message })
+      logger.info('写入 class_classin 成功', { courseId })
+    } catch (error: unknown) {
+      logger.warn('写入 class_classin 失败（非致命）', {
+        courseId,
+        error_summary: summarizeError(error),
+      })
+    }
+
+    if (studentUid) {
+      try {
+        await sdk.addCourseStudent({
+          courseId,
+          studentUid,
+          identity: 1,
+          studentName: lesson.child_name || undefined,
+        })
+        logger.info('添加试听学生到 ClassIn 课程成功', {
+          courseId,
+          has_student_uid: true,
+        })
+      } catch (error: unknown) {
+        logger.warn('添加试听学生到 ClassIn 课程失败（非致命）', {
+          courseId,
+          has_student_uid: true,
+          error_summary: summarizeError(error),
+        })
+      }
     }
 
     // 8. 更新试听课程记录
-      const { error: updateError } = await supabaseServer
-        .from('trial_lessons')
-        .update({
-          classin_course_id: courseId,
-          classin_class_id: classId,
-          classin_activity_id: activityId,
-          classin_unit_id: unitId || null,
-          course_status: '已排课',
-          status: 'confirmed',
-          updated_at: new Date().toISOString(),
-        })
+    const { error: updateError } = await supabaseServer
+      .from('trial_lessons')
+      .update({
+        classin_course_id: courseId,
+        classin_class_id: classId,
+        classin_activity_id: activityId,
+        classin_unit_id: unitId || null,
+        course_status: '已排课',
+        status: 'confirmed',
+        ...classinStudentUpdate,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', trialLessonId)
 
     if (updateError) {
-      logger.error('更新试听课程失败', { trialLessonId, error: updateError })
+      logger.error('更新试听课程失败', {
+        trialLessonId,
+        error_summary: summarizeError(updateError),
+      })
       return NextResponse.json({ error: '创建成功但更新记录失败' }, { status: 500 })
     }
 
@@ -185,14 +294,11 @@ export async function POST(request: NextRequest) {
         courseId,
         unitId,
         classId,
-        activityId,
-        courseName,
-        unitName,
-        classroomName
+        activityId
       }
     })
-  } catch (error: any) {
-    logger.error('创建ClassIn课程异常', { message: error.message, stack: error.stack })
-    return NextResponse.json({ error: error.message || '创建课程失败' }, { status: 500 })
+  } catch (error: unknown) {
+    logger.error('创建ClassIn课程异常', { error_summary: summarizeError(error) })
+    return NextResponse.json({ error: '创建课程失败' }, { status: 500 })
   }
 }

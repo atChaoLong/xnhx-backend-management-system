@@ -18,6 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2, CheckCircle2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { DictionaryService } from '@/lib/services/dictionary'
+import { getClientSafeErrorMessage, summarizeError } from '@/lib/safe-error'
 
 // 常量定义
 const GENDER_OPTIONS = ['女', '男']
@@ -32,6 +33,225 @@ const STUDENT_LEVEL_OPTIONS = [
   '懂考点，毕业班',
   '带不了毕业班'
 ]
+const TEACHER_FORM_IMAGE_ACCEPT = 'image/*'
+const TEACHER_FORM_MAX_IMAGE_SIZE = 20 * 1024 * 1024
+const TEACHER_FORM_ALLOWED_IMAGE_EXTENSIONS = new Set([
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.gif',
+  '.webp',
+  '.avif',
+  '.heic',
+  '.heif',
+  '.bmp',
+  '.tif',
+  '.tiff',
+])
+const TEACHER_FORM_UPLOAD_TIMEOUT_MS = 45_000
+const TEACHER_FORM_UPLOAD_MAX_ATTEMPTS = 3
+const TEACHER_FORM_UPLOAD_RETRY_DELAY_MS = 600
+const TEACHER_FORM_REQUEST_TIMEOUT_MS = 30_000
+const TEACHER_FORM_REQUEST_MAX_ATTEMPTS = 3
+const TEACHER_FORM_REQUEST_RETRY_DELAY_MS = 500
+const TEACHER_FORM_ALLOWED_UPLOAD_ERRORS = [
+  '文件为空，请重新选择文件',
+  '文件大小超过限制，最大支持 20MB',
+  '不支持的文件类型，仅支持图片',
+  '文件内容与图片类型不匹配，请重新选择文件',
+  '请使用招师发送的专属表单链接上传文件',
+  '未找到候选人信息，请使用招师发送的专属表单链接',
+  '该候选人尚未通过面试',
+  '您已经提交过信息，如需修改请联系教务老师',
+  '上传超时，请检查网络后重试',
+  '上传失败，未返回文件链接',
+  '上传失败',
+] as const
+const TEACHER_FORM_ALLOWED_VERIFY_ERRORS = [
+  '请使用招师发送的专属表单链接',
+  '请确认您使用的是招师发送的专属表单链接',
+  '请确认您已经通过面试',
+  '如需修改信息，请联系教务老师',
+  '候选人链接验证超时，请检查网络后重试',
+  '候选人链接验证失败',
+] as const
+const TEACHER_FORM_ALLOWED_SUBMIT_ERRORS = [
+  '缺少候选人信息，请使用招师发送的专属表单链接',
+  '未找到候选人信息',
+  '该候选人尚未通过面试',
+  '您已经提交过信息，如需修改请联系教务老师',
+  '提交超时，请检查网络后重试',
+  '提交失败，请稍后重试',
+] as const
+
+type TeacherFormUploadResponse = {
+  url?: string
+  error?: string
+  code?: string
+}
+
+type TeacherFormJsonResponse<T = unknown> = {
+  data?: T
+  error?: string
+  message?: string
+  success?: boolean
+}
+
+type TeacherFormCandidateVerification = {
+  id: string
+  name?: string | null
+  wechat_id?: string | null
+  phone?: string | null
+  subjects?: string[] | null
+  grade_levels?: string[] | null
+}
+
+type TeacherFormSubmitResult = {
+  id?: string
+  candidate_id?: string
+  created_at?: string
+}
+
+class NonRetriableUploadError extends Error {}
+class NonRetriableTeacherFormRequestError extends Error {}
+
+function getFileExtension(fileName: string): string {
+  const match = fileName.toLowerCase().match(/\.[a-z0-9]+$/)
+  return match?.[0] || ''
+}
+
+function validateTeacherFormImage(file: File): string | null {
+  if (file.size <= 0) {
+    return '文件为空，请重新选择文件'
+  }
+
+  if (file.size > TEACHER_FORM_MAX_IMAGE_SIZE) {
+    return '文件大小超过限制，最大支持 20MB'
+  }
+
+  const extension = getFileExtension(file.name)
+  if (!file.type.startsWith('image/') && !TEACHER_FORM_ALLOWED_IMAGE_EXTENSIONS.has(extension)) {
+    return '不支持的文件类型，仅支持图片'
+  }
+
+  return null
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => window.setTimeout(resolve, ms))
+}
+
+function isRetriableUploadStatus(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500
+}
+
+function isRetriableTeacherFormRequestStatus(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500
+}
+
+function getAllowedMessage(message: string | undefined | null, allowedMessages: readonly string[], fallback: string): string {
+  return message && allowedMessages.includes(message) ? message : fallback
+}
+
+function getUploadErrorMessage(data: TeacherFormUploadResponse | null, fallback: string): string {
+  return getAllowedMessage(data?.error, TEACHER_FORM_ALLOWED_UPLOAD_ERRORS, fallback)
+}
+
+function getTeacherFormRequestErrorMessage(
+  data: TeacherFormJsonResponse | null,
+  fallback: string,
+  allowedMessages: readonly string[]
+): string {
+  return getAllowedMessage(data?.message || data?.error, allowedMessages, fallback)
+}
+
+function getTeacherFormRequestTimeoutMessage(fallbackError: string): string {
+  return fallbackError.includes('候选人链接验证')
+    ? '候选人链接验证超时，请检查网络后重试'
+    : '提交超时，请检查网络后重试'
+}
+
+async function postTeacherFormUpload(formData: FormData): Promise<{
+  ok: boolean
+  status: number
+  data: TeacherFormUploadResponse | null
+}> {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), TEACHER_FORM_UPLOAD_TIMEOUT_MS)
+
+  try {
+    const response = await fetch('/api/teacher-form/upload', {
+      method: 'POST',
+      body: formData,
+      signal: controller.signal,
+    })
+    const data = await response.json().catch(() => null)
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      data,
+    }
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
+async function postTeacherFormJson<T>(
+  path: '/api/teacher-form/verify' | '/api/teacher-form',
+  payload: Record<string, unknown>,
+  fallbackError: string,
+  allowedMessages: readonly string[] = []
+): Promise<TeacherFormJsonResponse<T>> {
+  let lastErrorMessage = fallbackError
+
+  for (let attempt = 1; attempt <= TEACHER_FORM_REQUEST_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), TEACHER_FORM_REQUEST_TIMEOUT_MS)
+
+    try {
+      const response = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      })
+      const data = await response.json().catch(() => null) as TeacherFormJsonResponse<T> | null
+
+      if (response.ok) {
+        return data || {}
+      }
+
+      lastErrorMessage = getTeacherFormRequestErrorMessage(data, fallbackError, allowedMessages)
+
+      if (!isRetriableTeacherFormRequestStatus(response.status)) {
+        throw new NonRetriableTeacherFormRequestError(lastErrorMessage)
+      }
+    } catch (error) {
+      if (error instanceof NonRetriableTeacherFormRequestError) {
+        throw error
+      }
+
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        lastErrorMessage = getTeacherFormRequestTimeoutMessage(fallbackError)
+      } else {
+        lastErrorMessage = getClientSafeErrorMessage(error, fallbackError, allowedMessages)
+      }
+
+      if (attempt === TEACHER_FORM_REQUEST_MAX_ATTEMPTS) {
+        throw new Error(lastErrorMessage)
+      }
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    if (attempt < TEACHER_FORM_REQUEST_MAX_ATTEMPTS) {
+      await delay(TEACHER_FORM_REQUEST_RETRY_DELAY_MS * attempt)
+    }
+  }
+
+  throw new Error(lastErrorMessage)
+}
 
 export default function TeacherFormPage() {
   const router = useRouter()
@@ -85,13 +305,17 @@ export default function TeacherFormPage() {
   const [uploadingScreenshots, setUploadingScreenshots] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [isLoadingDict, setIsLoadingDict] = useState(true)
+  const [candidateIdFromLink, setCandidateIdFromLink] = useState<string | null>(null)
+  const [isVerifyingCandidate, setIsVerifyingCandidate] = useState(false)
+  const [verifiedCandidateId, setVerifiedCandidateId] = useState<string | null>(null)
+  const [verifiedCandidateName, setVerifiedCandidateName] = useState<string>("")
 
   // 加载字典数据
   useEffect(() => {
     const loadDictionaries = async () => {
       try {
         setIsLoadingDict(true)
-        const dicts = await DictionaryService.getAllDictionaries()
+        const dicts = await DictionaryService.getTeacherFormDictionaries()
 
         setDictOptions({
           subject: dicts.subject || [],
@@ -102,7 +326,7 @@ export default function TeacherFormPage() {
           student_type: dicts.student_type || [],
         })
       } catch (error) {
-        console.error("加载字典失败:", error)
+        console.error("加载字典失败:", summarizeError(error))
       } finally {
         setIsLoadingDict(false)
       }
@@ -110,6 +334,59 @@ export default function TeacherFormPage() {
 
     loadDictionaries()
   }, [])
+
+  useEffect(() => {
+    setCandidateIdFromLink(new URLSearchParams(window.location.search).get('candidate_id'))
+  }, [])
+
+  useEffect(() => {
+    if (!candidateIdFromLink) {
+      setIsVerifyingCandidate(false)
+      return
+    }
+
+    const verifyCandidateLink = async () => {
+      try {
+        setIsVerifyingCandidate(true)
+        const result = await postTeacherFormJson<TeacherFormCandidateVerification>(
+          '/api/teacher-form/verify',
+          { candidate_id: candidateIdFromLink },
+          '候选人链接验证失败',
+          TEACHER_FORM_ALLOWED_VERIFY_ERRORS
+        )
+
+        const candidate = result.data
+        if (!candidate?.id) {
+          throw new Error('候选人链接验证失败')
+        }
+
+        setVerifiedCandidateId(candidate.id)
+        setVerifiedCandidateName(candidate.name || "")
+        setFormData(prev => ({
+          ...prev,
+          teacher_name: candidate.name || prev.teacher_name,
+          wechat: candidate.wechat_id || prev.wechat,
+          classin_phone: candidate.phone || prev.classin_phone,
+          subjects: Array.isArray(candidate.subjects) && candidate.subjects.length > 0 ? candidate.subjects : prev.subjects,
+          grade_levels: Array.isArray(candidate.grade_levels) && candidate.grade_levels.length > 0 ? candidate.grade_levels : prev.grade_levels,
+        }))
+      } catch (error) {
+        toast({
+          title: '候选人链接验证失败',
+          description: getClientSafeErrorMessage(
+            error,
+            '请联系招师老师重新发送链接',
+            TEACHER_FORM_ALLOWED_VERIFY_ERRORS
+          ),
+          variant: 'destructive'
+        })
+      } finally {
+        setIsVerifyingCandidate(false)
+      }
+    }
+
+    verifyCandidateLink()
+  }, [candidateIdFromLink, toast])
 
   // 处理多选框变化
   const handleMultiSelectChange = (field: string, value: string, checked: boolean) => {
@@ -123,37 +400,86 @@ export default function TeacherFormPage() {
     })
   }
 
-  // 处理文件上传
-  const handleFileUpload = async (file: File, type: 'photo' | 'screenshots') => {
+  const uploadTeacherFormFile = async (file: File, type: 'photo' | 'screenshots'): Promise<string> => {
+    const validationError = validateTeacherFormImage(file)
+    if (validationError) {
+      throw new Error(validationError)
+    }
+
+    if (!verifiedCandidateId) {
+      throw new NonRetriableUploadError('请使用招师发送的专属表单链接上传文件')
+    }
+
     const uploadFormData = new FormData()
     uploadFormData.append('file', file)
     uploadFormData.append('type', type)
+    uploadFormData.append('candidate_id', verifiedCandidateId)
 
-    if (type === 'photo') {
-      setUploadingPhoto(true)
-    } else {
-      setUploadingScreenshots(true)
-    }
+    let lastErrorMessage = '上传失败'
 
-    try {
-      const response = await fetch('/api/teacher-form/upload', {
-        method: 'POST',
-        body: uploadFormData
-      })
+    for (let attempt = 1; attempt <= TEACHER_FORM_UPLOAD_MAX_ATTEMPTS; attempt += 1) {
+      try {
+        const { ok, status, data } = await postTeacherFormUpload(uploadFormData)
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || '上传失败')
+        if (ok) {
+          if (!data?.url) {
+            throw new NonRetriableUploadError('上传失败，未返回文件链接')
+          }
+
+          return data.url
+        }
+
+        lastErrorMessage = getUploadErrorMessage(data, '上传失败')
+
+        if (!isRetriableUploadStatus(status)) {
+          throw new NonRetriableUploadError(lastErrorMessage)
+        }
+      } catch (error) {
+        if (error instanceof NonRetriableUploadError) {
+          throw error
+        }
+
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          lastErrorMessage = '上传超时，请检查网络后重试'
+        } else {
+          lastErrorMessage = getClientSafeErrorMessage(error, '上传失败', TEACHER_FORM_ALLOWED_UPLOAD_ERRORS)
+        }
+
+        if (attempt === TEACHER_FORM_UPLOAD_MAX_ATTEMPTS) {
+          throw new Error(lastErrorMessage)
+        }
       }
 
-      const data = await response.json()
+      if (attempt < TEACHER_FORM_UPLOAD_MAX_ATTEMPTS) {
+        await delay(TEACHER_FORM_UPLOAD_RETRY_DELAY_MS * attempt)
+      }
+    }
+
+    throw new Error(lastErrorMessage)
+  }
+
+  // 处理文件上传
+  const handleFileUpload = async (file: File, type: 'photo' | 'screenshots') => {
+    try {
+      const validationError = validateTeacherFormImage(file)
+      if (validationError) {
+        throw new Error(validationError)
+      }
 
       if (type === 'photo') {
-        setFormData(prev => ({ ...prev, photo_url: data.url }))
+        setUploadingPhoto(true)
+      } else {
+        setUploadingScreenshots(true)
+      }
+
+      const url = await uploadTeacherFormFile(file, type)
+
+      if (type === 'photo') {
+        setFormData(prev => ({ ...prev, photo_url: url }))
       } else {
         setFormData(prev => ({
           ...prev,
-          review_screenshots: [...prev.review_screenshots, data.url]
+          review_screenshots: [...prev.review_screenshots, url]
         }))
       }
 
@@ -163,11 +489,15 @@ export default function TeacherFormPage() {
         variant: 'default'
       })
 
-      return data.url
+      return url
     } catch (error) {
       toast({
         title: '上传失败',
-        description: error instanceof Error ? error.message : '文件上传失败',
+        description: getClientSafeErrorMessage(
+          error,
+          '文件上传失败，请稍后重试',
+          TEACHER_FORM_ALLOWED_UPLOAD_ERRORS
+        ),
         variant: 'destructive'
       })
       throw error
@@ -177,6 +507,52 @@ export default function TeacherFormPage() {
       } else {
         setUploadingScreenshots(false)
       }
+    }
+  }
+
+  const handleScreenshotUpload = async (files: File[]) => {
+    if (files.length === 0) {
+      return
+    }
+
+    try {
+      const validationError = files
+        .map(validateTeacherFormImage)
+        .find((message): message is string => Boolean(message))
+
+      if (validationError) {
+        throw new Error(validationError)
+      }
+
+      setUploadingScreenshots(true)
+
+      const urls = await Promise.all(files.map(file => uploadTeacherFormFile(file, 'screenshots')))
+
+      setFormData(prev => ({
+        ...prev,
+        review_screenshots: [...prev.review_screenshots, ...urls]
+      }))
+
+      toast({
+        title: '上传成功',
+        description: `已成功上传 ${urls.length} 张图片`,
+        variant: 'default'
+      })
+
+      return urls
+    } catch (error) {
+      toast({
+        title: '上传失败',
+        description: getClientSafeErrorMessage(
+          error,
+          '文件上传失败，请稍后重试',
+          TEACHER_FORM_ALLOWED_UPLOAD_ERRORS
+        ),
+        variant: 'destructive'
+      })
+      throw error
+    } finally {
+      setUploadingScreenshots(false)
     }
   }
 
@@ -233,40 +609,27 @@ export default function TeacherFormPage() {
     setSubmitting(true)
 
     try {
-      // 2. 先验证手机号（验证候选人身份，用手机号匹配wechat_id）
-      const verifyResponse = await fetch('/api/teacher-form/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: formData.classin_phone })
-      })
+      let candidateId = verifiedCandidateId
 
-      const verifyData = await verifyResponse.json()
-
-      if (!verifyResponse.ok) {
+      if (!candidateId) {
         toast({
           title: '身份验证失败',
-          description: verifyData.message || verifyData.error || '请确认您已经通过面试',
+          description: '请使用招师发送的专属表单链接提交信息',
           variant: 'destructive'
         })
         return
       }
 
       // 3. 验证通过，提交表单数据
-      const response = await fetch('/api/teacher-form', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      await postTeacherFormJson<TeacherFormSubmitResult>(
+        '/api/teacher-form',
+        {
           ...formData,
-          candidate_id: verifyData.data.id,
-        })
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || '提交失败')
-      }
+          candidate_id: candidateId,
+        },
+        '提交失败，请稍后重试',
+        TEACHER_FORM_ALLOWED_SUBMIT_ERRORS
+      )
 
       toast({
         title: '提交成功',
@@ -282,7 +645,7 @@ export default function TeacherFormPage() {
     } catch (error) {
       toast({
         title: '提交失败',
-        description: error instanceof Error ? error.message : '提交失败，请重试',
+        description: getClientSafeErrorMessage(error, '提交失败，请稍后重试', TEACHER_FORM_ALLOWED_SUBMIT_ERRORS),
         variant: 'destructive'
       })
     } finally {
@@ -290,12 +653,12 @@ export default function TeacherFormPage() {
     }
   }
 
-  if (isLoadingDict) {
+  if (isLoadingDict || isVerifyingCandidate) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">加载中...</p>
+          <p className="text-gray-600">{isVerifyingCandidate ? '正在验证表单链接...' : '加载中...'}</p>
         </div>
       </div>
     )
@@ -310,6 +673,11 @@ export default function TeacherFormPage() {
             <CardDescription>
               该表单用于收集排课相关信息，目的为高效率匹配，不外发，排课前会跟您沟通具体时间及学员学情，如有问题，请联系小牛好学教务老师
             </CardDescription>
+            {verifiedCandidateName && (
+              <p className="text-sm text-muted-foreground mt-2">
+                已识别候选人：{verifiedCandidateName}
+              </p>
+            )}
           </CardHeader>
         </Card>
 
@@ -669,11 +1037,11 @@ export default function TeacherFormPage() {
                     </Label>
                     <Input
                       type="file"
-                      accept="image/*"
+                      accept={TEACHER_FORM_IMAGE_ACCEPT}
                       onChange={(e) => {
                         const file = e.target.files?.[0]
                         if (file) {
-                          handleFileUpload(file, 'photo')
+                          handleFileUpload(file, 'photo').catch(() => undefined)
                         }
                       }}
                       disabled={uploadingPhoto}
@@ -704,13 +1072,11 @@ export default function TeacherFormPage() {
                     <p className="text-xs text-muted-foreground">可上传多张图片（选填）</p>
                     <Input
                       type="file"
-                      accept="image/*"
+                      accept={TEACHER_FORM_IMAGE_ACCEPT}
                       multiple
                       onChange={(e) => {
                         const files = Array.from(e.target.files || [])
-                        files.forEach(file => {
-                          handleFileUpload(file, 'screenshots')
-                        })
+                        handleScreenshotUpload(files).catch(() => undefined)
                       }}
                       disabled={uploadingScreenshots}
                     />

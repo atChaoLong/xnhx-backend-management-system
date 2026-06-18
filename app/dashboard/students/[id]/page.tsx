@@ -27,12 +27,16 @@ import {
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
-import { Loader2, ArrowLeft, FileText, BookOpen, Video, User, Phone, Mail, School, Calendar, DollarSign, Clock, MessageCircle, Plus, History } from "lucide-react"
+import { TimePicker } from "@/components/ui/time-picker"
+import { Loader2, ArrowLeft, FileText, BookOpen, Video, User, Phone, School, Calendar, DollarSign, Clock, MessageCircle, Plus, History, Edit, Trash2, CalendarPlus, Copy } from "lucide-react"
 import { format } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
 import { getDictionaryItems, DictionaryItem } from "@/lib/services/dictionary"
 import { getStudentStatusLabel, getStudentStatusBadgeClass } from "@/lib/utils"
-import { TransactionsService, TransactionRecord } from "@/lib/services/transactions"
+import { TransactionRecord } from "@/lib/services/transactions"
+import { api } from "@/lib/fetch"
+import { usePermission } from "@/lib/hooks/usePermission"
+import { summarizeError } from "@/lib/safe-error"
 
 // 学生数据类型
 interface StudentDetail {
@@ -63,6 +67,7 @@ interface StudentDetail {
   visitRecords: VisitRecord[]
   statusHistory: StatusHistory[]
   transactions: TransactionRecord[]
+  formalOrderSummaries: FormalOrderSummary[]
   stats: {
     formalOrdersCount: number
     trialLessonsCount: number
@@ -73,11 +78,17 @@ interface StudentDetail {
     transactionsCount: number
     totalFormalHours: number
     totalFormalAmount: number
+    completedFormalHours: number
+    remainingFormalHours: number
+    remainingFormalAmount: number
   }
 }
 
 interface FormalOrder {
   id: string
+  lead_id?: string
+  trial_lesson_id?: string
+  previous_order_id?: string
   order_number?: string
   order_type: string
   consultant_teacher: string
@@ -91,7 +102,25 @@ interface FormalOrder {
   payment_time: string
   first_class_time: string
   status: string
+  computed_status?: string
+  computed_status_label?: string
   created_at: string
+}
+
+interface FormalOrderSummary {
+  order_id: string
+  order_number?: string
+  total_hours: number
+  scheduled_hours: number
+  completed_hours: number
+  gross_remaining_hours: number
+  refunded_hours: number
+  remaining_hours: number
+  payment_amount: number
+  hourly_rate: number
+  refunded_amount: number
+  gross_remaining_amount: number
+  remaining_amount: number
 }
 
 interface TrialLesson {
@@ -185,6 +214,20 @@ interface CourseSessionsStats {
   }
 }
 
+interface BatchScheduleRow {
+  id: string
+  date: string
+  startTime: string
+  endTime: string
+}
+
+const createBatchScheduleRow = (seed = Date.now()): BatchScheduleRow => ({
+  id: `${seed}-${Math.random().toString(36).slice(2, 8)}`,
+  date: '',
+  startTime: '',
+  endTime: '',
+})
+
 // 订单类型映射
 const ORDER_TYPE_MAP: Record<string, string> = {
   'new': '新签',
@@ -194,9 +237,13 @@ const ORDER_TYPE_MAP: Record<string, string> = {
 
 // 订单状态映射
 const ORDER_STATUS_MAP: Record<string, string> = {
+  'draft': '草稿',
+  'pending_payment': '待付款',
   'active': '有效',
+  'suspended': '暂停',
   'paused': '暂停',
   'completed': '完成',
+  'refunded': '已退费',
   'cancelled': '取消',
 }
 
@@ -227,6 +274,24 @@ export default function StudentDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { toast } = useToast()
+  const {
+    user,
+    students: studentsPerm,
+    trialLessons: trialLessonsPerm,
+    formalOrders: formalOrdersPerm,
+    transactions: transactionsPerm,
+    classSessions: classSessionsPerm,
+  } = usePermission()
+  const canViewClassInSecrets = user?.role === 'admin' || user?.role === 'academic_affairs'
+  const canCreateTrialLesson = trialLessonsPerm.create()
+  const canCreateFormalOrder = formalOrdersPerm.create()
+  const canCreateTransaction = transactionsPerm.create()
+  const canCreateSession = classSessionsPerm.create()
+  const canManageFormalOrderActions = canCreateFormalOrder || canCreateTransaction
+  const canAccessVisitRecords = studentsPerm.visit()
+  const canEditVisitRecord = studentsPerm.visit()
+  const canDeleteVisitRecord = studentsPerm.delete()
+  const canManageVisitRecords = canEditVisitRecord || canDeleteVisitRecord
   const [detail, setDetail] = useState<StudentDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
@@ -244,11 +309,23 @@ export default function StudentDetailPage() {
   // 回访表单状态
   const [visitDialogOpen, setVisitDialogOpen] = useState(false)
   const [isSubmittingVisit, setIsSubmittingVisit] = useState(false)
+  const [editingVisit, setEditingVisit] = useState<VisitRecord | null>(null)
+  const [visitToDelete, setVisitToDelete] = useState<VisitRecord | null>(null)
+  const [isDeletingVisit, setIsDeletingVisit] = useState(false)
   const [visitForm, setVisitForm] = useState({
+    visit_date: new Date().toISOString().split('T')[0],
     visit_method: '',
     parent_attitude: '',
+    next_visit_date: '',
     visit_notes: '',
   })
+
+  // 批量排课状态
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
+  const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false)
+  const [scheduleCourseId, setScheduleCourseId] = useState('')
+  const [scheduleRows, setScheduleRows] = useState<BatchScheduleRow[]>([createBatchScheduleRow()])
+  const [scheduleConflictMode, setScheduleConflictMode] = useState('skip')
 
   useEffect(() => {
     // 加载字典数据
@@ -267,7 +344,7 @@ export default function StudentDetailPage() {
         setSubjects(subjectData)
         setRegions(regionData)
       } catch (error) {
-        console.error('Failed to load dictionaries:', error)
+        console.error('Failed to load dictionaries:', summarizeError(error))
       }
     }
 
@@ -359,14 +436,9 @@ export default function StudentDetailPage() {
   const fetchStudentDetail = async (id: string) => {
     try {
       setIsLoading(true)
-      const token = localStorage.getItem('supabase.auth.token')
 
       // 获取学生基本信息和订单等数据
-      const detailResponse = await fetch(`/api/students/detail?id=${encodeURIComponent(id)}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
+      const detailResponse = await api.get(`/api/students/detail?id=${encodeURIComponent(id)}`)
 
       if (!detailResponse.ok) {
         throw new Error('获取学生详情失败')
@@ -374,85 +446,12 @@ export default function StudentDetailPage() {
 
       const detailResult = await detailResponse.json()
 
-      // 获取回访记录
-      const visitResponse = await fetch(`/api/visit-records?student_id=${encodeURIComponent(id)}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-
-      let visitRecords = []
-      if (visitResponse.ok) {
-        const visitResult = await visitResponse.json()
-        visitRecords = visitResult.data || []
-      }
-
-      // 获取状态变更历史
-      const statusHistoryResponse = await fetch(`/api/students/status-history?student_id=${encodeURIComponent(id)}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-
-      let statusHistory = []
-      if (statusHistoryResponse.ok) {
-        const statusHistoryResult = await statusHistoryResponse.json()
-        statusHistory = statusHistoryResult.data || []
-      }
-
-      // 获取异动记录
-      let transactions: TransactionRecord[] = []
-      try {
-        const allTransactions = await TransactionsService.getAllTransactionRecords()
-        // 根据学生姓名过滤异动记录
-        transactions = allTransactions.filter(t => t.student_name === detailResult.data.student.student_name)
-      } catch (error) {
-        console.error('获取异动记录失败:', error)
-      }
-
-      // 获取回访人员信息
-      const visitRecordsWithNames = await Promise.all(
-        visitRecords.map(async (record: VisitRecord) => {
-          try {
-            const userResponse = await fetch(`/api/users?id=${record.visit_personnel}`, {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-              },
-            })
-            if (userResponse.ok) {
-              const userResult = await userResponse.json()
-              return {
-                ...record,
-                visit_personnel_name: userResult.data?.name || '未知',
-              }
-            }
-          } catch (e) {
-            // 忽略错误
-          }
-          return {
-            ...record,
-            visit_personnel_name: '未知',
-          }
-        })
-      )
-
-      setDetail({
-        ...detailResult.data,
-        visitRecords: visitRecordsWithNames,
-        statusHistory: statusHistory,
-        transactions: transactions,
-        stats: {
-          ...detailResult.data.stats,
-          visitRecordsCount: visitRecordsWithNames.length,
-          statusHistoryCount: statusHistory.length,
-          transactionsCount: transactions.length,
-        },
-      })
+      setDetail(detailResult.data)
 
       // 获取每个课程的课节统计数据
       const courses = detailResult.data.courses || []
       if (courses.length > 0) {
-        fetchCoursesSessionsStats(courses, token)
+        fetchCoursesSessionsStats(courses)
       }
     } catch (error: any) {
       toast({
@@ -466,15 +465,11 @@ export default function StudentDetailPage() {
   }
 
   // 获取所有课程的课节统计数据
-  const fetchCoursesSessionsStats = async (courses: Course[], token: string | null) => {
+  const fetchCoursesSessionsStats = async (courses: Course[]) => {
     try {
       const statsPromises = courses.map(async (course) => {
         try {
-          const response = await fetch(`/api/courses/${course.id}/sessions`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-          })
+          const response = await api.get(`/api/courses/${course.id}/sessions`)
 
           if (response.ok) {
             const result = await response.json()
@@ -485,7 +480,10 @@ export default function StudentDetailPage() {
           }
           return null
         } catch (error) {
-          console.error(`Failed to fetch sessions for course ${course.id}:`, error)
+          console.error('Failed to fetch sessions for course:', {
+            course_id_present: Boolean(course.id),
+            error: summarizeError(error),
+          })
           return null
         }
       })
@@ -502,16 +500,28 @@ export default function StudentDetailPage() {
 
       setCourseSessionsStats(statsMap)
     } catch (error) {
-      console.error('Failed to fetch courses sessions stats:', error)
+      console.error('Failed to fetch courses sessions stats:', summarizeError(error))
     }
   }
 
-  // 打开新建回访对话框
-  const openVisitDialog = () => {
+  // 打开新建/编辑回访对话框
+  const openVisitDialog = (record?: VisitRecord) => {
+    if (!canEditVisitRecord) {
+      toast({
+        variant: "destructive",
+        title: "无权操作",
+        description: "当前账号没有新增或编辑回访记录的权限",
+      })
+      return
+    }
+
+    setEditingVisit(record || null)
     setVisitForm({
-      visit_method: '',
-      parent_attitude: '',
-      visit_notes: '',
+      visit_date: record?.visit_date || new Date().toISOString().split('T')[0],
+      visit_method: record?.visit_method || '',
+      parent_attitude: record?.parent_attitude || '',
+      next_visit_date: record?.next_visit_date || '',
+      visit_notes: record?.visit_notes || '',
     })
     setVisitDialogOpen(true)
   }
@@ -519,6 +529,14 @@ export default function StudentDetailPage() {
   // 提交回访记录
   const handleSubmitVisit = async () => {
     if (!detail) return
+    if (!canEditVisitRecord) {
+      toast({
+        variant: "destructive",
+        title: "无权操作",
+        description: "当前账号没有新增或编辑回访记录的权限",
+      })
+      return
+    }
 
     if (!visitForm.visit_method) {
       toast({
@@ -540,44 +558,220 @@ export default function StudentDetailPage() {
 
     try {
       setIsSubmittingVisit(true)
-      const token = localStorage.getItem('supabase.auth.token')
 
-      const response = await fetch('/api/visit-records', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      const payload = {
+        visit_date: visitForm.visit_date,
+        visit_method: visitForm.visit_method,
+        parent_attitude: visitForm.parent_attitude || null,
+        next_visit_date: visitForm.next_visit_date || null,
+        visit_notes: visitForm.visit_notes.trim(),
+      }
+      const response = editingVisit
+        ? await api.put('/api/visit-records', { id: editingVisit.id, ...payload })
+        : await api.post('/api/visit-records', {
           student_id: detail.student.id,
-          visit_date: new Date().toISOString().split('T')[0],
-          visit_method: visitForm.visit_method,
-          parent_attitude: visitForm.parent_attitude || null,
-          visit_notes: visitForm.visit_notes.trim(),
-        }),
-      })
+          ...payload,
+        })
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: '创建回访记录失败' }))
-        throw new Error(error.error || '创建回访记录失败')
+        const error = await response.json().catch(() => ({ error: editingVisit ? '更新回访记录失败' : '创建回访记录失败' }))
+        throw new Error(error.error || (editingVisit ? '更新回访记录失败' : '创建回访记录失败'))
       }
 
       toast({
-        title: "回访成功",
-        description: "回访记录已创建",
+        title: editingVisit ? "回访已更新" : "回访成功",
+        description: editingVisit ? "回访记录已更新" : "回访记录已创建",
       })
 
       setVisitDialogOpen(false)
+      setEditingVisit(null)
       // 重新获取数据
       fetchStudentDetail(params.id as string)
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "回访失败",
-        description: error.message || "无法创建回访记录",
+        description: error.message || (editingVisit ? "无法更新回访记录" : "无法创建回访记录"),
       })
     } finally {
       setIsSubmittingVisit(false)
+    }
+  }
+
+  const openBatchScheduleDialog = (course?: Course) => {
+    if (!canCreateSession) {
+      toast({
+        variant: "destructive",
+        title: "无权排课",
+        description: "当前账号没有新增课节的权限",
+      })
+      return
+    }
+
+    const firstCourse = course || detail?.courses?.[0]
+    setScheduleCourseId(firstCourse?.id || '')
+    setScheduleRows([createBatchScheduleRow()])
+    setScheduleConflictMode('skip')
+    setScheduleDialogOpen(true)
+  }
+
+  const updateScheduleRow = (rowId: string, patch: Partial<BatchScheduleRow>) => {
+    setScheduleRows((rows) =>
+      rows.map((row) => row.id === rowId ? { ...row, ...patch } : row)
+    )
+  }
+
+  const duplicateScheduleRow = (row: BatchScheduleRow) => {
+    setScheduleRows((rows) => [
+      ...rows,
+      { ...row, id: createBatchScheduleRow().id },
+    ])
+  }
+
+  const removeScheduleRow = (rowId: string) => {
+    setScheduleRows((rows) =>
+      rows.length === 1 ? [createBatchScheduleRow()] : rows.filter((row) => row.id !== rowId)
+    )
+  }
+
+  const handleSubmitBatchSchedule = async () => {
+    if (!detail) return
+    if (!canCreateSession) {
+      toast({
+        variant: "destructive",
+        title: "无权排课",
+        description: "当前账号没有新增课节的权限",
+      })
+      return
+    }
+
+    const selectedCourse = detail.courses.find((course) => course.id === scheduleCourseId)
+    if (!selectedCourse) {
+      toast({
+        variant: "destructive",
+        title: "验证失败",
+        description: "请选择要排课的课程",
+      })
+      return
+    }
+
+    if (!selectedCourse.classin_course_id) {
+      toast({
+        variant: "destructive",
+        title: "无法排课",
+        description: "该课程未关联 ClassIn 课程，无法创建课堂",
+      })
+      return
+    }
+
+    if (!selectedCourse.teacher_name) {
+      toast({
+        variant: "destructive",
+        title: "无法排课",
+        description: "该课程缺少授课老师",
+      })
+      return
+    }
+
+    const hasIncompleteRow = scheduleRows.some((row) =>
+      row.date || row.startTime || row.endTime
+        ? !row.date || !row.startTime || !row.endTime
+        : false
+    )
+    if (hasIncompleteRow) {
+      toast({
+        variant: "destructive",
+        title: "验证失败",
+        description: "请补全每一行的日期、开始时间和结束时间",
+      })
+      return
+    }
+
+    const completeRows = scheduleRows.filter((row) => row.date && row.startTime && row.endTime)
+    if (completeRows.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "验证失败",
+        description: "请至少填写一节课",
+      })
+      return
+    }
+
+    try {
+      setIsSubmittingSchedule(true)
+      const response = await api.post('/api/class-sessions/recreate', {
+        courseId: selectedCourse.id,
+        items: completeRows.map((row) => ({
+          studentName: detail.student.student_name,
+          teacherName: selectedCourse.teacher_name,
+          subject: selectedCourse.subject,
+          date: row.date,
+          startTime: row.startTime,
+          endTime: row.endTime,
+        })),
+        skipExisting: scheduleConflictMode === 'skip',
+      })
+
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(result.error || '批量排课失败')
+      }
+
+      toast({
+        title: "批量排课完成",
+        description: `新建 ${result.created ?? 0} 节，跳过 ${result.skipped ?? 0} 节，失败 ${result.failed ?? 0} 节`,
+      })
+
+      setScheduleDialogOpen(false)
+      setScheduleRows([createBatchScheduleRow()])
+      await fetchStudentDetail(detail.student.id)
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "批量排课失败",
+        description: error.message || "无法创建课节",
+      })
+    } finally {
+      setIsSubmittingSchedule(false)
+    }
+  }
+
+  const handleDeleteVisit = async () => {
+    if (!visitToDelete) return
+    if (!canDeleteVisitRecord) {
+      toast({
+        variant: "destructive",
+        title: "无权删除",
+        description: "当前账号没有删除回访记录的权限",
+      })
+      setVisitToDelete(null)
+      return
+    }
+
+    try {
+      setIsDeletingVisit(true)
+      const response = await api.delete(`/api/visit-records?id=${encodeURIComponent(visitToDelete.id)}`)
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: '删除回访记录失败' }))
+        throw new Error(error.error || '删除回访记录失败')
+      }
+
+      toast({
+        title: "回访已删除",
+        description: "回访记录已删除",
+      })
+
+      setVisitToDelete(null)
+      fetchStudentDetail(params.id as string)
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "删除失败",
+        description: error.message || "无法删除回访记录",
+      })
+    } finally {
+      setIsDeletingVisit(false)
     }
   }
 
@@ -603,18 +797,81 @@ export default function StudentDetailPage() {
     )
   }
 
-  const { student, orders, trialLessons, courses, classrooms, visitRecords, statusHistory, transactions, stats } = detail
+  const { student, orders, trialLessons, courses, classrooms, visitRecords, statusHistory, transactions, formalOrderSummaries, stats } = detail
+  const summaryByOrderId = new Map((formalOrderSummaries || []).map((summary) => [summary.order_id, summary]))
+  const latestOrder = orders.find((order) => order.status === 'active') || orders[0]
+  const selectedScheduleCourse = courses.find((course) => course.id === scheduleCourseId)
 
   return (
     <div className="flex flex-col h-full">
       <Header title="学生详情" description={`${student.student_name} ${student.student_code ? `(${student.student_code})` : ''}`} />
 
       <div className="flex-1 overflow-auto p-6">
-        <div className="mb-4">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <Button variant="outline" onClick={() => router.back()}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             返回
           </Button>
+          <div className="flex flex-wrap gap-2">
+            {canCreateSession && courses.length > 0 && (
+              <Button
+                variant="outline"
+                onClick={() => openBatchScheduleDialog()}
+              >
+                <CalendarPlus className="mr-2 h-4 w-4" />
+                批量排课
+              </Button>
+            )}
+            {canCreateTrialLesson && (
+              <Button
+                variant="outline"
+                onClick={() => router.push(`/dashboard/trial-lessons/new?student_id=${student.id}`)}
+              >
+                <BookOpen className="mr-2 h-4 w-4" />
+                新试听
+              </Button>
+            )}
+            {canAccessVisitRecords && (
+              <Button
+                variant="outline"
+                onClick={() => setActiveTab('visits')}
+              >
+                <MessageCircle className="mr-2 h-4 w-4" />
+                回访/跟进
+              </Button>
+            )}
+            {latestOrder && (
+              <>
+                {canCreateFormalOrder && (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push(`/dashboard/formal-orders/new?previousOrderId=${latestOrder.id}&studentId=${student.id}&mode=renew`)}
+                    >
+                      <FileText className="mr-2 h-4 w-4" />
+                      续费
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push(`/dashboard/formal-orders/new?previousOrderId=${latestOrder.id}&studentId=${student.id}&mode=extend`)}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      扩科
+                    </Button>
+                  </>
+                )}
+                {canCreateTransaction && (
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push(`/dashboard/transactions/new?student_id=${student.id}&order_id=${latestOrder.id}`)}
+                  >
+                    <DollarSign className="mr-2 h-4 w-4" />
+                    退费
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-8 lg:w-auto">
@@ -640,7 +897,7 @@ export default function StudentDetailPage() {
                 <CardContent>
                   <div className="text-2xl font-bold">{stats.formalOrdersCount}</div>
                   <p className="text-xs text-muted-foreground">
-                    总计 {stats.totalFormalHours} 小时
+                    剩余 {stats.remainingFormalHours.toFixed(1)} 小时
                   </p>
                 </CardContent>
               </Card>
@@ -660,6 +917,9 @@ export default function StudentDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">¥{stats.totalFormalAmount.toLocaleString()}</div>
+                  <p className="text-xs text-muted-foreground">
+                    剩余 ¥{stats.remainingFormalAmount.toFixed(2)}
+                  </p>
                 </CardContent>
               </Card>
               <Card>
@@ -750,7 +1010,7 @@ export default function StudentDetailPage() {
                       </div>
                     </div>
                   )}
-                  {student.classin_uid && (
+                  {canViewClassInSecrets && student.classin_uid && (
                     <div className="flex items-start gap-3">
                       <Video className="h-5 w-5 text-muted-foreground mt-0.5" />
                       <div>
@@ -759,7 +1019,7 @@ export default function StudentDetailPage() {
                       </div>
                     </div>
                   )}
-                  {student.classin_initial_password && (
+                  {canViewClassInSecrets && student.classin_initial_password && (
                     <div className="flex items-start gap-3">
                       <Video className="h-5 w-5 text-muted-foreground mt-0.5" />
                       <div>
@@ -796,13 +1056,18 @@ export default function StudentDetailPage() {
                           <TableHead>签约顾问</TableHead>
                           <TableHead>老师</TableHead>
                           <TableHead>总课时</TableHead>
+                          <TableHead>剩余课时</TableHead>
+                          <TableHead>剩余金额</TableHead>
                           <TableHead>金额</TableHead>
                           <TableHead>状态</TableHead>
                           <TableHead>创建时间</TableHead>
+                          {canManageFormalOrderActions && <TableHead>操作</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {orders.map((order) => (
+                        {orders.map((order) => {
+                          const displayStatus = order.computed_status || order.status
+                          return (
                           <TableRow key={order.id}>
                             <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 w-[140px] min-w-[140px]">
                               {order.subjects.join(', ')}
@@ -816,17 +1081,52 @@ export default function StudentDetailPage() {
                             <TableCell>{order.consultant_teacher}</TableCell>
                             <TableCell>{order.teacher_names.join(', ')}</TableCell>
                             <TableCell>{order.total_hours} 小时</TableCell>
+                            <TableCell>{(summaryByOrderId.get(order.id)?.remaining_hours ?? order.total_hours ?? 0).toFixed(1)} 小时</TableCell>
+                            <TableCell>¥{(summaryByOrderId.get(order.id)?.remaining_amount ?? order.payment_amount ?? 0).toFixed(2)}</TableCell>
                             <TableCell>¥{order.payment_amount.toLocaleString()}</TableCell>
                             <TableCell>
                               <Badge
-                                variant={order.status === 'active' ? 'default' : 'secondary'}
+                                variant={displayStatus === 'active' ? 'default' : 'secondary'}
                               >
-                                {ORDER_STATUS_MAP[order.status] || order.status}
+                                {order.computed_status_label || ORDER_STATUS_MAP[displayStatus] || displayStatus}
                               </Badge>
                             </TableCell>
                             <TableCell>{format(new Date(order.created_at), 'yyyy-MM-dd')}</TableCell>
+                            {canManageFormalOrderActions && (
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  {canCreateFormalOrder && (
+                                    <>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => router.push(`/dashboard/formal-orders/new?previousOrderId=${order.id}&studentId=${student.id}&mode=renew`)}
+                                      >
+                                        续费
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => router.push(`/dashboard/formal-orders/new?previousOrderId=${order.id}&studentId=${student.id}&mode=extend`)}
+                                      >
+                                        扩科
+                                      </Button>
+                                    </>
+                                  )}
+                                  {canCreateTransaction && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => router.push(`/dashboard/transactions/new?student_id=${student.id}&order_id=${order.id}`)}
+                                    >
+                                      退费
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
+                            )}
                           </TableRow>
-                        ))}
+                        )})}
                       </TableBody>
                     </Table>
                   </div>
@@ -838,8 +1138,18 @@ export default function StudentDetailPage() {
           {/* 课程标签 */}
           <TabsContent value="courses" className="space-y-4">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>课程列表</CardTitle>
+                {canCreateSession && courses.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openBatchScheduleDialog()}
+                  >
+                    <CalendarPlus className="mr-2 h-4 w-4" />
+                    批量排课
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
                 {courses.length === 0 ? (
@@ -916,13 +1226,24 @@ export default function StudentDetailPage() {
                               </TableCell>
                               <TableCell>{format(new Date(course.created_at), 'yyyy-MM-dd')}</TableCell>
                               <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => router.push(`/dashboard/courses/${course.id}`)}
-                                >
-                                  管理课节
-                                </Button>
+                                <div className="flex gap-2">
+                                  {canCreateSession && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => openBatchScheduleDialog(course)}
+                                    >
+                                      批量排课
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => router.push(`/dashboard/courses/${course.id}`)}
+                                  >
+                                    管理课节
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                         ))}
@@ -937,8 +1258,18 @@ export default function StudentDetailPage() {
           {/* 试听课标签 */}
           <TabsContent value="trials" className="space-y-4">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>试听课列表</CardTitle>
+                {canCreateTrialLesson && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push(`/dashboard/trial-lessons/new?student_id=${student.id}`)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    新试听
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
                 {trialLessons.length === 0 ? (
@@ -958,37 +1289,55 @@ export default function StudentDetailPage() {
                           <TableHead>确认老师</TableHead>
                           <TableHead>状态</TableHead>
                           <TableHead>是否转化</TableHead>
+                          {canCreateFormalOrder && <TableHead>操作</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {trialLessons.map((lesson) => (
-                          <TableRow key={lesson.id}>
-                            <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 font-medium w-[160px] min-w-[160px]">
-                              {lesson.child_name}
-                            </TableCell>
-                            <TableCell className="sticky left-[160px] z-20 bg-background group-hover:bg-muted/50 w-[140px] min-w-[140px]">
-                              {getTrialSubjectLabel(lesson.trial_subject || '')}
-                            </TableCell>
-                            <TableCell>{getRegionLabel(lesson.region || '')}</TableCell>
-                            <TableCell>{getGradeLabel(lesson.grade || '')}</TableCell>
-                            <TableCell>{format(new Date(lesson.trial_time), 'yyyy-MM-dd HH:mm')}</TableCell>
-                            <TableCell>{lesson.trial_duration} 分钟</TableCell>
-                            <TableCell>{lesson.matched_teacher || '-'}</TableCell>
-                            <TableCell>{lesson.confirmed_teacher || '-'}</TableCell>
-                            <TableCell>
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getLessonStatusBadge(lesson.lesson_status || lesson.status)}`}>
-                                {getLessonStatusText(lesson.lesson_status || lesson.status, lesson.lesson_status_name)}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              {lesson.is_converted_calculated !== undefined ? (
-                                <Badge variant={lesson.is_converted_calculated ? 'default' : 'secondary'}>
-                                  {lesson.is_converted_calculated ? '已转化' : '未转化'}
-                                </Badge>
-                              ) : '-'}
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {trialLessons.map((lesson) => {
+                          const lessonStatus = lesson.lesson_status || lesson.status
+                          const canConvertTrialByStatus = !lesson.is_converted_calculated && ['waiting_feedback', 'completed'].includes(lessonStatus)
+
+                          return (
+                            <TableRow key={lesson.id}>
+                              <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 font-medium w-[160px] min-w-[160px]">
+                                {lesson.child_name}
+                              </TableCell>
+                              <TableCell className="sticky left-[160px] z-20 bg-background group-hover:bg-muted/50 w-[140px] min-w-[140px]">
+                                {getTrialSubjectLabel(lesson.trial_subject || '')}
+                              </TableCell>
+                              <TableCell>{getRegionLabel(lesson.region || '')}</TableCell>
+                              <TableCell>{getGradeLabel(lesson.grade || '')}</TableCell>
+                              <TableCell>{format(new Date(lesson.trial_time), 'yyyy-MM-dd HH:mm')}</TableCell>
+                              <TableCell>{lesson.trial_duration} 分钟</TableCell>
+                              <TableCell>{lesson.matched_teacher || '-'}</TableCell>
+                              <TableCell>{lesson.confirmed_teacher || '-'}</TableCell>
+                              <TableCell>
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getLessonStatusBadge(lessonStatus)}`}>
+                                  {getLessonStatusText(lessonStatus, lesson.lesson_status_name)}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                {lesson.is_converted_calculated !== undefined ? (
+                                  <Badge variant={lesson.is_converted_calculated ? 'default' : 'secondary'}>
+                                    {lesson.is_converted_calculated ? '已转化' : '未转化'}
+                                  </Badge>
+                                ) : '-'}
+                              </TableCell>
+                              {canCreateFormalOrder && (
+                                <TableCell>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={!canConvertTrialByStatus}
+                                    onClick={() => router.push(`/dashboard/formal-orders/new?trialLessonId=${lesson.id}`)}
+                                  >
+                                    转正式
+                                  </Button>
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          )
+                        })}
                       </TableBody>
                     </Table>
                   </div>
@@ -1059,10 +1408,12 @@ export default function StudentDetailPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>回访记录</CardTitle>
-                <Button onClick={openVisitDialog} size="sm">
-                  <Plus className="mr-2 h-4 w-4" />
-                  新建回访
-                </Button>
+                {canEditVisitRecord && (
+                  <Button onClick={() => openVisitDialog()} size="sm">
+                    <Plus className="mr-2 h-4 w-4" />
+                    新建回访
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
                 {visitRecords.length === 0 ? (
@@ -1073,11 +1424,13 @@ export default function StudentDetailPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>回访日期</TableHead>
+                          <TableHead>下次回访</TableHead>
                           <TableHead>回访方式</TableHead>
                           <TableHead>家长态度</TableHead>
                           <TableHead>回访人员</TableHead>
                           <TableHead>创建时间</TableHead>
                           <TableHead>回访备注</TableHead>
+                          {canManageVisitRecords && <TableHead>操作</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1085,6 +1438,11 @@ export default function StudentDetailPage() {
                           <TableRow key={record.id}>
                             <TableCell className="font-medium">
                               {format(new Date(record.visit_date), 'yyyy-MM-dd')}
+                            </TableCell>
+                            <TableCell>
+                              {record.next_visit_date
+                                ? format(new Date(record.next_visit_date), 'yyyy-MM-dd')
+                                : <span className="text-muted-foreground">-</span>}
                             </TableCell>
                             <TableCell>
                               <Badge variant="secondary">
@@ -1107,6 +1465,32 @@ export default function StudentDetailPage() {
                             <TableCell className="max-w-xs truncate" title={record.visit_notes || ''}>
                               {record.visit_notes || '-'}
                             </TableCell>
+                            {canManageVisitRecords && (
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  {canEditVisitRecord && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => openVisitDialog(record)}
+                                    >
+                                      <Edit className="mr-2 h-4 w-4" />
+                                      编辑
+                                    </Button>
+                                  )}
+                                  {canDeleteVisitRecord && (
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={() => setVisitToDelete(record)}
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      删除
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))}
                       </TableBody>
@@ -1182,7 +1566,18 @@ export default function StudentDetailPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>异动记录</CardTitle>
-                <DollarSign className="h-5 w-5 text-muted-foreground" />
+                {latestOrder && canCreateTransaction ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push(`/dashboard/transactions/new?student_id=${student.id}&order_id=${latestOrder.id}`)}
+                  >
+                    <DollarSign className="mr-2 h-4 w-4" />
+                    新建退费
+                  </Button>
+                ) : (
+                  <DollarSign className="h-5 w-5 text-muted-foreground" />
+                )}
               </CardHeader>
               <CardContent>
                 {transactions.length === 0 ? (
@@ -1245,15 +1640,36 @@ export default function StudentDetailPage() {
       </div>
 
       {/* 新建回访对话框 */}
-      <Dialog open={visitDialogOpen} onOpenChange={setVisitDialogOpen}>
+      <Dialog open={canEditVisitRecord && visitDialogOpen} onOpenChange={setVisitDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>新建回访记录</DialogTitle>
+            <DialogTitle>{editingVisit ? "编辑回访记录" : "新建回访记录"}</DialogTitle>
             <DialogDescription>
-              为学生 <span className="font-semibold">{student.student_name}</span> 添加回访记录
+              为学生 <span className="font-semibold">{student.student_name}</span> {editingVisit ? "更新回访记录" : "添加回访记录"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="visit_date">回访日期 *</Label>
+                <Input
+                  id="visit_date"
+                  type="date"
+                  value={visitForm.visit_date}
+                  onChange={(e) => setVisitForm({ ...visitForm, visit_date: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="next_visit_date">下次回访日期</Label>
+                <Input
+                  id="next_visit_date"
+                  type="date"
+                  value={visitForm.next_visit_date}
+                  onChange={(e) => setVisitForm({ ...visitForm, next_visit_date: e.target.value })}
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="visit_method">回访方式 *</Label>
               <Select
@@ -1304,7 +1720,13 @@ export default function StudentDetailPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setVisitDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setVisitDialogOpen(false)
+                setEditingVisit(null)
+              }}
+            >
               取消
             </Button>
             <Button onClick={handleSubmitVisit} disabled={isSubmittingVisit}>
@@ -1314,7 +1736,172 @@ export default function StudentDetailPage() {
                   提交中...
                 </>
               ) : (
-                "提交回访"
+                editingVisit ? "保存回访" : "提交回访"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 批量排课对话框 */}
+      <Dialog open={canCreateSession && scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>批量排课</DialogTitle>
+            <DialogDescription>
+              为学生 <span className="font-semibold">{student.student_name}</span> 批量创建 ClassIn 课堂和本地课节
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-5 py-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="schedule-course">课程 *</Label>
+                <Select value={scheduleCourseId} onValueChange={setScheduleCourseId}>
+                  <SelectTrigger id="schedule-course">
+                    <SelectValue placeholder="请选择课程" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {courses.map((course) => (
+                      <SelectItem key={course.id} value={course.id}>
+                        {course.course_name || course.subject || '未命名课程'} - {course.teacher_name || '未分配老师'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="schedule-conflict">重复课节处理</Label>
+                <Select value={scheduleConflictMode} onValueChange={setScheduleConflictMode}>
+                  <SelectTrigger id="schedule-conflict">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="skip">跳过同日期同时间课节</SelectItem>
+                    <SelectItem value="create">仍然创建</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {selectedScheduleCourse && (
+              <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  {selectedScheduleCourse.course_name || selectedScheduleCourse.subject || '未命名课程'}
+                </span>
+                <span className="mx-2">/</span>
+                老师：{selectedScheduleCourse.teacher_name || '未分配'}
+                <span className="mx-2">/</span>
+                ClassIn：{selectedScheduleCourse.classin_course_id || '未关联'}
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>排课明细 *</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setScheduleRows((rows) => [...rows, createBatchScheduleRow()])}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  添加一节
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {scheduleRows.map((row, index) => (
+                  <div key={row.id} className="grid gap-3 rounded-md border p-3 md:grid-cols-[1fr_1fr_1fr_auto]">
+                    <div className="space-y-2">
+                      <Label htmlFor={`schedule-date-${row.id}`}>第 {index + 1} 节日期</Label>
+                      <Input
+                        id={`schedule-date-${row.id}`}
+                        type="date"
+                        value={row.date}
+                        onChange={(event) => updateScheduleRow(row.id, { date: event.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>开始时间</Label>
+                      <TimePicker
+                        value={row.startTime}
+                        onChange={(value) => updateScheduleRow(row.id, { startTime: value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>结束时间</Label>
+                      <TimePicker
+                        value={row.endTime}
+                        onChange={(value) => updateScheduleRow(row.id, { endTime: value })}
+                      />
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => duplicateScheduleRow(row)}
+                        title="复制这一节"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => removeScheduleRow(row.id)}
+                        title="删除这一节"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setScheduleDialogOpen(false)}
+              disabled={isSubmittingSchedule}
+            >
+              取消
+            </Button>
+            <Button onClick={handleSubmitBatchSchedule} disabled={isSubmittingSchedule}>
+              {isSubmittingSchedule ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  排课中...
+                </>
+              ) : (
+                "确认排课"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={canDeleteVisitRecord && Boolean(visitToDelete)} onOpenChange={(open) => !open && setVisitToDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>删除回访记录</DialogTitle>
+            <DialogDescription>
+              删除后该回访记录将从学生详情中移除。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVisitToDelete(null)} disabled={isDeletingVisit}>
+              取消
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteVisit} disabled={isDeletingVisit}>
+              {isDeletingVisit ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  删除中...
+                </>
+              ) : (
+                "确认删除"
               )}
             </Button>
           </DialogFooter>

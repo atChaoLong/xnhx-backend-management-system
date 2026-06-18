@@ -1,8 +1,144 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
+import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getAccessibleCourseIds, restrictByIds } from "@/lib/server-business-scope"
+import { summarizeError } from "@/lib/safe-error"
 
 const logger = createLogger("API:ClassroomClassIn")
+const EMPTY_NUMERIC_ID = -1
+const CLASSROOM_CLASSIN_SELECT = [
+  "class_id",
+  "created_at",
+  "updated_at",
+  "name",
+  "class_status",
+  "class_type",
+  "start_time",
+  "end_time",
+  "course_id",
+  "course_name",
+  "activity_id",
+  "stu_num",
+  "audit_num",
+  "sync_time",
+].join(",")
+
+type ClassroomAccessFilter =
+  | { unrestricted: true }
+  | { unrestricted: false; classIds: number[]; classInCourseIds: number[] }
+
+function uniqueNumbers(values: any[]): number[] {
+  return Array.from(
+    new Set(
+      (values || [])
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value))
+    )
+  )
+}
+
+function applyAccessFilter(query: any, accessFilter: ClassroomAccessFilter) {
+  if (accessFilter.unrestricted === true) return query
+
+  const filters = []
+  if (accessFilter.classIds.length > 0) {
+    filters.push(`class_id.in.(${accessFilter.classIds.join(",")})`)
+  }
+  if (accessFilter.classInCourseIds.length > 0) {
+    filters.push(`course_id.in.(${accessFilter.classInCourseIds.join(",")})`)
+  }
+
+  if (filters.length === 0) {
+    return query.eq("class_id", EMPTY_NUMERIC_ID)
+  }
+
+  return query.or(filters.join(","))
+}
+
+async function getClassroomAccessFilter(
+  request: NextRequest,
+  studentId: string | null
+): Promise<{ accessFilter?: ClassroomAccessFilter; response?: NextResponse }> {
+  const profile = await getCurrentProfile(request)
+  if (!profile) {
+    return {
+      response: NextResponse.json(
+        { error: "用户档案未配置，请联系管理员" },
+        { status: 403 }
+      ),
+    }
+  }
+
+  const accessibleCourseIds = await getAccessibleCourseIds(profile)
+  if (accessibleCourseIds === null && !studentId) {
+    return { accessFilter: { unrestricted: true } }
+  }
+
+  let courseQuery = supabaseServer
+    .from("courses")
+    .select("id, classin_course_id")
+
+  courseQuery = restrictByIds(courseQuery, "id", accessibleCourseIds)
+
+  if (studentId) {
+    courseQuery = courseQuery.eq("student_id", studentId)
+  }
+
+  const { data: courses, error: coursesError } = await courseQuery
+  if (coursesError) {
+    logger.error("查询可访问课程失败", {
+      ...summarizeError(coursesError),
+      hasStudentFilter: Boolean(studentId),
+    })
+    return {
+      response: NextResponse.json({ error: "查询可访问课程失败" }, { status: 500 }),
+    }
+  }
+
+  const localCourseIds = (courses || []).map((course: any) => course.id).filter(Boolean)
+  const classInCourseIds = uniqueNumbers(
+    (courses || []).map((course: any) => course.classin_course_id)
+  )
+
+  let classIds: number[] = []
+  if (localCourseIds.length > 0) {
+    const { data: sessions, error: sessionsError } = await supabaseServer
+      .from("class_sessions")
+      .select("classroom_id")
+      .in("course_id", localCourseIds)
+
+    if (sessionsError) {
+      logger.error("查询可访问课节失败", {
+        ...summarizeError(sessionsError),
+        hasStudentFilter: Boolean(studentId),
+      })
+      return {
+        response: NextResponse.json({ error: "查询可访问课节失败" }, { status: 500 }),
+      }
+    }
+
+    classIds = uniqueNumbers((sessions || []).map((session: any) => session.classroom_id))
+  }
+
+  return {
+    accessFilter: {
+      unrestricted: false,
+      classIds,
+      classInCourseIds,
+    },
+  }
+}
+
+function hasClassroomAccess(row: any, accessFilter: ClassroomAccessFilter): boolean {
+  if (accessFilter.unrestricted === true) return true
+  const classId = Number(row?.class_id)
+  const classInCourseId = Number(row?.course_id)
+  return (
+    accessFilter.classIds.includes(classId) ||
+    accessFilter.classInCourseIds.includes(classInCourseId)
+  )
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,77 +153,30 @@ export async function GET(request: NextRequest) {
     const dateTo = searchParams.get("dateTo")
     const status = searchParams.get("status")
 
+    const access = await getClassroomAccessFilter(request, studentId)
+    if (access.response) return access.response
+    const accessFilter = access.accessFilter!
+
     if (id) {
       const { data, error } = await supabaseServer
         .from("classroom_classin")
-        .select("*")
+        .select(CLASSROOM_CLASSIN_SELECT)
         .eq("class_id", id)
         .single()
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 400 })
+        logger.warn("查询单个 classroom_classin 失败", summarizeError(error))
+        return NextResponse.json({ error: "获取课堂失败" }, { status: 400 })
+      }
+      if (!hasClassroomAccess(data, accessFilter)) {
+        return NextResponse.json({ error: "无权访问该课堂" }, { status: 403 })
       }
       return NextResponse.json({ data })
     }
 
     let query = supabaseServer
       .from("classroom_classin")
-      .select("*")
-
-    // 按学生筛选（通过 class_sessions 关联）
-    let classroomIds: number[] = []
-
-    if (studentId) {
-      // 步骤1: 查询该学生的课程ID
-      const { data: courses, error: coursesError } = await supabaseServer
-        .from("courses")
-        .select("id")
-        .eq("student_id", studentId)
-
-      if (coursesError) {
-        logger.error("查询学生课程失败", { error: coursesError.message, studentId })
-        return NextResponse.json({ error: "查询学生课程失败" }, { status: 500 })
-      }
-
-      if (!courses || courses.length === 0) {
-        // 没有找到课程，返回空结果
-        return NextResponse.json({
-          data: [],
-          count: 0,
-          from,
-          to,
-        })
-      }
-
-      const courseIds = courses.map((c: any) => c.id)
-
-      // 步骤2: 查询这些课程关联的课节，获取 classroom_id
-      const { data: sessions, error: sessionsError } = await supabaseServer
-        .from("class_sessions")
-        .select("classroom_id")
-        .in("course_id", courseIds)
-
-      if (sessionsError) {
-        logger.error("查询学生课节失败", { error: sessionsError.message, studentId })
-        return NextResponse.json({ error: "查询学生课节失败" }, { status: 500 })
-      }
-
-      if (sessions && sessions.length > 0) {
-        classroomIds = sessions.map((s: any) => s.classroom_id).filter((id: any) => id !== null)
-      }
-
-      // 如果有 classroom_ids，添加到查询条件
-      if (classroomIds.length > 0) {
-        query = query.in("class_id", classroomIds)
-      } else {
-        // 如果没有有效的 classroom_id，返回空结果
-        return NextResponse.json({
-          data: [],
-          count: 0,
-          from,
-          to,
-        })
-      }
-    }
+      .select(CLASSROOM_CLASSIN_SELECT)
+    query = applyAccessFilter(query, accessFilter)
 
     // 按时间范围筛选
     if (dateFrom) {
@@ -110,7 +199,8 @@ export async function GET(request: NextRequest) {
       const { data: allData, error: fetchError } = await query.order("start_time", { ascending: false })
 
       if (fetchError) {
-        return NextResponse.json({ error: fetchError.message }, { status: 400 })
+        logger.warn("查询 classroom_classin 状态筛选数据失败", summarizeError(fetchError))
+        return NextResponse.json({ error: "获取课堂失败" }, { status: 400 })
       }
 
       const now = Date.now() / 1000
@@ -136,9 +226,23 @@ export async function GET(request: NextRequest) {
       data = data.slice(from, to + 1)
     } else {
       // 没有状态筛选，可以直接使用数据库查询
-      const { count } = await supabaseServer
+      let countQuery = supabaseServer
         .from("classroom_classin")
-        .select("*", { count: "exact", head: true })
+        .select("class_id", { count: "exact", head: true })
+      countQuery = applyAccessFilter(countQuery, accessFilter)
+
+      if (dateFrom) {
+        const fromDate = new Date(dateFrom).getTime() / 1000
+        countQuery = countQuery.gte("start_time", fromDate)
+      }
+
+      if (dateTo) {
+        const toDate = new Date(dateTo)
+        toDate.setHours(23, 59, 59, 999)
+        countQuery = countQuery.lte("start_time", toDate.getTime() / 1000)
+      }
+
+      const { count } = await countQuery
 
       totalCount = count || 0
 
@@ -147,7 +251,8 @@ export async function GET(request: NextRequest) {
         .range(from, to)
 
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 400 })
+        logger.warn("查询 classroom_classin 分页数据失败", summarizeError(error))
+        return NextResponse.json({ error: "获取课堂失败" }, { status: 400 })
       }
 
       data = fetchData || []
@@ -159,9 +264,8 @@ export async function GET(request: NextRequest) {
       from,
       to,
     })
-  } catch (error: any) {
-    logger.error("获取 classroom_classin 异常", { message: error.message, stack: error.stack })
-    return NextResponse.json({ error: error.message || "获取课堂失败" }, { status: 500 })
+  } catch (error: unknown) {
+    logger.error("获取 classroom_classin 异常", summarizeError(error))
+    return NextResponse.json({ error: "获取课堂失败" }, { status: 500 })
   }
 }
-

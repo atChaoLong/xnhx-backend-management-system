@@ -10,6 +10,11 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2, Upload } from "lucide-react"
 import { TeachersService, NewTeacher } from "@/lib/services/teachers"
+import {
+  TEACHER_PHOTO_ACCEPT,
+  uploadTeacherPhoto,
+  validateTeacherPhotoFile,
+} from "@/lib/services/upload"
 import { useDictionary } from "@/lib/hooks/useDictionary"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
@@ -40,6 +45,8 @@ export default function NewTeacherPage() {
   const [formData, setFormData] = useState({
     // 基本信息
     name: "",
+    teacher_level: "ungraded",
+    status: "active",
     gender: "",
     wechat: "",
     classin_phone: "",
@@ -142,6 +149,20 @@ export default function NewTeacherPage() {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
+      const validationError = validateTeacherPhotoFile(file)
+
+      if (validationError) {
+        e.target.value = ""
+        setPhotoFile(null)
+        setPhotoPreview(null)
+        toast({
+          variant: "destructive",
+          title: "文件不可用",
+          description: validationError,
+        })
+        return
+      }
+
       setPhotoFile(file)
       const previewUrl = URL.createObjectURL(file)
       setPhotoPreview(previewUrl)
@@ -152,6 +173,20 @@ export default function NewTeacherPage() {
   const handleReviewFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files)
+      const validationError = files
+        .map(file => validateTeacherPhotoFile(file))
+        .find((message): message is string => Boolean(message))
+
+      if (validationError) {
+        e.target.value = ""
+        toast({
+          variant: "destructive",
+          title: "文件不可用",
+          description: validationError,
+        })
+        return
+      }
+
       setReviewFiles(prev => [...prev, ...files])
 
       files.forEach(file => {
@@ -303,11 +338,27 @@ export default function NewTeacherPage() {
       return
     }
 
+    if (!photoFile) {
+      toast({
+        variant: "destructive",
+        title: "验证失败",
+        description: "请上传老师形象照",
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
+      const photoUrl = await uploadTeacherPhoto(photoFile)
+      const reviewScreenshotUrls = reviewFiles.length > 0
+        ? await Promise.all(reviewFiles.map(file => uploadTeacherPhoto(file)))
+        : []
+
       const payload: NewTeacher = {
         name: formData.name.trim(),
+        teacher_level: formData.teacher_level === "ungraded" ? null : formData.teacher_level,
+        status: formData.status || "active",
         gender: formData.gender,
         wechat: formData.wechat.trim(),
         classin_phone: formData.classin_phone.trim(),
@@ -325,8 +376,8 @@ export default function NewTeacherPage() {
         textbook_versions: selectedTextbooks,
         student_regions: selectedRegions,
         student_levels: selectedLevels,
-        photo_url: photoPreview || undefined,
-        review_screenshots: reviewPreviews,
+        photo_url: photoUrl,
+        review_screenshots: reviewScreenshotUrls,
         notes: formData.notes || undefined,
       }
 
@@ -435,6 +486,39 @@ export default function NewTeacherPage() {
                     onChange={(e) => handleInputChange("location", e.target.value)}
                     required
                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="teacher_level">老师等级</Label>
+                    <select
+                      id="teacher_level"
+                      value={formData.teacher_level}
+                      onChange={(e) => handleInputChange("teacher_level", e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                    >
+                      <option value="ungraded">未定级</option>
+                      <option value="junior">初级教师</option>
+                      <option value="intermediate">中级教师</option>
+                      <option value="senior">高级教师</option>
+                      <option value="expert">专家教师</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="status">老师状态</Label>
+                    <select
+                      id="status"
+                      value={formData.status}
+                      onChange={(e) => handleInputChange("status", e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                    >
+                      <option value="active">正常</option>
+                      <option value="full">满课</option>
+                      <option value="paused">暂停排课</option>
+                      <option value="disabled">停用</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -741,7 +825,7 @@ export default function NewTeacherPage() {
                       <Input
                         id="photo"
                         type="file"
-                        accept="image/*"
+                        accept={TEACHER_PHOTO_ACCEPT}
                         onChange={handlePhotoChange}
                         className="hidden"
                       />
@@ -773,7 +857,7 @@ export default function NewTeacherPage() {
                       <Input
                         id="reviews"
                         type="file"
-                        accept="image/*"
+                        accept={TEACHER_PHOTO_ACCEPT}
                         multiple
                         onChange={handleReviewFilesChange}
                         className="hidden"

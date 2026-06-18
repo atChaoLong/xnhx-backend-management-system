@@ -1,9 +1,14 @@
 node_modules/
 .next/
+*.tsbuildinfo
 
 # 环境变量（包含敏感信息）
 .env.local
 .env*.local
+.vercel/.env*.pulled
+.vercel/output/
+supabase/.temp/
 
 # 但保留示例文件
 !.env.example
+.gstack/

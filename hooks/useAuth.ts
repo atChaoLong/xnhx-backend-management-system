@@ -4,8 +4,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/fetch'
 import { createLogger } from '@/lib/logger'
+import { summarizeError } from '@/lib/safe-error'
+import { tokenRefreshManager } from '@/lib/tokenRefreshManager'
 
 const logger = createLogger('useAuth')
+const LOGOUT_INTENT_KEY = 'xnhx_logout_intent'
 
 export function useAuth() {
   const router = useRouter()
@@ -31,9 +34,11 @@ export function useAuth() {
           }
         } else {
           logger.debug('会话无效或已过期')
+          setUser(null)
         }
       } catch (err) {
         logger.error('会话检查错误', { message: err instanceof Error ? err.message : String(err) })
+        setUser(null)
       } finally {
         setIsLoading(false)
       }
@@ -43,22 +48,28 @@ export function useAuth() {
   }, [router])
 
   const handleLogout = useCallback(async () => {
-    localStorage.removeItem('supabase.auth.token')
-    localStorage.removeItem('user')
-    // 清理 profile 缓存
     if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('currentUser')
+      window.localStorage.setItem(LOGOUT_INTENT_KEY, String(Date.now()))
+      try {
+        await fetch('/api/auth/signout', {
+          method: 'POST',
+          credentials: 'same-origin',
+          cache: 'no-store',
+        })
+      } catch (error: unknown) {
+        logger.warn('服务端登出请求失败，继续清理本地会话', summarizeError(error))
+      }
+
+      tokenRefreshManager.clearSession()
+      setUser(null)
+      window.location.replace('/login')
+      return
     }
+
+    tokenRefreshManager.clearSession()
     setUser(null)
-
-    try {
-      await api.post('/api/auth/signout')
-      logger.info('用户已登出')
-    } catch (err) {
-      logger.error('登出错误', { message: err instanceof Error ? err.message : String(err) })
-    }
-
-    router.push('/login')
+    logger.info('用户已登出')
+    router.replace('/login')
   }, [router])
 
   return {

@@ -16,6 +16,7 @@ export interface UserProfile {
   phone?: string          // 手机号
   wechat?: string         // 微信号
   email?: string          // 邮箱
+  avatar_url?: string     // 头像
   team_name?: string      // 团队名称（替代 organization）
   is_active: boolean      // 是否启用
   created_at: string
@@ -109,14 +110,15 @@ export async function createUser(user: CreateUserRequest): Promise<CreateUserRes
 /**
  * 更新用户档案信息
  */
-export async function updateUser(profile: UserProfile & { user_id?: string }): Promise<UserProfile> {
-  const { user_id, ...updateData } = profile
+export async function updateUser(profile: Partial<UserProfile> & { id?: string; user_id?: string }): Promise<UserProfile> {
+  const { id, user_id, ...updateData } = profile
+  const targetId = id || user_id
 
-  if (!user_id) {
+  if (!targetId) {
     throw new Error('用户ID不能为空')
   }
 
-  const response = await api.put("/api/users", { user_id, ...updateData })
+  const response = await api.put("/api/users", { id: targetId, ...updateData })
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: '更新用户失败' }))

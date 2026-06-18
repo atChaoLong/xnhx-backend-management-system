@@ -32,6 +32,7 @@ export const RESOURCES = {
   dictionaries: 'dictionaries',      // 字典管理
   users: 'users',                    // 用户管理
   todos: 'todos',                    // 待办事项
+  uploads: 'uploads',                // 通用上传入口
 } as const
 
 export type Resource = typeof RESOURCES[keyof typeof RESOURCES]
@@ -56,6 +57,7 @@ export const ACTIONS = {
   verifyPerformance: 'verifyPerformance', // 核对业绩
   interview: 'interview',            // 约面
   evaluate: 'evaluate',              // 评价
+  confirmEntry: 'confirmEntry',      // 入库确认
   uploadVideo: 'uploadVideo',        // 录像上传
   reviewVideo: 'reviewVideo',        // 录像复核
   notes: 'notes',                    // 备注
@@ -69,67 +71,69 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
   // 超级管理员：只保留管理和查看权限，不参与日常业务操作
   admin: {
     leads: ['view', 'create', 'edit', 'delete'], // 移除 feedback - 管理员不直接反馈线索
-    trialLessons: ['view', 'edit', 'delete'], // 移除 create, convert - 管理员不创建试听
+    trialLessons: ['view', 'edit', 'delete', 'addLink'], // 移除 create, convert - 管理员不创建试听
     students: ['view', 'create', 'edit', 'delete'], // 保留学生管理
     formalOrders: ['view', 'create', 'edit', 'delete'], // 保留订单管理
     classSessions: ['view', 'create', 'edit', 'delete'], // 课节管理
     courses: ['view', 'create', 'edit', 'delete'], // 课程管理
-    transactions: ['view', 'create', 'verifyHours', 'payment', 'verifyPerformance'],
-    teacherCandidates: ['view', 'interview', 'evaluate', 'uploadVideo', 'reviewVideo'],
+    transactions: ['view', 'create', 'edit', 'delete', 'verifyHours', 'payment', 'verifyPerformance'],
+    teacherCandidates: ['view', 'create', 'interview', 'evaluate', 'confirmEntry', 'uploadVideo', 'reviewVideo', 'delete'],
     teachers: ['view', 'create', 'edit', 'delete', 'notes'],
     dictionaries: ['view', 'create', 'edit', 'delete'],
     users: ['view', 'create', 'edit', 'delete'],
     todos: ['view', 'create', 'edit', 'delete'], // 待办管理
+    uploads: ['create'],
   },
 
   // 运营人员：线索管理
   operator: {
-    leads: ['view', 'create', 'edit', 'delete'],
+    leads: ['view', 'create', 'edit'],
     trialLessons: ['view'],
     students: ['view'],
     formalOrders: ['view'],
     classSessions: ['view'],
     courses: ['view'],
     transactions: ['view'],
-    teacherCandidates: ['view'],
+    teacherCandidates: [],
     teachers: ['view', 'create'],
     dictionaries: ['view'],
-    todos: ["view", "edit"],
     users: ['view'],
     todos: ['view', 'create'], // 可以查看和创建待办（分配给销售）
+    uploads: ['create'],
   },
 
   // 销售顾问：线索跟进、学生管理、订单录入
   sales: {
-    leads: ['view', 'feedback', 'convert', 'assign'], // 授予分配权限（抢单/释放），不授予 edit
+    leads: ['view', 'create', 'feedback', 'convert', 'assign'], // 可录入自己的线索，并可抢单/反馈/转试听
     trialLessons: ['view', 'create', 'edit', 'confirmTime', 'convert'],
     students: ['view', 'create', 'edit'],
-    formalOrders: ['view', 'create', 'edit', 'addLink'], // 添加 addLink - 销售可以为正式订单开课
+    formalOrders: ['view', 'create'], // 可从试听转正式，正式订单列表不允许普通角色随意修改
     classSessions: ['view'],
     courses: ['view'],
     transactions: ['view'],
-    teacherCandidates: ['view'],
+    teacherCandidates: [],
     teachers: ['view', 'create'],
     dictionaries: ['view'],
-    todos: ["view", "edit"],
     users: ['view'],
-    todos: ['view', 'edit'], // 可以查看和编辑（标记完成）待办
+    todos: ['view', 'create', 'edit'], // 可查看/完成待办；创建仅允许催促自己负责线索的负责运营
+    uploads: ['create'],
   },
 
   // 班主任：学生管理、排课、回访、续费
   head_teacher: {
-    leads: ['view', 'convert'], // 添加 convert - 班主任可以创建试听
+    leads: ['view', 'create', 'convert'], // 班主任可以录入自己的线索并创建试听
     trialLessons: ['view', 'edit'],
     students: ['view', 'create', 'edit', 'schedule', 'visit'],
-    formalOrders: ['view', 'create', 'edit'],
-    classSessions: ['view', 'create', 'edit', 'delete'], // 课节管理
+    formalOrders: ['view', 'create'],
+    classSessions: ['view', 'create', 'edit'], // 课节管理
     courses: ['view', 'create', 'edit'], // 课程管理
     transactions: ['view', 'create'],
-    teacherCandidates: ['view'],
+    teacherCandidates: [],
     teachers: ['view'],
     dictionaries: ['view'],
     todos: ["view", "edit"],
     users: ['view'],
+    uploads: ['create'],
   },
 
   // 教师：信息录入
@@ -141,27 +145,29 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     classSessions: ['view'],
     courses: ['view'],
     transactions: ['view'],
-    teacherCandidates: ['view'],
+    teacherCandidates: [],
     teachers: ['view', 'create', 'edit'],
     dictionaries: ['view'],
     todos: ["view", "edit"],
     users: ['view'],
+    uploads: ['create'],
   },
 
-  // 教务：全部权限
+  // 教务：教学、排课与入库流程
   academic_affairs: {
     leads: [],
     trialLessons: ['view', 'edit', 'matchTeacher', 'confirmTeacher', 'confirmTime', 'addLink'],
     students: ['view', 'edit'],
-    formalOrders: [],
-    classSessions: ['view', 'create', 'edit', 'delete'],
+    formalOrders: ['view'],
+    classSessions: ['view', 'create', 'edit'],
     courses: ['view', 'edit'],
-    transactions: ['view', 'create', 'verifyHours', 'payment', 'verifyPerformance'],
-    teacherCandidates: ['view', 'evaluate', 'reviewVideo'],
+    transactions: ['view', 'create', 'edit', 'verifyHours', 'payment', 'verifyPerformance'],
+    teacherCandidates: ['view', 'evaluate', 'confirmEntry', 'reviewVideo'],
     teachers: ['view', 'edit', 'notes'],
     dictionaries: ['view'],
     users: ['view'],
-    todos: ['view', 'create', 'edit', 'delete'],
+    todos: ['view', 'create', 'edit'],
+    uploads: ['create'],
   },
 
   // 财务：财务管理、打款
@@ -173,11 +179,12 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     classSessions: ['view'],
     courses: ['view'],
     transactions: ['view', 'payment'],
-    teacherCandidates: ['view'],
+    teacherCandidates: ['view', 'confirmEntry'],
     teachers: ['view'],
     dictionaries: ['view'],
     todos: ["view", "edit"],
     users: ['view'],
+    uploads: ['create'],
   },
 
   // 招师：候选人约面、初试录入、录像上传
@@ -194,6 +201,7 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     dictionaries: ['view'],
     todos: ["view", "edit"],
     users: ['view'],
+    uploads: ['create'],
   },
 
   // 人事：保留人力相关能力，不承载招师流程
@@ -205,11 +213,12 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     classSessions: [],
     courses: [],
     transactions: ['view', 'verifyPerformance'],
-    teacherCandidates: ['view'],
+    teacherCandidates: ['view', 'confirmEntry'],
     teachers: [],
     dictionaries: ['view'],
     todos: ["view", "edit"],
     users: ['view'],
+    uploads: [],
   },
 }
 

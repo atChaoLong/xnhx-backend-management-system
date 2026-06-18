@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { getCurrentProfile } from '@/lib/server-data-scope'
+import { createLogger } from '@/lib/logger'
+import { summarizeError } from '@/lib/safe-error'
+
+const logger = createLogger('API:Sync:Classes')
 
 // ClassIn API 响应类型（使用 camelCase）
 interface ClassInCourseResponse {
@@ -49,6 +54,11 @@ interface ClassInCourseResponse {
  */
 export async function POST(request: NextRequest) {
   try {
+    const profile = await getCurrentProfile(request)
+    if (!profile || !['admin', 'academic_affairs'].includes(profile.role)) {
+      return NextResponse.json({ error: '权限不足' }, { status: 403 })
+    }
+
     const body = await request.json()
     const { page = 1, pageSize = 50, courseState = 1, cookie } = body
 
@@ -155,11 +165,11 @@ export async function POST(request: NextRequest) {
         if (error) throw error
 
         results.success++
-      } catch (error: any) {
+      } catch (error: unknown) {
         results.failed++
         results.errors.push({
           name: course.courseName || '未知',
-          error: error.message,
+          error: '该班级同步失败',
         })
       }
     }
@@ -168,9 +178,10 @@ export async function POST(request: NextRequest) {
       success: true,
       data: results,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    logger.error('同步班级数据失败', summarizeError(error))
     return NextResponse.json(
-      { error: error.message || '同步班级数据失败' },
+      { error: '同步班级数据失败' },
       { status: 500 }
     )
   }

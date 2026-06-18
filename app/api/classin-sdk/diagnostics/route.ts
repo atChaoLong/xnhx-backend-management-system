@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireClassInOpsProfile } from '@/lib/server-classin-ops'
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
+  const access = await requireClassInOpsProfile(request)
+  if (access.ok === false) return access.response
+
   const SID = process.env.CLASSIN_SID
   const SECRET = process.env.CLASSIN_SECRET
   const BASE_URL = process.env.CLASSIN_API_URL || 'api.eeo.cn'
@@ -23,4 +27,3 @@ export async function GET(_request: NextRequest) {
     }
   })
 }
-

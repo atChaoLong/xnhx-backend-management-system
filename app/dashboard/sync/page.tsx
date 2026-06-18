@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, Users, UserCheck, CheckCircle, XCircle, RefreshCw, Save, Trash2, BookOpen, MonitorPlay } from "lucide-react"
+import { Loader2, Users, UserCheck, CheckCircle, XCircle, RefreshCw, Trash2, BookOpen, MonitorPlay } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { api } from "@/lib/fetch"
+import { usePermission } from "@/lib/hooks/usePermission"
 
 interface SyncResult {
   total: number
@@ -21,6 +23,7 @@ interface SyncResult {
 
 export default function SyncPage() {
   const { toast } = useToast()
+  const { teachers, isLoading: isPermissionLoading } = usePermission()
   const [isSyncing, setIsSyncing] = useState(false)
   const [limit, setLimit] = useState(100)
   const [cookie, setCookie] = useState("")
@@ -28,23 +31,12 @@ export default function SyncPage() {
   const [studentResult, setStudentResult] = useState<SyncResult | null>(null)
   const [classResult, setClassResult] = useState<SyncResult | null>(null)
   const [classroomResult, setClassroomResult] = useState<SyncResult | null>(null)
+  const canUseClassInOps = !isPermissionLoading && teachers.notes()
 
-  // 从 localStorage 加载保存的 Cookie
+  // 清理旧版本保存在浏览器里的 ClassIn Cookie，后续仅在当前页面内存中临时使用。
   useEffect(() => {
-    const savedCookie = localStorage.getItem('classin_cookie')
-    if (savedCookie) {
-      setCookie(savedCookie)
-    }
+    localStorage.removeItem('classin_cookie')
   }, [])
-
-  // 保存 Cookie 到 localStorage
-  const handleSaveCookie = () => {
-    localStorage.setItem('classin_cookie', cookie)
-    toast({
-      title: "保存成功",
-      description: "Cookie 已保存到浏览器本地存储",
-    })
-  }
 
   // 清除 Cookie
   const handleClearCookie = () => {
@@ -52,7 +44,7 @@ export default function SyncPage() {
     setCookie("")
     toast({
       title: "已清除",
-      description: "Cookie 已从浏览器本地存储中删除",
+      description: "Cookie 输入已清空，历史本地缓存也已删除",
     })
   }
 
@@ -62,7 +54,7 @@ export default function SyncPage() {
       toast({
         variant: "destructive",
         title: "请先配置 Cookie",
-        description: "请先在下方配置并保存 ClassIn Cookie",
+        description: "请先在下方临时粘贴 ClassIn Cookie",
       })
       return
     }
@@ -71,11 +63,7 @@ export default function SyncPage() {
     setTeacherResult(null)
 
     try {
-      const response = await fetch("/api/sync/teachers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ limit, cookie }),
-      })
+      const response = await api.post("/api/sync/teachers", { limit, cookie })
 
       const data = await response.json()
 
@@ -106,7 +94,7 @@ export default function SyncPage() {
       toast({
         variant: "destructive",
         title: "请先配置 Cookie",
-        description: "请先在下方配置并保存 ClassIn Cookie",
+        description: "请先在下方临时粘贴 ClassIn Cookie",
       })
       return
     }
@@ -115,11 +103,7 @@ export default function SyncPage() {
     setStudentResult(null)
 
     try {
-      const response = await fetch("/api/sync/students", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ limit, cookie }),
-      })
+      const response = await api.post("/api/sync/students", { limit, cookie })
 
       const data = await response.json()
 
@@ -150,7 +134,7 @@ export default function SyncPage() {
       toast({
         variant: "destructive",
         title: "请先配置 Cookie",
-        description: "请先在下方配置并保存 ClassIn Cookie",
+        description: "请先在下方临时粘贴 ClassIn Cookie",
       })
       return
     }
@@ -159,11 +143,7 @@ export default function SyncPage() {
     setClassResult(null)
 
     try {
-      const response = await fetch("/api/sync/classes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pageSize: limit, cookie }),
-      })
+      const response = await api.post("/api/sync/classes", { pageSize: limit, cookie })
 
       const data = await response.json()
 
@@ -194,7 +174,7 @@ export default function SyncPage() {
       toast({
         variant: "destructive",
         title: "请先配置 Cookie",
-        description: "请先在下方配置并保存 ClassIn Cookie",
+        description: "请先在下方临时粘贴 ClassIn Cookie",
       })
       return
     }
@@ -203,11 +183,7 @@ export default function SyncPage() {
     setClassroomResult(null)
 
     try {
-      const response = await fetch("/api/sync/classrooms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pageSize: limit, cookie }),
-      })
+      const response = await api.post("/api/sync/classrooms", { pageSize: limit, cookie })
 
       const data = await response.json()
 
@@ -232,6 +208,38 @@ export default function SyncPage() {
     }
   }
 
+  if (isPermissionLoading) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header
+          title="数据同步"
+          description="从 ClassIn 同步老师、学生、班级和课堂数据到本地数据库"
+        />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!canUseClassInOps) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header
+          title="数据同步"
+          description="从 ClassIn 同步老师、学生、班级和课堂数据到本地数据库"
+        />
+        <div className="flex-1 p-6">
+          <Card>
+            <CardContent className="p-6 text-sm text-muted-foreground">
+              当前角色无权访问 ClassIn 数据同步。
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col h-full">
       <Header
@@ -246,7 +254,7 @@ export default function SyncPage() {
             <CardHeader>
               <CardTitle>ClassIn 配置</CardTitle>
               <CardDescription>
-                配置 ClassIn Cookie 以同步数据
+                临时粘贴 ClassIn Cookie 以同步数据
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -263,18 +271,9 @@ export default function SyncPage() {
                   disabled={isSyncing}
                 />
                 <p className="text-xs text-muted-foreground">
-                  从浏览器开发者工具 → Application → Cookies 中复制 dynamic.eeo.cn 的 Cookie
+                  从浏览器开发者工具 → Application → Cookies 中复制 dynamic.eeo.cn 的 Cookie；仅本页临时使用，不会保存到浏览器本地存储
                 </p>
                 <div className="flex gap-2">
-                  <Button
-                    onClick={handleSaveCookie}
-                    variant="outline"
-                    size="sm"
-                    disabled={isSyncing}
-                  >
-                    <Save className="mr-2 h-4 w-4" />
-                    保存 Cookie
-                  </Button>
                   <Button
                     onClick={handleClearCookie}
                     variant="outline"
@@ -797,14 +796,14 @@ export default function SyncPage() {
                   <li>打开浏览器开发者工具（F12）</li>
                   <li>进入 Application → Cookies</li>
                   <li>复制 dynamic.eeo.cn 的所有 Cookie</li>
-                  <li>粘贴到上方 Cookie 输入框并保存</li>
+                  <li>粘贴到上方 Cookie 输入框并执行同步</li>
                 </ol>
               </div>
 
               <div>
                 <h4 className="font-semibold mb-2">同步流程</h4>
                 <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-                  <li>配置并保存 ClassIn Cookie</li>
+                  <li>临时粘贴 ClassIn Cookie</li>
                   <li>从 ClassIn API 获取数据</li>
                   <li>根据 uid 判断数据是否存在</li>
                   <li>存在则更新，不存在则插入</li>
@@ -816,7 +815,7 @@ export default function SyncPage() {
               <div>
                 <h4 className="font-semibold mb-2">注意事项</h4>
                 <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                  <li>Cookie 保存在浏览器本地存储中，不会上传到服务器</li>
+                  <li>Cookie 仅在当前页面内存中临时保留，不会保存到浏览器本地存储</li>
                   <li>同步数据会覆盖本地已存在的记录</li>
                   <li>建议首次同步前备份本地数据</li>
                   <li>Cookie 有效期约 2 小时，过期后需重新配置</li>

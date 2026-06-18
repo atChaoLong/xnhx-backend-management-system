@@ -4,10 +4,13 @@
  */
 
 import { NextRequest } from 'next/server'
-import { supabaseServer } from '@/lib/supabase'
+import { supabaseAuthServer } from '@/lib/supabase'
 import { hasPermission, PermissionDeniedError, Role, Resource, Action } from '@/lib/permissions'
 import { NextResponse } from 'next/server'
 import { createLogger } from '@/lib/logger'
+import { getErrorMessage, summarizeError } from '@/lib/safe-error'
+import { getActiveUserProfile } from '@/lib/server-active-profile'
+import { getRequestAccessToken } from '@/lib/server-auth-token'
 
 const logger = createLogger('Auth:Middleware')
 
@@ -19,6 +22,8 @@ export enum AuthStatus {
   NO_TOKEN = 'no_token',              // 没有token
   EXPIRED_TOKEN = 'expired_token',    // token已过期
   INVALID_TOKEN = 'invalid_token',    // token无效（格式错误、伪造等）
+  ACCOUNT_DISABLED = 'account_disabled', // 账号已停用
+  PROFILE_UNAVAILABLE = 'profile_unavailable', // 用户档案暂时不可用
 }
 
 /**
@@ -30,13 +35,57 @@ export interface AuthResult {
   userId?: string
 }
 
+function isRecord(value: unknown): value is Record<string, any> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+async function authenticateViaProfileRoute(
+  request: NextRequest,
+  token: string
+): Promise<AuthResult | null> {
+  const origin = request.nextUrl?.origin
+  if (!origin) return null
+
+  try {
+    const response = await fetch(`${origin}/api/auth/profile`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      cache: 'no-store',
+    })
+
+    if (!response.ok) {
+      logger.debug('Node profile 兜底认证失败', { status: response.status })
+      return null
+    }
+
+    const payload = await response.json().catch(() => null)
+    const profile = isRecord(payload) && isRecord(payload.data)
+      ? payload.data
+      : null
+
+    const userId = typeof profile?.id === 'string' ? profile.id : undefined
+    const role = typeof profile?.role === 'string' ? profile.role as Role : undefined
+
+    if (!userId) return null
+
+    return {
+      status: AuthStatus.AUTHENTICATED,
+      role,
+      userId,
+    }
+  } catch (error: unknown) {
+    logger.warn('Node profile 兜底认证异常', summarizeError(error))
+    return null
+  }
+}
+
 /**
  * 从请求中验证用户身份并获取角色
  */
 export async function authenticateUser(request: NextRequest): Promise<AuthResult> {
   try {
-    const authHeader = request.headers.get('authorization')
-    const token = authHeader?.replace('Bearer ', '')
+    const token = getRequestAccessToken(request)
 
     // 1. 检查是否有 token
     if (!token) {
@@ -45,27 +94,31 @@ export async function authenticateUser(request: NextRequest): Promise<AuthResult
     }
 
     // 2. 验证 token 是否有效
-    const { data: { user }, error } = await supabaseServer.auth.getUser(token)
+    const { data: { user }, error } = await supabaseAuthServer.auth.getUser(token)
 
     if (error) {
+      const fallbackResult = await authenticateViaProfileRoute(request, token)
+      if (fallbackResult) {
+        logger.warn('Supabase SDK token 校验失败，已使用 Node profile 兜底认证', {
+          ...summarizeError(error),
+          userId: fallbackResult.userId,
+        })
+        return fallbackResult
+      }
+
       // 判断 token 是否过期
       // Supabase 在 token 过期时返回 401 Unauthorized
+      const authErrorMessage = getErrorMessage(error)
       const isExpired = error.status === 401 ||
-                       error.message?.includes('expired') ||
-                       error.message?.includes('过期')
+                       authErrorMessage.includes('expired') ||
+                       authErrorMessage.includes('过期')
 
       if (isExpired) {
-        logger.debug('认证失败：token 已过期', {
-          message: error.message,
-          status: error.status,
-        })
+        logger.debug('认证失败：token 已过期', summarizeError(error))
         return { status: AuthStatus.EXPIRED_TOKEN }
       }
 
-      logger.debug('认证失败：token 无效', {
-        message: error.message,
-        status: error.status,
-      })
+      logger.debug('认证失败：token 无效', summarizeError(error))
       return { status: AuthStatus.INVALID_TOKEN }
     }
 
@@ -74,14 +127,25 @@ export async function authenticateUser(request: NextRequest): Promise<AuthResult
       return { status: AuthStatus.INVALID_TOKEN }
     }
 
-    // 3. 获取用户角色
-    const { data: profile } = await supabaseServer
-      .from('user_profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle()
+    // 3. 获取用户角色，并拦截停用账号
+    const profileResult = await getActiveUserProfile(user.id, { accessToken: token })
 
-    const role = profile?.role as Role | undefined
+    if (profileResult.ok === false) {
+      if (profileResult.code === 'ACCOUNT_DISABLED') {
+        return { status: AuthStatus.ACCOUNT_DISABLED, userId: user.id }
+      }
+
+      if (profileResult.code === 'PROFILE_LOOKUP_FAILED') {
+        return { status: AuthStatus.PROFILE_UNAVAILABLE, userId: user.id }
+      }
+
+      return {
+        status: AuthStatus.AUTHENTICATED,
+        userId: user.id,
+      }
+    }
+
+    const role = profileResult.profile.role as Role | undefined
 
     if (!role) {
       logger.warn('用户没有角色信息', { userId: user.id })
@@ -92,11 +156,12 @@ export async function authenticateUser(request: NextRequest): Promise<AuthResult
       role,
       userId: user.id,
     }
-  } catch (error: any) {
-    logger.error('认证异常', { error })
+  } catch (error: unknown) {
+    logger.error('认证异常', summarizeError(error))
     // 捕获异常时，尝试判断是否是过期相关的错误
-    const isExpired = error?.message?.includes('expired') ||
-                     error?.message?.includes('过期')
+    const authErrorMessage = getErrorMessage(error)
+    const isExpired = authErrorMessage.includes('expired') ||
+                     authErrorMessage.includes('过期')
     return { status: isExpired ? AuthStatus.EXPIRED_TOKEN : AuthStatus.INVALID_TOKEN }
   }
 }
@@ -157,6 +222,25 @@ export async function checkPermission(
       )
     }
 
+    if (authResult.status === AuthStatus.ACCOUNT_DISABLED) {
+      logger.debug('权限检查失败：账号已停用', { userId: authResult.userId })
+      return NextResponse.json(
+        {
+          error: '账号已停用，请联系管理员',
+          code: 'ACCOUNT_DISABLED',
+        },
+        { status: 403 }
+      )
+    }
+
+    if (authResult.status === AuthStatus.PROFILE_UNAVAILABLE) {
+      logger.warn('权限检查失败：用户档案暂时不可用', { userId: authResult.userId })
+      return NextResponse.json(
+        { error: '用户档案暂时不可用，请稍后重试' },
+        { status: 500 }
+      )
+    }
+
     // 检查用户角色
     if (!authResult.role) {
       logger.warn('认证成功但用户没有角色', { userId: authResult.userId })
@@ -185,10 +269,10 @@ export async function checkPermission(
 
     // 执行业务逻辑
     return await handler()
-  } catch (error: any) {
-    logger.error('权限检查错误', { error })
+  } catch (error: unknown) {
+    logger.error('权限检查错误', summarizeError(error))
     return NextResponse.json(
-      { error: error.message || '服务器错误' },
+      { error: '服务器错误' },
       { status: 500 }
     )
   }

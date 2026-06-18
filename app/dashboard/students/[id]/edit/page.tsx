@@ -19,6 +19,7 @@ import { StudentsService, Student } from "@/lib/services/students"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
+import { summarizeError } from "@/lib/safe-error"
 
 export default function EditStudentPage() {
   const router = useRouter()
@@ -42,7 +43,7 @@ export default function EditStudentPage() {
 
   const [formData, setFormData] = useState({
     student_name: "",
-    student_number: "",
+    student_code: "",
     grade_code: "",
     region: "",
     school: "",
@@ -63,7 +64,7 @@ export default function EditStudentPage() {
           regions: dicts.province || [],
         })
       } catch (error) {
-        console.error("加载字典失败:", error)
+        console.error("加载字典失败:", summarizeError(error))
       } finally {
         setIsLoadingDict(false)
       }
@@ -83,7 +84,7 @@ export default function EditStudentPage() {
         // 设置表单数据
         setFormData({
           student_name: data.student_name || "",
-          student_number: data.student_number || "",
+          student_code: data.student_code || "",
           grade_code: data.grade_code || "",
           region: data.region || "",
           school: data.school || "",
@@ -129,7 +130,7 @@ export default function EditStudentPage() {
       const payload = {
         id: studentId,
         student_name: formData.student_name.trim(),
-        student_number: formData.student_number.trim() || undefined,
+        student_code: formData.student_code.trim() || undefined,
         grade_code: formData.grade_code || undefined,
         region: formData.region || undefined,
         school: formData.school.trim() || undefined,
@@ -214,12 +215,12 @@ export default function EditStudentPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="student_number">学号</Label>
+                  <Label htmlFor="student_code">学号</Label>
                   <Input
-                    id="student_number"
+                    id="student_code"
                     placeholder="请输入学号"
-                    value={formData.student_number}
-                    onChange={(e) => handleInputChange("student_number", e.target.value)}
+                    value={formData.student_code}
+                    onChange={(e) => handleInputChange("student_code", e.target.value)}
                   />
                 </div>
 

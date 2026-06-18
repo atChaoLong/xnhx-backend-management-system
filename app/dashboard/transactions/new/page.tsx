@@ -14,7 +14,11 @@ import { StudentsService } from "@/lib/services/students"
 import { FormalOrdersService } from "@/lib/services/formalOrders"
 import { useDictionary } from "@/lib/hooks/useDictionary"
 import { useToast } from "@/hooks/use-toast"
+import { api } from "@/lib/fetch"
 import Link from "next/link"
+import { getClientSafeErrorMessage, summarizeError } from "@/lib/safe-error"
+
+const TRANSACTION_CREATE_ERROR = "无法创建异动记录"
 
 export default function NewTransactionPage() {
   const router = useRouter()
@@ -30,6 +34,8 @@ export default function NewTransactionPage() {
   const [students, setStudents] = useState<any[]>([])
 
   const [formData, setFormData] = useState({
+    student_id: "",
+    order_id: "",
     creation_date: new Date().toISOString().split('T')[0],
     course_name: "",
     student_name: "",
@@ -47,7 +53,6 @@ export default function NewTransactionPage() {
     bank_name: "",
     bank_branch: "",
     unit_price: "",
-    status: "pending" as 'pending' | 'processing' | 'completed' | 'rejected',
   })
 
   // 加载列表数据和预填数据
@@ -68,15 +73,30 @@ export default function NewTransactionPage() {
           // 获取学生信息
           if (studentId) {
             const student = await StudentsService.getStudentById(studentId)
+            prefillData.student_id = student.id
             prefillData.student_name = student.student_name
-            if (student.head_teacher?.name) {
-              prefillData.class_teacher = student.head_teacher.name
+            if ((student as any).head_teacher?.name || student.head_teacher_name) {
+              prefillData.class_teacher = (student as any).head_teacher?.name || student.head_teacher_name
+            }
+
+            try {
+              const detailResponse = await api.get(`/api/students/detail?id=${encodeURIComponent(studentId)}`)
+              if (detailResponse.ok) {
+                const detailResult = await detailResponse.json()
+                const orderSummary = (detailResult.data?.formalOrderSummaries || []).find((summary: any) => summary.order_id === orderId)
+                if (orderSummary) {
+                  prefillData.remaining_duration = Number(orderSummary.remaining_hours || 0).toFixed(1)
+                }
+              }
+            } catch (error) {
+              console.error('加载正式生剩余课时失败:', summarizeError(error))
             }
           }
 
           // 获取订单信息
           if (orderId) {
             const order = await FormalOrdersService.getFormalOrderById(orderId)
+            prefillData.order_id = order.id
             prefillData.order_type = order.order_type
             prefillData.original_consultant = order.consultant_teacher
             prefillData.teacher_name = order.teacher_names?.[0] || ''
@@ -89,7 +109,7 @@ export default function NewTransactionPage() {
 
           setFormData(prev => ({ ...prev, ...prefillData }))
         } catch (error) {
-          console.error('预填数据失败:', error)
+          console.error('预填数据失败:', summarizeError(error))
         } finally {
           setIsLoadingPrefill(false)
         }
@@ -137,6 +157,8 @@ export default function NewTransactionPage() {
 
     try {
       const payload = {
+        student_id: formData.student_id || undefined,
+        order_id: formData.order_id || undefined,
         creation_date: formData.creation_date,
         course_name: formData.course_name.trim() || undefined,
         student_name: formData.student_name.trim(),
@@ -154,7 +176,6 @@ export default function NewTransactionPage() {
         bank_name: formData.bank_name.trim() || undefined,
         bank_branch: formData.bank_branch.trim() || undefined,
         unit_price: formData.unit_price ? parseFloat(formData.unit_price) : undefined,
-        status: formData.status,
       }
 
       await TransactionsService.createTransaction(payload)
@@ -165,11 +186,11 @@ export default function NewTransactionPage() {
       })
 
       router.push("/dashboard/transactions")
-    } catch (error: any) {
+    } catch (error) {
       toast({
         variant: "destructive",
         title: "创建失败",
-        description: error.message || "无法创建异动记录",
+        description: getClientSafeErrorMessage(error, TRANSACTION_CREATE_ERROR),
       })
     } finally {
       setIsSubmitting(false)
@@ -313,24 +334,8 @@ export default function NewTransactionPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="status">
-                      状态 <span className="text-destructive">*</span>
-                    </Label>
-                    <select
-                      id="status"
-                      value={formData.status}
-                      onChange={(e) => handleInputChange("status", e.target.value as any)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                      required
-                    >
-                      <option value="pending">待处理</option>
-                      <option value="processing">处理中</option>
-                      <option value="completed">已完成</option>
-                      <option value="rejected">已拒绝</option>
-                    </select>
-                  </div>
+                <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                  新建异动会默认进入“待教务核对”，后续由教务、财务、人力按权限推进。
                 </div>
               </div>
 

@@ -12,10 +12,13 @@ export interface Teacher {
   id: string
   created_at: string
   updated_at: string
+  teacher_code?: string | null
+  teacher_level?: string | null
+  status?: string | null
   name: string
   gender: string
-  wechat: string
-  classin_phone: string
+  wechat: string | null
+  classin_phone: string | null
   subjects: string[]
   grade_levels: string[]
   used_classin?: boolean
@@ -35,6 +38,21 @@ export interface Teacher {
   classin_uid?: number | null
   location?: string
   total_hours?: number
+}
+
+export interface ClassInTeacherOption {
+  id: string
+  teacher_name: string
+  teacher_subject?: string
+  classin_uid: number
+  subjects?: string[]
+  grade_levels?: string[]
+  available_times?: string[]
+  student_regions?: string[]
+  student_levels?: string[]
+  status?: string | null
+  teacher_level?: string | null
+  total_hours?: number | null
 }
 
 /**
@@ -71,6 +89,21 @@ export async function getAllTeachers(): Promise<Teacher[]> {
 }
 
 /**
+ * 获取可用于试听匹配/确认的 ClassIn 老师目录。
+ */
+export async function getClassInTeachers(): Promise<ClassInTeacherOption[]> {
+  const response = await api.get("/api/teachers/classin")
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: '获取 ClassIn 老师列表失败' }))
+    throw new Error(error.error || '获取 ClassIn 老师列表失败')
+  }
+
+  const result = await response.json()
+  return (result.data || []) as ClassInTeacherOption[]
+}
+
+/**
  * 根据ID获取单个老师
  */
 export async function getTeacherById(id: string): Promise<Teacher> {
@@ -101,7 +134,7 @@ export async function createTeacher(teacher: NewTeacher): Promise<Teacher> {
 /**
  * 更新老师信息
  */
-export async function updateTeacher(teacher: Teacher & { id?: string }): Promise<Teacher> {
+export async function updateTeacher(teacher: Partial<Teacher> & { id?: string }): Promise<Teacher> {
   const { id, ...updateData } = teacher
 
   if (!id) {
@@ -139,6 +172,7 @@ export async function deleteTeacher(id: string): Promise<boolean> {
 export const TeachersService = {
   getTeachers,
   getAllTeachers,
+  getClassInTeachers,
   getTeacherById,
   createTeacher,
   updateTeacher,

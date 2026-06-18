@@ -10,7 +10,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -25,25 +24,25 @@ import {
   PaginationPageSize,
   PaginationInfo,
 } from "@/components/ui/pagination"
-import { Plus, Edit, Trash2, Loader2, AlertTriangle, CheckCircle } from "lucide-react"
+import { Loader2, Eye } from "lucide-react"
 import { format } from "date-fns"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { FormalOrdersService, FormalOrder } from "@/lib/services/formalOrders"
 import { useToast } from "@/hooks/use-toast"
-import { usePermission } from "@/lib/hooks/usePermission"
 import { usePagination } from "@/lib/hooks/usePagination"
+import { useCurrentUser } from "@/lib/hooks/useCurrentUser"
 
 export default function FormalOrdersPage() {
   const router = useRouter()
-  const { formalOrders: formalOrdersPerm } = usePermission()
+  const { user } = useCurrentUser()
   const [orders, setOrders] = useState<FormalOrder[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
-  const [isDeleting, setIsDeleting] = useState<string | null>(null)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [orderToDelete, setOrderToDelete] = useState<string | null>(null)
+  const [paymentProofPreview, setPaymentProofPreview] = useState("")
+  const [paymentProofDialogOpen, setPaymentProofDialogOpen] = useState(false)
   const { toast } = useToast()
+  const canViewPaymentProof = user?.role === 'admin' || user?.role === 'finance' || user?.role === 'academic_affairs'
+  const tableColumnCount = canViewPaymentProof ? 12 : 11
 
   const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
 
@@ -90,82 +89,16 @@ export default function FormalOrdersPage() {
     fetchOrders(1, pageSize)
   }, [])
 
-  // 删除正式订单
-  const handleDeleteClick = (id: string) => {
-    setOrderToDelete(id)
-    setDeleteDialogOpen(true)
-  }
-
-  const handleDeleteConfirm = async () => {
-    if (!orderToDelete) return
-
-    try {
-      setIsDeleting(orderToDelete)
-      await FormalOrdersService.deleteFormalOrder(orderToDelete)
-      toast({
-        title: "删除成功",
-        description: "正式订单已删除",
-      })
-      fetchOrders()
-      setDeleteDialogOpen(false)
-      setOrderToDelete(null)
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "删除失败",
-        description: error.message || "无法删除正式订单",
-      })
-    } finally {
-      setIsDeleting(null)
-    }
-  }
-
-  const handleDeleteCancel = () => {
-    setDeleteDialogOpen(false)
-    setOrderToDelete(null)
-  }
-
-  // 快捷开课（教务操作）- 跳转到排课管理页面
-  const handleQuickCreateClass = (order: FormalOrder) => {
-    // 检查必要字段
-    if (!order.teacher_names || order.teacher_names.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "无法开课",
-        description: "请先选择授课老师",
-      })
-      return
-    }
-
-    if (!order.student_id) {
-      toast({
-        variant: "destructive",
-        title: "无法开课",
-        description: "订单缺少学生信息",
-      })
-      return
-    }
-
-    // 跳转到批量排课页面，携带订单信息
-    const params = new URLSearchParams({
-      order_id: order.id,
-      student_id: order.student_id,
-      teacher_name: order.teacher_names[0],
-      subjects: order.subjects?.join(',') || '',
-      total_hours: order.total_hours?.toString() || '',
-      from: 'formal_order',
-    })
-
-    router.push(`/dashboard/schedule/batch?${params.toString()}`)
-  }
-
   // 获取状态标签样式
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, string> = {
+      'draft': 'bg-slate-100 text-slate-800',
+      'pending_payment': 'bg-orange-100 text-orange-800',
       'active': 'bg-green-100 text-green-800',
       'completed': 'bg-blue-100 text-blue-800',
       'cancelled': 'bg-gray-100 text-gray-800',
       'suspended': 'bg-yellow-100 text-yellow-800',
+      'refunded': 'bg-purple-100 text-purple-800',
     }
     return statusMap[status] || 'bg-gray-100 text-gray-800'
   }
@@ -173,40 +106,23 @@ export default function FormalOrdersPage() {
   // 获取状态文本
   const getStatusText = (status: string) => {
     const statusMap: Record<string, string> = {
+      'draft': '草稿',
+      'pending_payment': '待付款',
       'active': '进行中',
       'completed': '已完成',
       'cancelled': '已取消',
       'suspended': '已暂停',
+      'paused': '已暂停',
+      'refunded': '已退费',
     }
     return statusMap[status] || status
   }
 
-  // 切换状态
-  const handleToggleStatus = async (order: FormalOrder) => {
-    const statusFlow: Record<string, string> = {
-      'active': 'completed',
-      'completed': 'cancelled',
-      'cancelled': 'suspended',
-      'suspended': 'active',
-    }
+  const isImageUrl = (url: string) => /\.(jpg|jpeg|png|gif|webp|avif|heic|heif|bmp|tif|tiff)(\?.*)?$/i.test(url)
 
-    try {
-      await FormalOrdersService.updateFormalOrder({
-        ...order,
-        status: statusFlow[order.status] as any,
-      })
-      toast({
-        title: "更新成功",
-        description: "状态已更新",
-      })
-      fetchOrders()
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "更新失败",
-        description: error.message || "无法更新状态",
-      })
-    }
+  const openPaymentProofPreview = (url: string) => {
+    setPaymentProofPreview(url)
+    setPaymentProofDialogOpen(true)
   }
 
   if (isLoading) {
@@ -244,12 +160,6 @@ export default function FormalOrdersPage() {
                 <Button variant="outline" onClick={() => fetchOrders(currentPage, pageSize)} disabled={isLoading}>
                   刷新
                 </Button>
-                <Link href="/dashboard/formal-orders/new">
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    新增正式订单
-                  </Button>
-                </Link>
               </div>
             </div>
 
@@ -263,6 +173,7 @@ export default function FormalOrdersPage() {
                     <TableHead>订单类型</TableHead>
                     <TableHead>总课时数</TableHead>
                     <TableHead>付款金额</TableHead>
+                    {canViewPaymentProof && <TableHead>付款凭证</TableHead>}
                     <TableHead>小时单价</TableHead>
                     <TableHead>签约顾问</TableHead>
                     <TableHead>首次课时间</TableHead>
@@ -273,19 +184,21 @@ export default function FormalOrdersPage() {
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={11} className="text-center py-8">
+                      <TableCell colSpan={tableColumnCount} className="text-center py-8">
                         <Loader2 className="h-6 w-6 animate-spin inline mr-2" />
                         加载中...
                       </TableCell>
                     </TableRow>
                   ) : orders.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
-                        暂无数据，点击&quot;新增正式订单&quot;开始添加
+                      <TableCell colSpan={tableColumnCount} className="text-center py-8 text-muted-foreground">
+                        暂无数据
                       </TableCell>
                     </TableRow>
                   ) : (
-                    orders.map((order) => (
+                    orders.map((order) => {
+                      const displayStatus = order.computed_status || order.status
+                      return (
                       <TableRow key={order.id}>
                         <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 font-medium w-[160px] min-w-[160px]">{order.order_number || "-"}</TableCell>
                         <TableCell className="sticky left-[160px] z-20 bg-background group-hover:bg-muted/50 w-[140px] min-w-[140px]">
@@ -298,67 +211,46 @@ export default function FormalOrdersPage() {
                         <TableCell>{order.order_type || "-"}</TableCell>
                         <TableCell>{order.total_sessions || "-"}</TableCell>
                         <TableCell>{order.payment_amount || "-"}</TableCell>
+                        {canViewPaymentProof && (
+                          <TableCell>
+                            {order.payment_proof ? (
+                              <Button variant="outline" size="sm" onClick={() => openPaymentProofPreview(order.payment_proof)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                查看
+                              </Button>
+                            ) : (
+                              "-"
+                            )}
+                          </TableCell>
+                        )}
                         <TableCell>{order.hourly_rate || "-"}</TableCell>
                         <TableCell>{order.consultant_teacher || "-"}</TableCell>
                         <TableCell>
                           {order.first_class_time ? format(new Date(order.first_class_time), 'yyyy-MM-dd HH:mm') : "-"}
                         </TableCell>
                         <TableCell>
-                          <button
-                            onClick={() => handleToggleStatus(order)}
-                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium cursor-pointer transition-colors ${getStatusBadge(order.status)}`}
-                          >
-                            {getStatusText(order.status)}
-                          </button>
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(displayStatus)}`}>
+                            {order.computed_status_label || getStatusText(displayStatus)}
+                          </span>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            {/* 开课按钮 - 教务操作 */}
-                            {formalOrdersPerm.addLink() && (
+                            {order.student_id ? (
                               <Button
-                                variant="default"
+                                variant="outline"
                                 size="sm"
-                                onClick={() => handleQuickCreateClass(order)}
-                                className="bg-purple-600 hover:bg-purple-700"
-                                title="跳转到排课管理页面"
+                                onClick={() => router.push(`/dashboard/students/${order.student_id}`)}
+                                title="查看正式生详情"
                               >
-                                <CheckCircle className="mr-1 h-4 w-4" />
-                                开课
+                                查看正式生
                               </Button>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">无正式生</span>
                             )}
-
-                            {/* 退费按钮 */}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => router.push(`/dashboard/transactions/new?student_id=${order.student_id}&order_id=${order.id}`)}
-                              title="退费"
-                            >
-                              退费
-                            </Button>
-
-                            <Link href={`/dashboard/formal-orders/${order.id}/edit`}>
-                              <Button variant="ghost" size="icon" title="编辑">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </Link>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteClick(order.id)}
-                              disabled={isDeleting === order.id}
-                              title="删除"
-                            >
-                              {isDeleting === order.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              )}
-                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
+                    )})
                   )}
                 </TableBody>
               </Table>
@@ -423,33 +315,38 @@ export default function FormalOrdersPage() {
         </Card>
       </div>
 
-      {/* 删除确认对话框 */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
+      {/* 付款凭证预览 */}
+      <Dialog open={paymentProofDialogOpen} onOpenChange={setPaymentProofDialogOpen}>
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              <DialogTitle>确认删除</DialogTitle>
-            </div>
-            <DialogDescription>
-              确定要删除这个正式订单吗？此操作无法撤销。
-            </DialogDescription>
+            <DialogTitle>付款凭证</DialogTitle>
+            <DialogDescription>查看正式订单付款凭证</DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleDeleteCancel} disabled={isDeleting !== null}>
-              取消
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteConfirm} disabled={isDeleting !== null}>
-              {isDeleting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  删除中...
-                </>
+          {paymentProofPreview && (
+            <div className="space-y-4">
+              {isImageUrl(paymentProofPreview) ? (
+                <div className="max-h-[70vh] overflow-auto rounded border bg-muted/30">
+                  <img
+                    src={paymentProofPreview}
+                    alt="付款凭证"
+                    className="mx-auto max-h-[70vh] w-auto max-w-full object-contain"
+                  />
+                </div>
               ) : (
-                "确认删除"
+                <div className="rounded border p-4">
+                  <p className="mb-3 break-all text-sm text-muted-foreground">{paymentProofPreview}</p>
+                  <a
+                    href={paymentProofPreview}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary underline"
+                  >
+                    打开凭证
+                  </a>
+                </div>
               )}
-            </Button>
-          </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

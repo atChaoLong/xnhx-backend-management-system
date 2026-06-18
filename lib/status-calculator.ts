@@ -52,6 +52,63 @@ async function checkIfHasFormalOrder(leadId: string): Promise<boolean> {
   return !!data && data.length > 0
 }
 
+async function getLeadIdsWithRelatedRows(
+  table: 'trial_lessons' | 'formal_orders',
+  leadIds: string[]
+): Promise<Set<string>> {
+  if (leadIds.length === 0) return new Set()
+
+  const { data } = await supabaseServer
+    .from(table)
+    .select('lead_id')
+    .in('lead_id', leadIds)
+
+  return new Set(
+    (data || [])
+      .map((row: any) => row?.lead_id)
+      .filter(Boolean)
+  )
+}
+
+function calculateLeadAddStatusFromFlags(lead: any, hasTrialLesson: boolean): LeadAddStatus {
+  // 1. 运营未派单：抢单微信号为空
+  if (!lead.grab_wechat || lead.grab_wechat.trim() === '') {
+    return LeadAddStatus.UNASSIGNED
+  }
+
+  // 2. 已添加 (even if add_status is 'not_added', if trial exists then 'added')
+  if (lead.add_status === 'added' || hasTrialLesson) {
+    return LeadAddStatus.ADDED
+  }
+
+  // 3. 未添加
+  if (lead.add_status === 'not_added') {
+    return LeadAddStatus.NOT_ADDED
+  }
+
+  // 4. 销售未反馈
+  if (!lead.add_status && !hasTrialLesson) {
+    return LeadAddStatus.WAITING_FEEDBACK
+  }
+
+  return LeadAddStatus.WAITING_FEEDBACK
+}
+
+function calculateLeadConvertStatusFromFlags(
+  hasTrialLesson: boolean,
+  hasFormalOrder: boolean
+): LeadConvertStatus {
+  if (hasFormalOrder) {
+    return LeadConvertStatus.FORMAL
+  }
+
+  if (hasTrialLesson) {
+    return LeadConvertStatus.TRIAL
+  }
+
+  return LeadConvertStatus.EMPTY
+}
+
 /**
  * 计算线索添加状态
  *
@@ -62,30 +119,8 @@ async function checkIfHasFormalOrder(leadId: string): Promise<boolean> {
  * 4. 销售未反馈: add_status 为空且无试听
  */
 export async function calculateLeadAddStatus(lead: any): Promise<LeadAddStatus> {
-  // 1. 运营未派单：抢单微信号为空
-  if (!lead.grab_wechat || lead.grab_wechat.trim() === '') {
-    return LeadAddStatus.UNASSIGNED
-  }
-
-  // 2. 检查是否产生试听
   const hasTrialLesson = await checkIfHasTrialLesson(lead.id)
-
-  // 3. 已添加 (even if add_status is 'not_added', if trial exists then 'added')
-  if (lead.add_status === 'added' || hasTrialLesson) {
-    return LeadAddStatus.ADDED
-  }
-
-  // 4. 未添加
-  if (lead.add_status === 'not_added') {
-    return LeadAddStatus.NOT_ADDED
-  }
-
-  // 5. 销售未反馈
-  if (!lead.add_status && !hasTrialLesson) {
-    return LeadAddStatus.WAITING_FEEDBACK
-  }
-
-  return LeadAddStatus.WAITING_FEEDBACK
+  return calculateLeadAddStatusFromFlags(lead, hasTrialLesson)
 }
 
 /**
@@ -95,15 +130,7 @@ export async function calculateLeadConvertStatus(lead: any): Promise<LeadConvert
   const hasFormalOrder = await checkIfHasFormalOrder(lead.id)
   const hasTrialLesson = await checkIfHasTrialLesson(lead.id)
 
-  if (hasFormalOrder) {
-    return LeadConvertStatus.FORMAL
-  }
-
-  if (hasTrialLesson) {
-    return LeadConvertStatus.TRIAL
-  }
-
-  return LeadConvertStatus.EMPTY
+  return calculateLeadConvertStatusFromFlags(hasTrialLesson, hasFormalOrder)
 }
 
 /**
@@ -160,14 +187,44 @@ async function checkIfHasFormalOrderFromLesson(lessonId: string): Promise<boolea
   return !!data && data.length > 0
 }
 
-/**
- * 计算试听状态
- *
- * 当前统一口径：
- * 1. 试听时间在未来：已排待上课
- * 2. 试听时间已过去且未转化：上完待反馈
- */
-export async function calculateTrialLessonStatus(lesson: any): Promise<TrialLessonStatus> {
+async function getLessonIdsWithFormalOrders(lessonIds: string[]): Promise<Set<string>> {
+  if (lessonIds.length === 0) return new Set()
+
+  const { data } = await supabaseServer
+    .from('formal_orders')
+    .select('trial_lesson_id')
+    .in('trial_lesson_id', lessonIds)
+
+  return new Set(
+    (data || [])
+      .map((row: any) => row?.trial_lesson_id)
+      .filter(Boolean)
+  )
+}
+
+function calculateIsConvertedFromFlags(lesson: any, hasFormalOrder: boolean): boolean {
+  if (hasFormalOrder) {
+    return true
+  }
+
+  const manualConverted = lesson.manual_converted
+
+  if (manualConverted === '是') {
+    return true
+  }
+
+  if (manualConverted === '否' || manualConverted === '待定') {
+    return false
+  }
+
+  if (!manualConverted || manualConverted.trim() === '') {
+    return false
+  }
+
+  return false
+}
+
+function calculateTrialLessonStatusFromConversion(lesson: any, isConverted: boolean): TrialLessonStatus {
   const today = new Date()
   today.setHours(23, 59, 59, 999) // 今天的最后一刻
 
@@ -202,13 +259,8 @@ export async function calculateTrialLessonStatus(lesson: any): Promise<TrialLess
     return TrialLessonStatus.WAITING_LINK
   }
 
-  // 所有前置字段都已填写，检查时间和转化状态
-  // 使用 trial_time 而不是 confirmed_time
   const lessonTime = new Date(lesson.trial_time)
   lessonTime.setHours(23, 59, 59, 999) // 当天的最后一刻
-
-  // 先检查是否已转化
-  const isConverted = await calculateIsConverted(lesson)
 
   // h. 已完成："是否转化"不为空
   if (isConverted) {
@@ -230,6 +282,18 @@ export async function calculateTrialLessonStatus(lesson: any): Promise<TrialLess
 }
 
 /**
+ * 计算试听状态
+ *
+ * 当前统一口径：
+ * 1. 试听时间在未来：已排待上课
+ * 2. 试听时间已过去且未转化：上完待反馈
+ */
+export async function calculateTrialLessonStatus(lesson: any): Promise<TrialLessonStatus> {
+  const isConverted = await calculateIsConverted(lesson)
+  return calculateTrialLessonStatusFromConversion(lesson, isConverted)
+}
+
+/**
  * 计算是否转化
  *
  * 规则：
@@ -239,30 +303,7 @@ export async function calculateTrialLessonStatus(lesson: any): Promise<TrialLess
 export async function calculateIsConverted(lesson: any): Promise<boolean> {
   // 检查是否产生正式订单
   const hasFormalOrder = await checkIfHasFormalOrderFromLesson(lesson.id)
-  if (hasFormalOrder) {
-    return true
-  }
-
-  // 检查手动标记
-  const manualConverted = lesson.manual_converted
-
-  // 手动标记为"是"
-  if (manualConverted === '是') {
-    return true
-  }
-
-  // 手动标记为"否"或"待定"
-  if (manualConverted === '否' || manualConverted === '待定') {
-    return false
-  }
-
-  // 没有手动标记，默认未转化
-  if (!manualConverted || manualConverted.trim() === '') {
-    return false
-  }
-
-  // 其他情况默认未转化
-  return false
+  return calculateIsConvertedFromFlags(lesson, hasFormalOrder)
 }
 
 /**
@@ -338,6 +379,27 @@ export function calculateStudentStatus(student: any): StudentStatus {
     return StudentStatus.MISSING
   }
 
+  const remainingHours = Number(
+    student.remaining_hours ??
+    student.remaining_formal_hours ??
+    student.formal_summary?.remaining_formal_hours ??
+    NaN
+  )
+  const totalHours = Number(
+    student.total_hours ??
+    student.total_formal_hours ??
+    student.formal_summary?.total_formal_hours ??
+    NaN
+  )
+  const formalOrderCount = Number(student.formal_summary?.formal_order_count ?? 0)
+  const hasCourseBalance = (
+    Number.isFinite(totalHours) && totalHours > 0
+  ) || formalOrderCount > 0
+
+  if (hasCourseBalance && Number.isFinite(remainingHours) && remainingHours <= 5) {
+    return StudentStatus.LOW_HOURS
+  }
+
   if (student.course_end_date) {
     const today = new Date()
     const endDate = new Date(student.course_end_date)
@@ -355,12 +417,16 @@ export function calculateStudentStatus(student: any): StudentStatus {
  * 计算新生状态
  */
 export function calculateStudentNewStatus(student: any): StudentNewStatus {
-  if (!student.first_enrollment_date) {
+  const enrollmentDate = student.first_enrollment_date || student.formal_summary?.latest_order_time || student.created_at
+  if (!enrollmentDate) {
     return StudentNewStatus.OLD
   }
 
   const today = new Date()
-  const enrollDate = new Date(student.first_enrollment_date)
+  const enrollDate = new Date(enrollmentDate)
+  if (Number.isNaN(enrollDate.getTime())) {
+    return StudentNewStatus.OLD
+  }
   const diffWeeks = Math.floor((today.getTime() - enrollDate.getTime()) / (1000 * 60 * 60 * 24 * 7))
 
   if (diffWeeks < 1) return StudentNewStatus.WEEK_1
@@ -426,22 +492,27 @@ export enum RefundStatus {
   WAITING_PAYMENT = 'waiting_payment',   // 待财务打款
   WAITING_PERFORMANCE = 'waiting_performance', // 待核对业绩
   COMPLETED = 'completed',               // 已完成
+  REJECTED = 'rejected',                 // 已拒绝
 }
 
 /**
  * 计算退费状态
  */
 export function calculateRefundStatus(transaction: any): RefundStatus {
-  // 根据业务流程字段判断
-  if (transaction.performance_verified) {
+  if (transaction.status === 'rejected') {
+    return RefundStatus.REJECTED
+  }
+
+  // 优先使用当前异动流程的时间戳字段，兼容历史布尔字段
+  if (transaction.performance_verified_at || transaction.performance_verified) {
     return RefundStatus.COMPLETED
   }
 
-  if (transaction.payment_completed) {
+  if (transaction.paid_at || transaction.payment_completed || transaction.status === 'completed') {
     return RefundStatus.WAITING_PERFORMANCE
   }
 
-  if (transaction.hours_verified) {
+  if (transaction.academic_verified_at || transaction.hours_verified || transaction.status === 'processing') {
     return RefundStatus.WAITING_PAYMENT
   }
 
@@ -457,6 +528,75 @@ export function getRefundStatusName(status: RefundStatus): string {
     [RefundStatus.WAITING_PAYMENT]: '待财务打款',
     [RefundStatus.WAITING_PERFORMANCE]: '待核对业绩',
     [RefundStatus.COMPLETED]: '已完成',
+    [RefundStatus.REJECTED]: '已拒绝',
+  }
+  return names[status] || status
+}
+
+// ==================== 面试流程状态 ====================
+
+/**
+ * 面试流程状态
+ */
+export enum InterviewStatus {
+  WAITING_CONTACT = 'waiting_contact',       // 待联系
+  CONTACTED = 'contacted',                   // 已联系
+  INTERVIEWING = 'interviewing',             // 面试中
+  WAITING_REVIEW = 'waiting_review',         // 待复核
+  REVIEWED = 'reviewed',                     // 已复核
+  PENDING_ENTRY = 'pending_entry',           // 待入库
+  HIRED = 'hired',                           // 已入库
+  REVIEW_REJECTED = 'review_rejected',       // 复核拒绝
+  PAUSE_SCHEDULING = 'pause_scheduling',     // 暂停排课
+  DISABLED = 'disabled',                     // 停用
+}
+
+/**
+ * 计算面试流程状态
+ */
+export function calculateInterviewStatus(candidate: any): InterviewStatus {
+  const manualStatus = candidate.candidate_status || candidate.recruitment_status
+
+  if (manualStatus === 'review_rejected' || candidate.review_result === '不符合' || candidate.review_status === '不符合') {
+    return InterviewStatus.REVIEW_REJECTED
+  }
+  if (manualStatus === 'pause_scheduling') return InterviewStatus.PAUSE_SCHEDULING
+  if (manualStatus === 'disabled') return InterviewStatus.DISABLED
+  if (candidate.is_hired || manualStatus === 'in_teacher_pool') return InterviewStatus.HIRED
+  if (manualStatus === 'pending_entry' || (candidate.review_result === '通过' && !candidate.is_hired)) {
+    return InterviewStatus.PENDING_ENTRY
+  }
+  if (candidate.review_result && String(candidate.review_result).trim().length > 0) {
+    return InterviewStatus.REVIEWED
+  }
+  if (candidate.video_recording_url || candidate.trial_video_url || manualStatus === 'pending_teaching_review') {
+    return InterviewStatus.WAITING_REVIEW
+  }
+  if (candidate.interview_date || manualStatus === 'scheduled') {
+    return InterviewStatus.INTERVIEWING
+  }
+  if (candidate.wechat_id || candidate.phone) {
+    return InterviewStatus.CONTACTED
+  }
+
+  return InterviewStatus.WAITING_CONTACT
+}
+
+/**
+ * 获取面试流程状态的中文显示名称
+ */
+export function getInterviewStatusName(status: InterviewStatus): string {
+  const names = {
+    [InterviewStatus.WAITING_CONTACT]: '待联系',
+    [InterviewStatus.CONTACTED]: '已联系',
+    [InterviewStatus.INTERVIEWING]: '面试中',
+    [InterviewStatus.WAITING_REVIEW]: '待复核',
+    [InterviewStatus.REVIEWED]: '已复核',
+    [InterviewStatus.PENDING_ENTRY]: '待入库',
+    [InterviewStatus.HIRED]: '已入库',
+    [InterviewStatus.REVIEW_REJECTED]: '复核拒绝',
+    [InterviewStatus.PAUSE_SCHEDULING]: '暂停排课',
+    [InterviewStatus.DISABLED]: '停用',
   }
   return names[status] || status
 }
@@ -467,11 +607,18 @@ export function getRefundStatusName(status: RefundStatus): string {
  * 批量计算线索状态
  */
 export async function batchCalculateLeadStatus(leads: any[]) {
-  const results = []
+  const leadIds = Array.from(new Set(leads.map((lead) => lead?.id).filter(Boolean)))
+  const [trialLeadIds, formalLeadIds] = await Promise.all([
+    getLeadIdsWithRelatedRows('trial_lessons', leadIds),
+    getLeadIdsWithRelatedRows('formal_orders', leadIds),
+  ])
 
+  const results = []
   for (const lead of leads) {
-    const addStatus = await calculateLeadAddStatus(lead)
-    const convertStatus = await calculateLeadConvertStatus(lead)
+    const hasTrialLesson = trialLeadIds.has(lead.id)
+    const hasFormalOrder = formalLeadIds.has(lead.id)
+    const addStatus = calculateLeadAddStatusFromFlags(lead, hasTrialLesson)
+    const convertStatus = calculateLeadConvertStatusFromFlags(hasTrialLesson, hasFormalOrder)
 
     results.push({
       id: lead.id,
@@ -489,11 +636,13 @@ export async function batchCalculateLeadStatus(leads: any[]) {
  * 批量计算试听状态
  */
 export async function batchCalculateTrialLessonStatus(lessons: any[]) {
+  const lessonIds = Array.from(new Set(lessons.map((lesson) => lesson?.id).filter(Boolean)))
+  const formalLessonIds = await getLessonIdsWithFormalOrders(lessonIds)
   const results = []
 
   for (const lesson of lessons) {
-    const status = await calculateTrialLessonStatus(lesson)
-    const isConverted = await calculateIsConverted(lesson)
+    const isConverted = calculateIsConvertedFromFlags(lesson, formalLessonIds.has(lesson.id))
+    const status = calculateTrialLessonStatusFromConversion(lesson, isConverted)
 
     results.push({
       id: lesson.id,
@@ -529,4 +678,32 @@ export async function batchCalculateStudentStatus(students: any[]) {
   }
 
   return results
+}
+
+/**
+ * 批量计算面试流程状态
+ */
+export function batchCalculateInterviewStatus(candidates: any[]) {
+  return candidates.map((candidate) => {
+    const status = calculateInterviewStatus(candidate)
+    return {
+      id: candidate.id,
+      status,
+      statusName: getInterviewStatusName(status),
+    }
+  })
+}
+
+/**
+ * 批量计算退费流程状态
+ */
+export function batchCalculateRefundStatus(transactions: any[]) {
+  return transactions.map((transaction) => {
+    const status = calculateRefundStatus(transaction)
+    return {
+      id: transaction.id,
+      status,
+      statusName: getRefundStatusName(status),
+    }
+  })
 }

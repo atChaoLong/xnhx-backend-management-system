@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,16 +9,19 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
 import { FormalOrdersService, NewFormalOrder, generateOrderNumber } from "@/lib/services/formalOrders"
+import { TrialLessonsService, TrialLesson } from "@/lib/services/trialLessons"
 import { TeachersService } from "@/lib/services/teachers"
 import { StudentsService, generateStudentCode } from "@/lib/services/students"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { useDictionary } from "@/lib/hooks/useDictionary"
 import { LeadsService } from "@/lib/services/leads"
 import { UserProfilesService } from "@/lib/services/userProfiles"
+import { PAYMENT_PROOF_ACCEPT, uploadPaymentProof, validatePaymentProofFile } from "@/lib/services/upload"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { Textarea } from "@/components/ui/textarea"
 import { SearchableSelect } from "@/components/ui/searchable-select"
+import { summarizeError } from "@/lib/safe-error"
 import {
   Select,
   SelectContent,
@@ -29,8 +32,18 @@ import {
 
 export default function NewFormalOrderPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
+  const trialLessonId = searchParams.get('trialLessonId') || ""
+  const previousOrderId = searchParams.get('previousOrderId') || ""
+  const studentIdParam = searchParams.get('studentId') || ""
+  const orderMode = searchParams.get('mode') || ""
+  const isRenewalEntry = Boolean(previousOrderId)
+  const isTrialConversionEntry = Boolean(trialLessonId && !previousOrderId)
+  const isExistingStudentEntry = Boolean(studentIdParam && !trialLessonId && !previousOrderId)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [sourceTrialLesson, setSourceTrialLesson] = useState<TrialLesson | null>(null)
+  const [sourceError, setSourceError] = useState("")
 
   // 字典数据
   const { items: orderTypes, loading: orderTypesLoading } = useDictionary('order_type')
@@ -84,33 +97,178 @@ export default function NewFormalOrderPage() {
     status: "active",
   })
 
+  function readSettled<T>(result: PromiseSettledResult<T>, fallback: T, label: string): T {
+    if (result.status === 'fulfilled') {
+      return result.value
+    }
+    console.error(`加载${label}失败:`, summarizeError(result.reason))
+    return fallback
+  }
+
   // 加载列表数据
   useEffect(() => {
     const loadData = async () => {
-      const [teachersData, studentsData, salesData, headTeachersData, leadsResult, ordersResult, dicts] = await Promise.all([
-        TeachersService.getAllTeachers(),
-        StudentsService.getAllStudents(),
-        UserProfilesService.getUsers('sales'),
-        UserProfilesService.getUsers('head_teacher'),
-        LeadsService.getLeads(),
-        FormalOrdersService.getAllFormalOrders(),
-        DictionaryService.getAllDictionaries(),
-      ])
-      setTeachers(teachersData)
-      setStudents(studentsData)
-      const mergedConsultants = [
-        ...(salesData || []).map(u => ({ id: u.id, name: u.name })),
-        ...(headTeachersData || []).map(u => ({ id: u.id, name: u.name })),
-      ]
-      setConsultants(mergedConsultants)
-      setLeads(leadsResult.data || [])
-      setPreviousOrders(ordersResult || [])
-      setGrades(dicts.grade || [])
-      setRegions(dicts.province || [])
-      setIsLoadingDict(false)
+      if (!trialLessonId && !previousOrderId && !studentIdParam) {
+        setIsLoadingDict(false)
+        return
+      }
+
+      try {
+        const [
+          teachersResult,
+          studentsResult,
+          salesResult,
+          headTeachersResult,
+          leadsResultSettled,
+          ordersResultSettled,
+          dictsResult,
+        ] = await Promise.allSettled([
+          TeachersService.getAllTeachers(),
+          StudentsService.getAllStudents(),
+          UserProfilesService.getUsers('sales'),
+          UserProfilesService.getUsers('head_teacher'),
+          LeadsService.getLeads(),
+          FormalOrdersService.getAllFormalOrders(),
+          DictionaryService.getAllDictionaries(),
+        ])
+        const teachersData = readSettled<any[]>(teachersResult, [], '老师列表')
+        const studentsData = readSettled<any[]>(studentsResult, [], '学生列表')
+        const salesData = readSettled<any[]>(salesResult, [], '销售列表')
+        const headTeachersData = readSettled<any[]>(headTeachersResult, [], '班主任列表')
+        const leadsResult = readSettled<{ data?: any[] }>(leadsResultSettled, { data: [] }, '线索列表')
+        const ordersResult = readSettled<any[]>(ordersResultSettled, [], '正式订单列表')
+        const dicts = readSettled<Record<string, any[]>>(dictsResult, {}, '字典')
+        setTeachers(teachersData)
+        setStudents(studentsData)
+        const mergedConsultants = [
+          ...(salesData || []).map(u => ({ id: u.id, name: u.name })),
+          ...(headTeachersData || []).map(u => ({ id: u.id, name: u.name })),
+        ]
+        setConsultants(mergedConsultants)
+        setPreviousOrders(ordersResult || [])
+        setGrades(dicts.grade || [])
+        setRegions(dicts.province || [])
+
+        if (previousOrderId) {
+          const previousOrder = ordersResult.find((order: any) => order.id === previousOrderId)
+            || await FormalOrdersService.getFormalOrderById(previousOrderId)
+          const student = previousOrder.student_id
+            ? await StudentsService.getStudentById(previousOrder.student_id)
+            : studentIdParam
+              ? await StudentsService.getStudentById(studentIdParam)
+              : null
+          const isExtendEntry = orderMode === 'extend'
+          const continuationType = (dicts.order_type || []).find((type: any) => {
+            const label = type.label || ''
+            const code = type.code || ''
+            return isExtendEntry
+              ? code === 'extend' || label.includes('扩') || label.toLowerCase().includes('extend')
+              : code === 'renewal' || code === 'renew' || label.includes('续') || label.toLowerCase().includes('renew')
+          })
+
+          if (student) {
+            setSelectedSubjects(previousOrder.subjects || [])
+            setFormData((prev) => ({
+              ...prev,
+              student_id: student.id,
+              student_name: student.student_name || '',
+              student_grade: student.grade_code || '',
+              student_region: student.region || '',
+              parent_phone: student.parent_phone || '',
+              lead_id: previousOrder.lead_id || '',
+              previous_order_id: previousOrder.id,
+              teacher_name: previousOrder.teacher_names?.[0] || '',
+              consultant_teacher: previousOrder.consultant_teacher || '',
+              order_type: continuationType?.label || (isExtendEntry ? '扩科订单' : '续费订单'),
+              hourly_rate: previousOrder.hourly_rate ? String(previousOrder.hourly_rate) : '',
+            }))
+          }
+
+          return
+        }
+
+        if (studentIdParam) {
+          const student = await StudentsService.getStudentById(studentIdParam)
+          if (!studentsData.some((item: any) => item.id === student.id)) {
+            setStudents([student, ...studentsData])
+          }
+          const studentOrders = (ordersResult || [])
+            .filter((order: any) => order.student_id === student.id)
+            .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+          const latestStudentOrder = studentOrders[0]
+          const renewalType = (dicts.order_type || []).find((type: any) => {
+            const label = type.label || ''
+            const code = type.code || ''
+            return code === 'renewal' || code === 'renew' || label.includes('续') || label.toLowerCase().includes('renew')
+          })
+
+          setLeads(leadsResult.data || [])
+          setSelectedSubjects(latestStudentOrder?.subjects || [])
+          setFormData((prev) => ({
+            ...prev,
+            student_id: student.id,
+            student_name: student.student_name || '',
+            student_grade: student.grade_code || '',
+            student_region: student.region || '',
+            parent_phone: student.parent_phone || '',
+            lead_id: latestStudentOrder?.lead_id || '',
+            previous_order_id: latestStudentOrder?.id || '',
+            teacher_name: latestStudentOrder?.teacher_names?.[0] || '',
+            consultant_teacher: latestStudentOrder?.consultant_teacher || '',
+            order_type: latestStudentOrder ? (renewalType?.label || '续费订单') : '',
+            hourly_rate: latestStudentOrder?.hourly_rate ? String(latestStudentOrder.hourly_rate) : '',
+          }))
+          return
+        }
+
+        const trialLesson = await TrialLessonsService.getTrialLessonById(trialLessonId)
+        const allowedStatuses = ['waiting_feedback', 'completed']
+        if (trialLesson.lesson_status && !allowedStatuses.includes(trialLesson.lesson_status)) {
+          setSourceError('只有试听完成或待反馈的试听课程可以转正式订单')
+        }
+
+        if (!trialLesson.lead_id && !trialLesson.student_id) {
+          setSourceError('该试听课程缺少关联线索或正式生，不能转正式订单')
+        }
+
+        setSourceTrialLesson(trialLesson)
+
+        let mergedLeads = leadsResult.data || []
+        if (trialLesson.lead_id && !mergedLeads.some((lead: any) => lead.id === trialLesson.lead_id)) {
+          try {
+            const sourceLead = await LeadsService.getLeadById(trialLesson.lead_id)
+            mergedLeads = [sourceLead, ...mergedLeads]
+          } catch (error) {
+            console.error('加载来源线索失败:', summarizeError(error))
+          }
+        }
+        setLeads(mergedLeads)
+
+        const subjectLabel = dicts.subject?.find((subject: any) => subject.code === trialLesson.trial_subject)?.label || trialLesson.trial_subject
+        if (subjectLabel) {
+          setSelectedSubjects([subjectLabel])
+        }
+
+        setFormData((prev) => ({
+          ...prev,
+          student_id: trialLesson.student_id || "",
+          student_name: trialLesson.child_name || "",
+          student_grade: trialLesson.grade || "",
+          student_region: trialLesson.region || "",
+          parent_phone: trialLesson.phone || "",
+          lead_id: trialLesson.lead_id || "",
+          teacher_name: trialLesson.confirmed_teacher || trialLesson.matched_teacher || "",
+          consultant_teacher: trialLesson.assigned_consultant || "",
+        }))
+      } catch (error: any) {
+        console.error('加载正式订单来源信息失败:', summarizeError(error))
+        setSourceError(error.message || '无法加载来源试听信息')
+      } finally {
+        setIsLoadingDict(false)
+      }
     }
     loadData()
-  }, [])
+  }, [trialLessonId, previousOrderId, studentIdParam, orderMode])
 
   const handleInputChange = (field: string, value: string | number) => {
     setFormData((prev) => {
@@ -150,7 +308,7 @@ export default function NewFormalOrderPage() {
           previous_order_id: '',
         }))
       } catch (error) {
-        console.error('加载学生信息失败:', error)
+        console.error('加载学生信息失败:', summarizeError(error))
       }
     } else {
       // 清空选择时，清空学生信息
@@ -180,12 +338,34 @@ export default function NewFormalOrderPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    const isRenew = formData.order_type.includes('续') || formData.order_type.toLowerCase().includes('renew')
+    const isExtend = formData.order_type.includes('扩') || formData.order_type.toLowerCase().includes('extend')
+    const isNew = formData.order_type.includes('新') || formData.order_type.toLowerCase().includes('new')
+
+    if (!isRenewalEntry && !isExistingStudentEntry && (!trialLessonId || !sourceTrialLesson || sourceError)) {
+      toast({
+        variant: "destructive",
+        title: "无法创建正式订单",
+        description: sourceError || "正式订单必须从试听课程转化创建",
+      })
+      return
+    }
+
     // 验证必填字段
     // 学生信息验证：如果选择了学生就使用，否则必须手动录入
     const hasSelectedStudent = formData.student_id && formData.student_id.trim() !== ''
     const hasManualInput = formData.student_name?.trim() || formData.parent_phone?.trim()
 
-    if (!hasSelectedStudent && !hasManualInput) {
+    if (isTrialConversionEntry && (!formData.student_name?.trim() || !formData.parent_phone?.trim())) {
+      toast({
+        variant: "destructive",
+        title: "验证失败",
+        description: "来源试听缺少学生姓名或家长电话，不能转正式订单",
+      })
+      return
+    }
+
+    if (!isTrialConversionEntry && !hasSelectedStudent && !hasManualInput) {
       toast({
         variant: "destructive",
         title: "验证失败",
@@ -195,7 +375,7 @@ export default function NewFormalOrderPage() {
     }
 
     // 如果手动录入，验证必填字段
-    if (!hasSelectedStudent || hasManualInput) {
+    if (!isTrialConversionEntry && (!hasSelectedStudent || hasManualInput)) {
       if (!formData.student_name?.trim()) {
         toast({
           variant: "destructive",
@@ -250,21 +430,19 @@ export default function NewFormalOrderPage() {
       return
     }
 
-    const isRenew = formData.order_type.includes('续') || formData.order_type.toLowerCase().includes('renew')
-    const isNewOrExpand = formData.order_type.includes('新') || formData.order_type.includes('扩') || formData.order_type.toLowerCase().includes('new') || formData.order_type.toLowerCase().includes('extend')
-    if (isNewOrExpand && !formData.lead_id) {
+    if (isNew && !formData.lead_id && !sourceTrialLesson?.student_id) {
       toast({
         variant: "destructive",
         title: "验证失败",
-        description: "新签/扩课必须选择关联线索",
+        description: "新签必须选择关联线索或来自正式生试听",
       })
       return
     }
-    if (isRenew && !formData.previous_order_id) {
+    if ((isRenew || isExtend) && !formData.previous_order_id) {
       toast({
         variant: "destructive",
         title: "验证失败",
-        description: "续费必须选择之前的订单",
+        description: "续费/扩科必须选择之前的订单",
       })
       return
     }
@@ -275,9 +453,10 @@ export default function NewFormalOrderPage() {
       // 判断是否需要创建新学生
       let studentId = formData.student_id
       const hasManualInput = formData.student_name?.trim() && formData.parent_phone?.trim()
+      const shouldManageStudentClientSide = !isTrialConversionEntry
 
       // 如果有手动输入的信息，创建或更新学生
-      if (hasManualInput) {
+      if (shouldManageStudentClientSide && hasManualInput) {
         try {
           // 如果没有选择学生，创建新学生
           if (!studentId) {
@@ -301,7 +480,7 @@ export default function NewFormalOrderPage() {
               grade_code: formData.student_grade?.trim() || undefined,
               region: formData.student_region?.trim() || '',
               parent_phone: formData.parent_phone.trim(),
-            })
+            } as any)
             toast({
               title: "学生信息更新成功",
               description: `已更新学生 ${formData.student_name} 的信息`,
@@ -318,8 +497,28 @@ export default function NewFormalOrderPage() {
         }
       }
 
+      let paymentProofUrl = formData.payment_proof
+      if (uploadedFile) {
+        try {
+          paymentProofUrl = await uploadPaymentProof(uploadedFile)
+          toast({
+            title: "付款凭证上传成功",
+            description: "已保存付款凭证文件",
+          })
+        } catch (error: any) {
+          toast({
+            variant: "destructive",
+            title: "付款凭证上传失败",
+            description: error.message || "无法上传付款凭证",
+          })
+          setIsSubmitting(false)
+          return
+        }
+      }
+
       const payload: NewFormalOrder = {
         student_id: studentId,
+        trial_lesson_id: trialLessonId || undefined,
         order_number: formData.order_number.trim() || generateOrderNumber(),
         order_type: formData.order_type,
         consultant_teacher: formData.consultant_teacher,
@@ -332,7 +531,7 @@ export default function NewFormalOrderPage() {
         payment_channel: formData.payment_channel,
         payment_amount: parseFloat(formData.payment_amount),
         hourly_rate: parseFloat(formData.hourly_rate),
-        payment_proof: formData.payment_proof, // 文件上传后需要获取实际URL
+        payment_proof: paymentProofUrl,
         payment_time: formData.payment_time,
         status: formData.status,
       }
@@ -356,6 +555,49 @@ export default function NewFormalOrderPage() {
     }
   }
 
+  if (trialLessonId && !sourceTrialLesson && !sourceError) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header
+          title="新增正式订单"
+          description="正在加载来源试听信息"
+        />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    )
+  }
+
+    if ((!trialLessonId && !previousOrderId && !studentIdParam) || sourceError) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header
+          title="新增正式订单"
+          description="新签必须从试听课程转化，续费/扩科请从正式生详情进入"
+        />
+
+        <div className="flex-1 overflow-auto p-6">
+          <Card className="max-w-2xl mx-auto">
+            <CardContent className="p-6 space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold">{sourceError ? "无法转正式订单" : "缺少来源试听"}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {sourceError || "请先在试听课程页面选择可转正的试听，或在正式生详情中选择历史订单续费/扩科。"}
+                </p>
+              </div>
+              <div className="flex justify-end">
+                <Link href="/dashboard/trial-lessons">
+                  <Button type="button">返回试听课程页面</Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col h-full">
       <Header
@@ -371,21 +613,43 @@ export default function NewFormalOrderPage() {
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">订单基本信息</h3>
 
-                {/* 学生选择（可选） */}
-                <div className="space-y-2">
-                  <Label htmlFor="student_id" className="text-sm font-medium">
-                    选择学生（可选，可手动录入）
-                  </Label>
-                  <SearchableSelect
-                    id="student_id"
-                    placeholder="搜索学生姓名..."
-                    value={formData.student_id}
-                    onChange={(id, name) => handleStudentSelect(id)}
-                    options={students.map((s) => ({ id: s.id, name: s.student_name }))}
-                    loading={students.length === 0}
-                  />
-                  <p className="text-xs text-muted-foreground">可选择已有学生，或直接在下方手动录入信息</p>
-                </div>
+                {isTrialConversionEntry ? (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">来源学生</Label>
+                    <div className="rounded-md border bg-muted px-3 py-2 text-sm">
+                      {formData.student_name || "来源试听学生加载中"}
+                    </div>
+                    <p className="text-xs text-muted-foreground">学生将由来源试听自动带入，不能在转正式时改绑其他学生。</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="student_id" className="text-sm font-medium">
+                      选择学生（可选，可手动录入）
+                    </Label>
+                    <SearchableSelect
+                      id="student_id"
+                      label=""
+                      placeholder="搜索学生姓名..."
+                      value={formData.student_id}
+                      onChange={(id, name) => handleStudentSelect(id)}
+                      options={students.map((s) => ({ id: s.id, name: s.student_name }))}
+                      loading={students.length === 0}
+                    />
+                    <p className="text-xs text-muted-foreground">可选择已有学生，或直接在下方手动录入信息</p>
+                    {isExistingStudentEntry && formData.student_id ? (
+                      <div className="rounded-md border bg-muted/50 px-3 py-2 text-sm">
+                        <div className="font-medium">
+                          已选择学生：{formData.student_name || "学生信息加载中"}
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {formData.parent_phone ? `家长电话：${formData.parent_phone}` : "家长电话待补充"}
+                          {formData.student_grade ? ` · 年级：${grades.find((grade) => grade.code === formData.student_grade)?.label || formData.student_grade}` : ""}
+                          {selectedSubjects.length > 0 ? ` · 科目：${selectedSubjects.join("、")}` : ""}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
 
                 {/* 学生信息输入（始终显示） */}
                 <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
@@ -407,6 +671,7 @@ export default function NewFormalOrderPage() {
                             placeholder="请输入学生姓名"
                             value={formData.student_name}
                             onChange={(e) => handleInputChange("student_name", e.target.value)}
+                            disabled={isTrialConversionEntry}
                           />
                         </div>
 
@@ -420,6 +685,7 @@ export default function NewFormalOrderPage() {
                             placeholder="请输入家长电话"
                             value={formData.parent_phone}
                             onChange={(e) => handleInputChange("parent_phone", e.target.value)}
+                            disabled={isTrialConversionEntry}
                           />
                         </div>
                       </div>
@@ -430,6 +696,7 @@ export default function NewFormalOrderPage() {
                           <Select
                             value={formData.student_grade}
                             onValueChange={(value) => handleInputChange("student_grade", value)}
+                            disabled={isTrialConversionEntry}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="选择年级" />
@@ -449,6 +716,7 @@ export default function NewFormalOrderPage() {
                           <Select
                             value={formData.student_region}
                             onValueChange={(value) => handleInputChange("student_region", value)}
+                            disabled={isTrialConversionEntry}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="选择地域" />
@@ -523,8 +791,8 @@ export default function NewFormalOrderPage() {
                 </div>
 
                 {/* 关联信息 - 根据订单类型显示 */}
-                {/* 新签/扩课显示关联线索 */}
-                {(formData.order_type.includes('新') || formData.order_type.includes('扩') || formData.order_type.toLowerCase().includes('new') || formData.order_type.toLowerCase().includes('extend')) && (
+                {/* 新签显示关联线索 */}
+                {(formData.order_type.includes('新') || formData.order_type.toLowerCase().includes('new')) && !sourceTrialLesson?.student_id && (
                   <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
                     <div className="space-y-2">
                       <Label htmlFor="lead_id">
@@ -534,7 +802,8 @@ export default function NewFormalOrderPage() {
                         id="lead_id"
                         value={formData.lead_id}
                         onChange={(e) => handleInputChange("lead_id", e.target.value)}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                        disabled={isTrialConversionEntry}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:bg-muted"
                         required
                       >
                         <option value="">请选择线索</option>
@@ -548,13 +817,13 @@ export default function NewFormalOrderPage() {
                   </div>
                 )}
 
-                {/* 续费显示关联订单 */}
-                {(formData.order_type.includes('续') || formData.order_type.toLowerCase().includes('renew')) && (
+                {/* 续费/扩科显示关联订单 */}
+                {(formData.order_type.includes('续') || formData.order_type.includes('扩') || formData.order_type.toLowerCase().includes('renew') || formData.order_type.toLowerCase().includes('extend')) && (
                   <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
 
                     <div className="space-y-2">
                       <Label htmlFor="previous_order_id">
-                        关联之前订单 <span className="text-destructive">*</span>
+                        关联历史订单 <span className="text-destructive">*</span>
                       </Label>
                       <select
                         id="previous_order_id"
@@ -730,14 +999,28 @@ export default function NewFormalOrderPage() {
                     <Input
                       id="payment_proof"
                       type="file"
-                      accept="image/*"
+                      accept={PAYMENT_PROOF_ACCEPT}
                       onChange={(e) => {
                         const file = e.target.files?.[0]
                         if (file) {
+                          const validationError = validatePaymentProofFile(file)
+                          if (validationError) {
+                            toast({
+                              variant: "destructive",
+                              title: "文件不符合要求",
+                              description: validationError,
+                            })
+                            e.currentTarget.value = ""
+                            setUploadedFile(null)
+                            handleInputChange("payment_proof", "")
+                            return
+                          }
+
                           setUploadedFile(file)
                           handleInputChange("payment_proof", file.name)
                         }
                       }}
+                      disabled={isSubmitting}
                       required
                     />
                     {uploadedFile && (

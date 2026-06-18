@@ -17,6 +17,10 @@ import {
   CreateCourseParams,
   CreateClassParams
 } from './types'
+import { createLogger } from '@/lib/logger'
+import { summarizeError } from '@/lib/safe-error'
+
+const logger = createLogger('ClassIn:ApiClient')
 
 /**
  * ClassIn API 客户端类
@@ -137,7 +141,7 @@ export class ClassInApiClient {
       const result: ClassInApiResponse<T> = await response.json()
       return result
     } catch (error) {
-      console.error('ClassIn API 请求失败:', error)
+      logger.error('ClassIn API 请求失败', summarizeError(error))
       throw error
     }
   }

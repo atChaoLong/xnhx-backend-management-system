@@ -12,6 +12,7 @@ import {
   canAccessStep,
   getStepConfig
 } from '@/lib/config/teacherRecruitmentFlow'
+import { getClientSafeErrorMessage } from '@/lib/safe-error'
 
 /**
  * 验证是否可以进入下一步
@@ -62,13 +63,20 @@ export async function advanceToNextStep(
     })
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: '更新失败' }))
-      throw new Error(error.error || '更新招聘步骤失败')
+      throw new Error(response.status === 403 ? '没有更新招聘流程的权限' : '更新招聘步骤失败')
     }
 
     return { success: true, nextStep }
-  } catch (error: any) {
-    return { success: false, nextStep: null, error: error.message }
+  } catch (error: unknown) {
+    return {
+      success: false,
+      nextStep: null,
+      error: getClientSafeErrorMessage(error, '招聘流程推进失败', [
+        '无下一步',
+        '没有更新招聘流程的权限',
+        '更新招聘步骤失败',
+      ]),
+    }
   }
 }
 
@@ -89,13 +97,18 @@ export async function rejectCandidate(
     })
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: '更新失败' }))
-      throw new Error(error.error || '拒绝候选人失败')
+      throw new Error(response.status === 403 ? '没有拒绝候选人的权限' : '拒绝候选人失败')
     }
 
     return { success: true }
-  } catch (error: any) {
-    return { success: false, error: error.message }
+  } catch (error: unknown) {
+    return {
+      success: false,
+      error: getClientSafeErrorMessage(error, '拒绝候选人失败', [
+        '没有拒绝候选人的权限',
+        '拒绝候选人失败',
+      ]),
+    }
   }
 }
 

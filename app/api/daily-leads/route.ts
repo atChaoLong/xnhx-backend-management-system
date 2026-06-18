@@ -2,8 +2,30 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
 import { handleDatabaseError } from "@/lib/utils"
+import { summarizeError } from "@/lib/safe-error"
 
 const logger = createLogger('API:DailyLeads')
+const DAILY_LEAD_SELECT = 'id,created_at,updated_at,name,wechat_number,assigned_person,received_date,is_added,resume_attachment,notes'
+
+function hasNonEmptyString(value: unknown): boolean {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function summarizeDailyLeadPayload(payload: Record<string, any>) {
+  const fields = Object.keys(payload || {}).sort()
+
+  return {
+    fields,
+    field_count: fields.length,
+    has_name: hasNonEmptyString(payload?.name),
+    has_wechat_number: hasNonEmptyString(payload?.wechat_number),
+    has_assigned_person: hasNonEmptyString(payload?.assigned_person),
+    has_received_date: Boolean(payload?.received_date),
+    has_resume_attachment: hasNonEmptyString(payload?.resume_attachment),
+    has_notes: hasNonEmptyString(payload?.notes),
+    is_added_present: payload?.is_added !== undefined,
+  }
+}
 
 // GET: 获取每日线索列表（支持ID查询单个和分页）
 export async function GET(request: NextRequest) {
@@ -19,14 +41,14 @@ export async function GET(request: NextRequest) {
     if (id) {
       const { data, error } = await supabaseServer
         .from('daily_leads')
-        .select('*')
+        .select(DAILY_LEAD_SELECT)
         .eq('id', id)
         .single()
 
       if (error) {
-        logger.error('获取每日线索失败', { id, message: error.message, code: error.code })
+        logger.error('获取每日线索失败', { id, error_summary: summarizeError(error) })
         return NextResponse.json(
-          { error: error.message },
+          { error: '获取每日线索失败' },
           { status: 400 }
         )
       }
@@ -38,20 +60,20 @@ export async function GET(request: NextRequest) {
     // 先获取总数
     const { count: totalCount } = await supabaseServer
       .from('daily_leads')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
 
     // 分页查询数据，按领取日期降序排序
     const { data, error } = await supabaseServer
       .from('daily_leads')
-      .select('*')
+      .select(DAILY_LEAD_SELECT)
       .order('received_date', { ascending: false })
       .order('created_at', { ascending: false })
       .range(from, to)
 
     if (error) {
-      logger.error('获取每日线索列表失败', { message: error.message, code: error.code })
+      logger.error('获取每日线索列表失败', { error_summary: summarizeError(error) })
       return NextResponse.json(
-        { error: error.message },
+        { error: '获取每日线索列表失败' },
         { status: 400 }
       )
     }
@@ -64,9 +86,9 @@ export async function GET(request: NextRequest) {
       to,
     })
   } catch (error: any) {
-    logger.error('获取每日线索异常', { message: error.message, stack: error.stack })
+    logger.error('获取每日线索异常', { error_summary: summarizeError(error) })
     return NextResponse.json(
-      { error: error.message || '获取每日线索失败' },
+      { error: '获取每日线索失败' },
       { status: 500 }
     )
   }
@@ -76,12 +98,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    const bodySummary = summarizeDailyLeadPayload(body)
 
-    logger.debug('创建每日线索 - 接收到的数据', { body })
+    logger.debug('创建每日线索 - 接收到的数据', { body_summary: bodySummary })
 
     // 后端验证：必填字段
     if (!body.name || typeof body.name !== 'string' || !body.name.trim()) {
-      logger.error('创建每日线索失败 - 姓名为空', { body })
+      logger.error('创建每日线索失败 - 姓名为空', { body_summary: bodySummary })
       return NextResponse.json(
         { error: '姓名不能为空' },
         { status: 400 }
@@ -89,7 +112,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!body.wechat_number || typeof body.wechat_number !== 'string' || !body.wechat_number.trim()) {
-      logger.error('创建每日线索失败 - 微信号为空', { body })
+      logger.error('创建每日线索失败 - 微信号为空', { body_summary: bodySummary })
       return NextResponse.json(
         { error: '微信号不能为空' },
         { status: 400 }
@@ -97,7 +120,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!body.assigned_person || typeof body.assigned_person !== 'string' || !body.assigned_person.trim()) {
-      logger.error('创建每日线索失败 - 归属人员为空', { body })
+      logger.error('创建每日线索失败 - 归属人员为空', { body_summary: bodySummary })
       return NextResponse.json(
         { error: '归属人员不能为空' },
         { status: 400 }
@@ -105,7 +128,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!body.received_date) {
-      logger.error('创建每日线索失败 - 领取日期为空', { body })
+      logger.error('创建每日线索失败 - 领取日期为空', { body_summary: bodySummary })
       return NextResponse.json(
         { error: '领取日期不能为空' },
         { status: 400 }
@@ -122,26 +145,28 @@ export async function POST(request: NextRequest) {
       notes: body.notes?.trim() || null,
     }
 
-    logger.debug('创建每日线索 - 准备插入的数据', { insertData })
+    logger.debug('创建每日线索 - 准备插入的数据', {
+      insert_summary: summarizeDailyLeadPayload(insertData),
+    })
 
     const { data, error } = await supabaseServer
       .from('daily_leads')
       .insert(insertData)
-      .select()
+      .select(DAILY_LEAD_SELECT)
       .single()
 
     if (error) {
-      logger.error('创建每日线索失败', { message: error.message, code: error.code, details: error.details })
+      logger.error('创建每日线索失败', { error_summary: summarizeError(error) })
       const { message, status } = handleDatabaseError(error)
       return NextResponse.json({ error: message }, { status })
     }
 
-    logger.info('创建每日线索成功', { id: data.id, name: data.name })
+    logger.info('创建每日线索成功', { id: data.id })
     return NextResponse.json({ data }, { status: 201 })
   } catch (error: any) {
-    logger.error('创建每日线索异常', { message: error.message, stack: error.stack })
+    logger.error('创建每日线索异常', { error_summary: summarizeError(error) })
     return NextResponse.json(
-      { error: error.message || '创建每日线索失败' },
+      { error: '创建每日线索失败' },
       { status: 500 }
     )
   }
@@ -153,6 +178,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
 
     const { id, ...updateData } = body
+    const updateSummary = summarizeDailyLeadPayload(updateData)
 
     if (!id) {
       return NextResponse.json(
@@ -161,11 +187,11 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    logger.debug('更新每日线索 - 接收到的数据', { id, updateData })
+    logger.debug('更新每日线索 - 接收到的数据', { id, update_summary: updateSummary })
 
     // 后端验证：必填字段
     if (updateData.name !== undefined && (!updateData.name || !updateData.name.trim())) {
-      logger.error('更新每日线索失败 - 姓名为空', { id, updateData })
+      logger.error('更新每日线索失败 - 姓名为空', { id, update_summary: updateSummary })
       return NextResponse.json(
         { error: '姓名不能为空' },
         { status: 400 }
@@ -173,7 +199,7 @@ export async function PUT(request: NextRequest) {
     }
 
     if (updateData.wechat_number !== undefined && (!updateData.wechat_number || !updateData.wechat_number.trim())) {
-      logger.error('更新每日线索失败 - 微信号为空', { id, updateData })
+      logger.error('更新每日线索失败 - 微信号为空', { id, update_summary: updateSummary })
       return NextResponse.json(
         { error: '微信号不能为空' },
         { status: 400 }
@@ -181,7 +207,7 @@ export async function PUT(request: NextRequest) {
     }
 
     if (updateData.assigned_person !== undefined && (!updateData.assigned_person || !updateData.assigned_person.trim())) {
-      logger.error('更新每日线索失败 - 归属人员为空', { id, updateData })
+      logger.error('更新每日线索失败 - 归属人员为空', { id, update_summary: updateSummary })
       return NextResponse.json(
         { error: '归属人员不能为空' },
         { status: 400 }
@@ -198,27 +224,30 @@ export async function PUT(request: NextRequest) {
       notes: updateData.notes?.trim() || undefined,
     }
 
-    logger.debug('更新每日线索 - 准备更新的数据', { id, updatePayload })
+    logger.debug('更新每日线索 - 准备更新的数据', {
+      id,
+      update_summary: summarizeDailyLeadPayload(updatePayload),
+    })
 
     const { data, error } = await supabaseServer
       .from('daily_leads')
       .update(updatePayload)
       .eq('id', id)
-      .select()
+      .select(DAILY_LEAD_SELECT)
       .single()
 
     if (error) {
-      logger.error('更新每日线索失败', { id, message: error.message, code: error.code })
+      logger.error('更新每日线索失败', { id, error_summary: summarizeError(error) })
       const { message, status } = handleDatabaseError(error)
       return NextResponse.json({ error: message }, { status })
     }
 
-    logger.info('更新每日线索成功', { id, name: data.name })
+    logger.info('更新每日线索成功', { id })
     return NextResponse.json({ data })
   } catch (error: any) {
-    logger.error('更新每日线索异常', { message: error.message, stack: error.stack })
+    logger.error('更新每日线索异常', { error_summary: summarizeError(error) })
     return NextResponse.json(
-      { error: error.message || '更新每日线索失败' },
+      { error: '更新每日线索失败' },
       { status: 500 }
     )
   }
@@ -245,7 +274,7 @@ export async function DELETE(request: NextRequest) {
       .eq('id', id)
 
     if (error) {
-      logger.error('删除每日线索失败', { id, message: error.message, code: error.code })
+      logger.error('删除每日线索失败', { id, error_summary: summarizeError(error) })
       const { message, status } = handleDatabaseError(error)
       return NextResponse.json({ error: message }, { status })
     }
@@ -253,9 +282,9 @@ export async function DELETE(request: NextRequest) {
     logger.info('删除每日线索成功', { id })
     return NextResponse.json({ success: true })
   } catch (error: any) {
-    logger.error('删除每日线索异常', { message: error.message, stack: error.stack })
+    logger.error('删除每日线索异常', { error_summary: summarizeError(error) })
     return NextResponse.json(
-      { error: error.message || '删除每日线索失败' },
+      { error: '删除每日线索失败' },
       { status: 500 }
     )
   }

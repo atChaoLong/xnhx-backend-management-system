@@ -18,6 +18,7 @@ import { format } from "date-fns"
 import Link from "next/link"
 import { WechatAccountsService, WechatAccount } from "@/lib/services/wechatAccounts"
 import { useToast } from "@/hooks/use-toast"
+import { usePermission } from "@/lib/hooks/usePermission"
 
 export default function WechatAccountsPage() {
   const [accounts, setAccounts] = useState<WechatAccount[]>([])
@@ -26,6 +27,8 @@ export default function WechatAccountsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [accountToDelete, setAccountToDelete] = useState<string | null>(null)
   const { toast } = useToast()
+  const { users: usersPerm } = usePermission()
+  const canDeleteWechatAccount = usersPerm.delete()
 
   // 加载微信号列表
   const fetchAccounts = useCallback(async () => {
@@ -50,12 +53,31 @@ export default function WechatAccountsPage() {
 
   // 删除微信号
   const handleDeleteClick = (id: string) => {
+    if (!canDeleteWechatAccount) {
+      toast({
+        variant: "destructive",
+        title: "权限不足",
+        description: "当前账号没有删除微信号的权限",
+      })
+      return
+    }
+
     setAccountToDelete(id)
     setDeleteDialogOpen(true)
   }
 
   const handleDeleteConfirm = async () => {
     if (!accountToDelete) return
+    if (!canDeleteWechatAccount) {
+      toast({
+        variant: "destructive",
+        title: "权限不足",
+        description: "当前账号没有删除微信号的权限",
+      })
+      setDeleteDialogOpen(false)
+      setAccountToDelete(null)
+      return
+    }
 
     try {
       setIsDeleting(accountToDelete)
@@ -199,18 +221,20 @@ export default function WechatAccountsPage() {
                                 <Edit className="h-4 w-4" />
                               </Button>
                             </Link>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteClick(account.id)}
-                              disabled={isDeleting === account.id}
-                            >
-                              {isDeleting === account.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              )}
-                            </Button>
+                            {canDeleteWechatAccount && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteClick(account.id)}
+                                disabled={isDeleting === account.id}
+                              >
+                                {isDeleting === account.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                )}
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -224,7 +248,7 @@ export default function WechatAccountsPage() {
       </div>
 
       {/* 删除确认对话框 */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <Dialog open={canDeleteWechatAccount && deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <div className="flex items-center gap-2">

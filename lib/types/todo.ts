@@ -5,6 +5,23 @@
 export type TodoPriority = 'low' | 'medium' | 'high' | 'urgent'
 export type TodoStatus = 'pending' | 'completed' | 'cancelled'
 export type TodoEntityType = 'lead' | 'student' | 'trial_lesson' | 'formal_order' | null
+export type TodoSlaStatus = 'normal' | 'due_today' | 'overdue' | 'completed' | 'cancelled' | 'no_due_date'
+export type TodoEscalationLevel = 'none' | 'watch' | 'urgent' | 'critical'
+
+export interface TodoStats {
+  total: number
+  pending: number
+  completed: number
+  cancelled: number
+  due_today: number
+  overdue: number
+  urgent_pending: number
+  urgent_overdue: number
+  escalation_watch: number
+  escalation_urgent: number
+  escalation_critical: number
+  escalated_total: number
+}
 
 export interface Todo {
   id: string
@@ -24,6 +41,13 @@ export interface Todo {
   metadata: Record<string, any> | null
   is_auto_created: boolean
   auto_trigger_type: string | null
+  sla_status?: TodoSlaStatus
+  sla_status_name?: string
+  is_overdue?: boolean
+  days_overdue?: number
+  escalation_level?: TodoEscalationLevel
+  escalation_level_name?: string
+  escalation_reason?: string | null
 
   // 关联数据（查询时join）
   assigned_to_name?: string

@@ -10,6 +10,10 @@ import { supabase } from '@/lib/supabase'
 import type { User } from '@/lib/types'
 import { Role } from '@/lib/permissions'
 import { api } from '@/lib/fetch'
+import { createLogger } from '@/lib/logger'
+import { summarizeError } from '@/lib/safe-error'
+
+const logger = createLogger('UseCurrentUser')
 
 interface CurrentUserState {
   user: User | null
@@ -35,12 +39,12 @@ export function useCurrentUser() {
             }
           }
         } catch (e) {
-          console.warn('缓存数据解析失败:', e)
+          logger.warn('缓存数据解析失败', summarizeError(e))
           sessionStorage.removeItem('currentUser')
         }
       }
     }
-    
+
     return {
       user: null,
       isLoading: true,
@@ -67,6 +71,7 @@ export function useCurrentUser() {
             // Token 过期或无效，清除本地存储
             if (typeof window !== 'undefined') {
               // 清除 token
+              localStorage.removeItem('supabase.auth.session')
               localStorage.removeItem('supabase.auth.token')
               // 清除用户缓存
               sessionStorage.removeItem('currentUser')
@@ -110,13 +115,13 @@ export function useCurrentUser() {
             error: null,
           })
         }
-      } catch (err: any) {
-        console.error('加载用户失败:', err)
+      } catch (err: unknown) {
+        logger.warn('加载用户失败', summarizeError(err))
         if (mounted) {
           setState({
             user: null,
             isLoading: false,
-            error: err.message || '加载用户信息失败',
+            error: '加载用户信息失败',
           })
         }
       }

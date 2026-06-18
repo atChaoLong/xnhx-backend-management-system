@@ -2,8 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
 import { handleDatabaseError } from '@/lib/utils'
+import { summarizeError } from '@/lib/safe-error'
 
 const logger = createLogger('API:Dictionaries')
+const DICTIONARY_SELECT = 'id,created_at,updated_at,category,code,label,sort_order,is_active'
+
+function summarizeDictionaryPayload(payload: Record<string, any>) {
+  const fields = Object.keys(payload || {}).sort()
+
+  return {
+    fields,
+    field_count: fields.length,
+    has_category: typeof payload?.category === 'string' && payload.category.trim().length > 0,
+    has_code: typeof payload?.code === 'string' && payload.code.trim().length > 0,
+    has_label: typeof payload?.label === 'string' && payload.label.trim().length > 0,
+    has_sort_order: payload?.sort_order !== undefined,
+    has_is_active: payload?.is_active !== undefined,
+  }
+}
 
 // GET: 获取字典项（可按分类筛选或ID查询单个）
 export async function GET(request: NextRequest) {
@@ -18,14 +34,14 @@ export async function GET(request: NextRequest) {
     if (id) {
       const { data, error } = await supabaseServer
         .from('sys_dictionaries')
-        .select('*')
+        .select(DICTIONARY_SELECT)
         .eq('id', id)
         .single()
 
       if (error) {
-        logger.error('获取字典项失败', { id, message: error.message, code: error.code })
+        logger.error('获取字典项失败', { id, error_summary: summarizeError(error) })
         return NextResponse.json(
-          { error: error.message },
+          { error: '获取字典项失败' },
           { status: 400 }
         )
       }
@@ -37,7 +53,7 @@ export async function GET(request: NextRequest) {
     // 否则按分类筛选或获取所有
     let query = supabaseServer
       .from('sys_dictionaries')
-      .select('*')
+      .select(DICTIONARY_SELECT)
       .eq('is_active', true)
       .order('sort_order', { ascending: true })
 
@@ -48,9 +64,9 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
 
     if (error) {
-      logger.error('获取字典项失败', { message: error.message, code: error.code })
+      logger.error('获取字典项失败', { error_summary: summarizeError(error) })
       return NextResponse.json(
-        { error: error.message },
+        { error: '获取字典项失败' },
         { status: 400 }
       )
     }
@@ -58,9 +74,9 @@ export async function GET(request: NextRequest) {
     logger.debug('获取字典项成功', { count: data?.length || 0 })
     return NextResponse.json({ data })
   } catch (error: any) {
-    logger.error('获取字典项异常', { message: error.message, stack: error.stack })
+    logger.error('获取字典项异常', { error_summary: summarizeError(error) })
     return NextResponse.json(
-      { error: error.message || '获取字典项失败' },
+      { error: '获取字典项失败' },
       { status: 500 }
     )
   }
@@ -70,8 +86,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    const bodySummary = summarizeDictionaryPayload(body || {})
 
-    logger.info('创建字典项', { category: body.category, code: body.code, label: body.label })
+    logger.info('创建字典项', { body_summary: bodySummary })
 
     const { data, error } = await supabaseServer
       .from('sys_dictionaries')
@@ -82,11 +99,11 @@ export async function POST(request: NextRequest) {
         sort_order: body.sort_order || 0,
         is_active: body.is_active !== undefined ? body.is_active : true,
       })
-      .select()
+      .select(DICTIONARY_SELECT)
       .single()
 
     if (error) {
-      logger.error('创建字典项失败', { message: error.message, code: error.code })
+      logger.error('创建字典项失败', { error_summary: summarizeError(error) })
       const { message, status } = handleDatabaseError(error)
       return NextResponse.json({ error: message }, { status })
     }
@@ -94,9 +111,9 @@ export async function POST(request: NextRequest) {
     logger.info('创建字典项成功', { id: data.id })
     return NextResponse.json({ data })
   } catch (error: any) {
-    logger.error('创建字典项异常', { message: error.message, stack: error.stack })
+    logger.error('创建字典项异常', { error_summary: summarizeError(error) })
     return NextResponse.json(
-      { error: error.message || '创建字典项失败' },
+      { error: '创建字典项失败' },
       { status: 500 }
     )
   }
@@ -106,6 +123,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
+    const bodySummary = summarizeDictionaryPayload(body || {})
 
     if (!body.id) {
       logger.warn('更新字典项缺少 ID')
@@ -115,7 +133,7 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    logger.info('更新字典项', { id: body.id })
+    logger.info('更新字典项', { id: body.id, body_summary: bodySummary })
 
     const { data, error } = await supabaseServer
       .from('sys_dictionaries')
@@ -128,14 +146,13 @@ export async function PUT(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', body.id)
-      .select()
+      .select(DICTIONARY_SELECT)
       .single()
 
     if (error) {
       logger.error('更新字典项失败', {
         id: body.id,
-        message: error.message,
-        code: error.code,
+        error_summary: summarizeError(error),
       })
       const { message, status } = handleDatabaseError(error)
       return NextResponse.json({ error: message }, { status })
@@ -144,9 +161,9 @@ export async function PUT(request: NextRequest) {
     logger.info('更新字典项成功', { id: data.id })
     return NextResponse.json({ data })
   } catch (error: any) {
-    logger.error('更新字典项异常', { message: error.message, stack: error.stack })
+    logger.error('更新字典项异常', { error_summary: summarizeError(error) })
     return NextResponse.json(
-      { error: error.message || '更新字典项失败' },
+      { error: '更新字典项失败' },
       { status: 500 }
     )
   }
@@ -175,9 +192,9 @@ export async function DELETE(request: NextRequest) {
       .eq('id', id)
 
     if (error) {
-      logger.error('删除字典项失败', { id, message: error.message, code: error.code })
+      logger.error('删除字典项失败', { id, error_summary: summarizeError(error) })
       return NextResponse.json(
-        { error: error.message },
+        { error: '删除字典项失败' },
         { status: 400 }
       )
     }
@@ -185,9 +202,9 @@ export async function DELETE(request: NextRequest) {
     logger.info('删除字典项成功', { id })
     return NextResponse.json({ success: true })
   } catch (error: any) {
-    logger.error('删除字典项异常', { message: error.message, stack: error.stack })
+    logger.error('删除字典项异常', { error_summary: summarizeError(error) })
     return NextResponse.json(
-      { error: error.message || '删除字典项失败' },
+      { error: '删除字典项失败' },
       { status: 500 }
     )
   }

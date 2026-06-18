@@ -30,6 +30,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { format } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
 import { zhCN } from "date-fns/locale"
+import { api } from "@/lib/fetch"
+import { usePermission } from "@/lib/hooks/usePermission"
 
 // 类型定义
 interface CourseDetail {
@@ -122,6 +124,11 @@ export default function CourseDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { toast } = useToast()
+  const { classSessions: classSessionsPerm } = usePermission()
+  const canCreateSession = classSessionsPerm.create()
+  const canEditSession = classSessionsPerm.edit()
+  const canDeleteSession = classSessionsPerm.delete()
+  const canManageSessions = canEditSession || canDeleteSession
 
   const [course, setCourse] = useState<CourseDetail | null>(null)
   const [sessions, setSessions] = useState<ClassSession[]>([])
@@ -162,10 +169,7 @@ export default function CourseDetailPage() {
 
   const fetchCourseDetail = async () => {
     try {
-      const token = localStorage.getItem('supabase.auth.token')
-      const response = await fetch(`/api/courses?id=${params.id}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      })
+      const response = await api.get(`/api/courses?id=${params.id}`)
 
       if (!response.ok) throw new Error('获取课程详情失败')
       const result = await response.json()
@@ -182,10 +186,7 @@ export default function CourseDetailPage() {
   const fetchSessions = async () => {
     try {
       setIsLoading(true)
-      const token = localStorage.getItem('supabase.auth.token')
-      const response = await fetch(`/api/courses/${params.id}/sessions`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      })
+      const response = await api.get(`/api/courses/${params.id}/sessions`)
 
       if (!response.ok) throw new Error('获取课节列表失败')
       const result = await response.json()
@@ -203,6 +204,15 @@ export default function CourseDetailPage() {
 
   // 打开删除对话框
   const openDeleteDialog = (session: ClassSession) => {
+    if (!canDeleteSession) {
+      toast({
+        variant: "destructive",
+        title: "无权删除",
+        description: "当前账号没有删除课节的权限",
+      })
+      return
+    }
+
     setSelectedSession(session)
     setDeleteDialogOpen(true)
   }
@@ -210,18 +220,20 @@ export default function CourseDetailPage() {
   // 确认删除
   const handleDelete = async (deleteClassIn: boolean) => {
     if (!selectedSession) return
+    if (!canDeleteSession) {
+      toast({
+        variant: "destructive",
+        title: "无权删除",
+        description: "当前账号没有删除课节的权限",
+      })
+      setDeleteDialogOpen(false)
+      setSelectedSession(null)
+      return
+    }
 
     try {
       setIsOperating(true)
-      const token = localStorage.getItem('supabase.auth.token')
-
-      const response = await fetch(
-        `/api/class-sessions?id=${selectedSession.id}&delete_classin=${deleteClassIn}`,
-        {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` },
-        }
-      )
+      const response = await api.delete(`/api/class-sessions?id=${selectedSession.id}&delete_classin=${deleteClassIn}`)
 
       if (!response.ok) throw new Error('删除课节失败')
 
@@ -250,6 +262,15 @@ export default function CourseDetailPage() {
 
   // 打开编辑对话框
   const openEditDialog = (session: ClassSession) => {
+    if (!canEditSession) {
+      toast({
+        variant: "destructive",
+        title: "无权编辑",
+        description: "当前账号没有编辑课节的权限",
+      })
+      return
+    }
+
     setSelectedSession(session)
     setEditForm({
       scheduled_date: session.scheduled_date,
@@ -262,28 +283,36 @@ export default function CourseDetailPage() {
   // 提交编辑
   const handleEdit = async () => {
     if (!selectedSession) return
+    if (!canEditSession) {
+      toast({
+        variant: "destructive",
+        title: "无权编辑",
+        description: "当前账号没有编辑课节的权限",
+      })
+      setEditDialogOpen(false)
+      return
+    }
 
     try {
       setIsOperating(true)
-      const token = localStorage.getItem('supabase.auth.token')
 
-      const response = await fetch('/api/class-sessions', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          id: selectedSession.id,
-          ...editForm,
-        }),
+      const response = await api.put('/api/class-sessions', {
+        id: selectedSession.id,
+        ...editForm,
       })
 
-      if (!response.ok) throw new Error('更新课节失败')
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error || '更新课节失败')
+
+      const classInSync = result.classInSync
 
       toast({
         title: "更新成功",
-        description: "课节时间已修改",
+        description: classInSync?.synced
+          ? "课节时间已修改，并已同步到 ClassIn"
+          : classInSync?.skippedReason
+          ? `课节时间已修改，ClassIn 同步已跳过：${classInSync.skippedReason}`
+          : "课节时间已修改",
       })
 
       setEditDialogOpen(false)
@@ -301,6 +330,15 @@ export default function CourseDetailPage() {
 
   // 添加新课节
   const handleAdd = async () => {
+    if (!canCreateSession) {
+      toast({
+        variant: "destructive",
+        title: "无权添加",
+        description: "当前账号没有新增课节的权限",
+      })
+      return
+    }
+
     if (!course?.student?.student_name || !course.teacher_name) {
       toast({
         variant: "destructive",
@@ -312,28 +350,20 @@ export default function CourseDetailPage() {
 
     try {
       setIsOperating(true)
-      const token = localStorage.getItem('supabase.auth.token')
 
-      const response = await fetch('/api/class-sessions/recreate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          courseId: params.id,
-          items: [
-            {
-              studentName: course.student.student_name,
-              teacherName: course.teacher_name,
-              subject: course.subject,
-              date: addForm.date,
-              startTime: addForm.startTime,
-              endTime: addForm.endTime,
-            }
-          ],
-          skipExisting: true,
-        }),
+      const response = await api.post('/api/class-sessions/recreate', {
+        courseId: params.id,
+        items: [
+          {
+            studentName: course.student.student_name,
+            teacherName: course.teacher_name,
+            subject: course.subject,
+            date: addForm.date,
+            startTime: addForm.startTime,
+            endTime: addForm.endTime,
+          }
+        ],
+        skipExisting: true,
       })
 
       if (!response.ok) throw new Error('添加课节失败')
@@ -363,16 +393,8 @@ export default function CourseDetailPage() {
   const handleSync = async () => {
     try {
       setIsOperating(true)
-      const token = localStorage.getItem('supabase.auth.token')
 
-      const response = await fetch('/api/class-sessions/sync', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ courseId: params.id }),
-      })
+      const response = await api.post('/api/class-sessions/sync', { courseId: params.id })
 
       if (!response.ok) throw new Error('同步失败')
       const result = await response.json()
@@ -397,6 +419,8 @@ export default function CourseDetailPage() {
 
   // 全选/取消全选
   const handleSelectAll = () => {
+    if (!canDeleteSession) return
+
     if (selectAll) {
       setSelectedSessionIds(new Set())
     } else {
@@ -407,6 +431,8 @@ export default function CourseDetailPage() {
 
   // 选择单个课节
   const handleSelectSession = (sessionId: string) => {
+    if (!canDeleteSession) return
+
     setSelectedSessionIds(prev => {
       const newSet = new Set(prev)
       if (newSet.has(sessionId)) {
@@ -421,17 +447,24 @@ export default function CourseDetailPage() {
   // 批量删除
   const handleBatchDelete = async () => {
     if (selectedSessionIds.size === 0) return
+    if (!canDeleteSession) {
+      toast({
+        variant: "destructive",
+        title: "无权删除",
+        description: "当前账号没有删除课节的权限",
+      })
+      setBatchDeleteDialogOpen(false)
+      setSelectedSessionIds(new Set())
+      setSelectAll(false)
+      return
+    }
 
     try {
       setIsOperating(true)
-      const token = localStorage.getItem('supabase.auth.token')
 
       // 并发删除所有选中的课节（同时删除 ClassIn 课堂）
       const deletePromises = Array.from(selectedSessionIds).map(sessionId =>
-        fetch(`/api/class-sessions?id=${sessionId}&delete_classin=true`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` },
-        })
+        api.delete(`/api/class-sessions?id=${sessionId}&delete_classin=true`)
       )
 
       const results = await Promise.allSettled(deletePromises)
@@ -597,7 +630,7 @@ export default function CourseDetailPage() {
                 添加课节
               </Button> */}
 
-              {selectedSessionIds.size > 0 && (
+              {canDeleteSession && selectedSessionIds.size > 0 && (
                 <Button
                   onClick={() => setBatchDeleteDialogOpen(true)}
                   variant="destructive"
@@ -618,12 +651,14 @@ export default function CourseDetailPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-12">
-                        <Checkbox
-                          checked={selectAll}
-                          onCheckedChange={handleSelectAll}
-                        />
-                      </TableHead>
+                      {canDeleteSession && (
+                        <TableHead className="w-12">
+                          <Checkbox
+                            checked={selectAll}
+                            onCheckedChange={handleSelectAll}
+                          />
+                        </TableHead>
+                      )}
                       <TableHead className="w-16">序号</TableHead>
                       <TableHead>课节名称</TableHead>
                       <TableHead>上课日期</TableHead>
@@ -631,7 +666,7 @@ export default function CourseDetailPage() {
                       <TableHead>时长</TableHead>
                       <TableHead>教师</TableHead>
                       <TableHead>状态</TableHead>
-                      <TableHead className="text-right">操作</TableHead>
+                      {canManageSessions && <TableHead className="text-right">操作</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -639,12 +674,14 @@ export default function CourseDetailPage() {
                       const sessionStatus = STATUS_MAP[session.status] || STATUS_MAP['scheduled']
                       return (
                         <TableRow key={session.id}>
-                          <TableCell>
-                            <Checkbox
-                              checked={selectedSessionIds.has(session.id)}
-                              onCheckedChange={() => handleSelectSession(session.id)}
-                            />
-                          </TableCell>
+                          {canDeleteSession && (
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedSessionIds.has(session.id)}
+                                onCheckedChange={() => handleSelectSession(session.id)}
+                              />
+                            </TableCell>
+                          )}
                           <TableCell className="font-medium">第{session.session_number}节</TableCell>
                           <TableCell>{session.session_name || '-'}</TableCell>
                           <TableCell>
@@ -663,30 +700,36 @@ export default function CourseDetailPage() {
                               </span>
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              {session.status === 'scheduled' && (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => openEditDialog(session)}
-                                    disabled={isOperating}
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => openDeleteDialog(session)}
-                                    disabled={isOperating}
-                                  >
-                                    <Trash2 className="h-4 w-4 text-red-500" />
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </TableCell>
+                          {canManageSessions && (
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                {session.status === 'scheduled' && (
+                                  <>
+                                    {canEditSession && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => openEditDialog(session)}
+                                        disabled={isOperating}
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                    {canDeleteSession && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => openDeleteDialog(session)}
+                                        disabled={isOperating}
+                                      >
+                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                      </Button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          )}
                         </TableRow>
                       )
                     })}
@@ -699,7 +742,7 @@ export default function CourseDetailPage() {
       </div>
 
       {/* 删除确认对话框 */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <Dialog open={canDeleteSession && deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>确认删除课节</DialogTitle>
@@ -727,7 +770,7 @@ export default function CourseDetailPage() {
       </Dialog>
 
       {/* 编辑对话框 */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+      <Dialog open={canEditSession && editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>修改课节时间</DialogTitle>
@@ -772,7 +815,7 @@ export default function CourseDetailPage() {
       </Dialog>
 
       {/* 批量删除确认对话框 */}
-      <Dialog open={batchDeleteDialogOpen} onOpenChange={setBatchDeleteDialogOpen}>
+      <Dialog open={canDeleteSession && batchDeleteDialogOpen} onOpenChange={setBatchDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>批量删除课节</DialogTitle>
@@ -800,7 +843,7 @@ export default function CourseDetailPage() {
       </Dialog>
 
       {/* 添加课节对话框 */}
-      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+      <Dialog open={canCreateSession && addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>添加新课节</DialogTitle>

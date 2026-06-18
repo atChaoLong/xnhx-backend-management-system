@@ -13,14 +13,22 @@ import { FormalOrdersService } from "@/lib/services/formalOrders"
 import { StudentsService } from "@/lib/services/students"
 import { TeachersService } from "@/lib/services/teachers"
 import { useDictionary } from "@/lib/hooks/useDictionary"
+import { usePermission } from "@/lib/hooks/usePermission"
 import { useToast } from "@/hooks/use-toast"
+import { api } from "@/lib/fetch"
 import Link from "next/link"
+
+function getTeacherName(teacher: any): string {
+  return teacher?.teacher_name || teacher?.name || ""
+}
 
 export default function CreateClassFromOrderPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const { teachers, isLoading: isPermissionLoading } = usePermission()
+  const canUseClassInOps = !isPermissionLoading && teachers.notes()
 
   // 订单选择
   const [selectedOrderId, setSelectedOrderId] = useState("")
@@ -45,6 +53,8 @@ export default function CreateClassFromOrderPage() {
 
   // 加载数据
   useEffect(() => {
+    if (isPermissionLoading || !canUseClassInOps) return
+
     const loadData = async () => {
       try {
         const [orderData, teacherData, studentData] = await Promise.all([
@@ -67,7 +77,7 @@ export default function CreateClassFromOrderPage() {
       }
     }
     loadData()
-  }, [])
+  }, [isPermissionLoading, canUseClassInOps])
 
   // 选择订单时自动填充信息
   const handleOrderChange = async (orderId: string) => {
@@ -105,7 +115,7 @@ export default function CreateClassFromOrderPage() {
       // 自动选择老师（如果老师已在系统中）
       if (order.teacher_names && order.teacher_names.length > 0) {
         const matchedTeacherIds = availableTeachers
-          .filter(t => order.teacher_names.includes(t.teacher_name))
+          .filter(t => order.teacher_names.includes(getTeacherName(t)))
           .map(t => t.id)
         setSelectedTeacherIds(new Set(matchedTeacherIds))
       }
@@ -213,7 +223,6 @@ export default function CreateClassFromOrderPage() {
     setIsSubmitting(true)
 
     try {
-      // TODO: 调用创建班级API
       const payload = {
         name: className.trim(),
         description: classDescription.trim(),
@@ -224,12 +233,20 @@ export default function CreateClassFromOrderPage() {
         status: 'pending', // 等待确认
       }
 
-      // 模拟API调用
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const response = await api.post("/api/classin/classes", payload)
+      const result = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        throw new Error(result?.error || "无法创建班级")
+      }
+
+      const warnings = result?.data?.warnings || []
 
       toast({
         title: "创建成功",
-        description: `班级 "${className}" 已创建，等待确认`,
+        description: warnings.length > 0
+          ? `班级 "${className}" 已创建，${warnings.length} 个学生加入 ClassIn 时需要复核`
+          : `班级 "${className}" 已创建并关联订单`,
       })
 
       // 跳转到班级列表
@@ -243,6 +260,32 @@ export default function CreateClassFromOrderPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (isPermissionLoading) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="从订单创建班级" description="基于正式订单自动填充班级信息" />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!canUseClassInOps) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="从订单创建班级" description="基于正式订单自动填充班级信息" />
+        <div className="flex-1 overflow-auto p-6">
+          <Card>
+            <CardContent className="p-6 text-sm text-muted-foreground">
+              当前角色无权访问 ClassIn 运维操作。
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
   }
 
   if (isLoading) {
@@ -358,7 +401,7 @@ export default function CreateClassFromOrderPage() {
                   <option value="">请选择班主任</option>
                   {availableTeachers.map((teacher) => (
                     <option key={teacher.id} value={teacher.id}>
-                      {teacher.teacher_name} - {teacher.subjects?.join(', ') || '未指定科目'}
+                      {getTeacherName(teacher)} - {teacher.subjects?.join(', ') || '未指定科目'}
                     </option>
                   ))}
                 </select>
@@ -400,7 +443,7 @@ export default function CreateClassFromOrderPage() {
                         onCheckedChange={() => handleToggleTeacher(teacher.id)}
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{teacher.teacher_name}</p>
+                        <p className="text-sm font-medium truncate">{getTeacherName(teacher)}</p>
                         <p className="text-xs text-muted-foreground truncate">
                           {teacher.subjects?.join(', ') || '未指定科目'}
                         </p>
@@ -475,7 +518,7 @@ export default function CreateClassFromOrderPage() {
               <div className="flex items-center justify-between">
                 <div className="text-sm text-muted-foreground">
                   <p>班级名称: {className || '未设置'}</p>
-                  <p>班主任: {headTeacherId ? availableTeachers.find(t => t.id === headTeacherId)?.teacher_name : '未选择'}</p>
+                  <p>班主任: {headTeacherId ? getTeacherName(availableTeachers.find(t => t.id === headTeacherId)) : '未选择'}</p>
                   <p>任课老师: {selectedTeacherIds.size} 位</p>
                   <p>学生: {selectedStudentIds.size} 位</p>
                 </div>

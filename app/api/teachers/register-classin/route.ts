@@ -2,11 +2,16 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { getClassInSDKService } from "@/lib/services/classin-sdk/service"
 import { createLogger } from "@/lib/logger"
+import { requireClassInOpsProfile } from "@/lib/server-classin-ops"
+import { summarizeError } from "@/lib/safe-error"
 
 const logger = createLogger('API:TeachersRegisterClassIn')
 
 export async function POST(request: NextRequest) {
   try {
+    const access = await requireClassInOpsProfile(request)
+    if (access.ok === false) return access.response
+
     const body = await request.json()
     const { teacherId, telephone, nickname, password } = body
 
@@ -25,7 +30,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (teacherError || !teacher) {
-      logger.error('获取老师信息失败', { teacherId, error: teacherError })
+      logger.error('获取老师信息失败', { teacherId, error_summary: summarizeError(teacherError) })
       return NextResponse.json({ error: '老师不存在' }, { status: 404 })
     }
 
@@ -41,8 +46,8 @@ export async function POST(request: NextRequest) {
 
     logger.info('开始注册老师到 ClassIn', {
       teacherId,
-      telephone,
-      nickname,
+      has_telephone: typeof telephone === 'string' && telephone.trim().length > 0,
+      has_nickname: typeof nickname === 'string' && nickname.trim().length > 0,
     })
 
     let uid: number
@@ -55,10 +60,7 @@ export async function POST(request: NextRequest) {
 
       logger.info('ClassIn 老师注册成功', { uid })
     } catch (error: any) {
-      logger.error('ClassIn 老师注册失败', {
-        message: error.message,
-        stack: error.stack
-      })
+      logger.error('ClassIn 老师注册失败', { error_summary: summarizeError(error) })
       throw error
     }
 
@@ -73,7 +75,7 @@ export async function POST(request: NextRequest) {
       .eq('id', teacherId)
 
     if (updateError) {
-      logger.error('更新老师入库状态失败', { teacherId, error: updateError })
+      logger.error('更新老师入库状态失败', { teacherId, error_summary: summarizeError(updateError) })
       return NextResponse.json({
         error: '注册成功但保存状态失败'
       }, { status: 500 })
@@ -96,7 +98,7 @@ export async function POST(request: NextRequest) {
       logger.info('老师信息同步到 teacher_classin 表成功', { uid })
     } catch (error: any) {
       logger.warn('同步到 teacher_classin 表失败（非致命）', {
-        message: error.message
+        error_summary: summarizeError(error)
       })
       // 这个错误不是致命的，继续执行
     }
@@ -109,12 +111,9 @@ export async function POST(request: NextRequest) {
       }
     })
   } catch (error: any) {
-    logger.error('注册老师到 ClassIn 异常', {
-      message: error.message,
-      stack: error.stack
-    })
+    logger.error('注册老师到 ClassIn 异常', { error_summary: summarizeError(error) })
     return NextResponse.json({
-      error: error.message || '注册到 ClassIn 失败'
+      error: '注册到 ClassIn 失败'
     }, { status: 500 })
   }
 }

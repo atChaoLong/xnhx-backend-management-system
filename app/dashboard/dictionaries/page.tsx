@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Edit, Trash2, Loader2, AlertTriangle } from "lucide-react"
 import { DictionaryService, DictionaryItem } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
+import { usePermission } from "@/lib/hooks/usePermission"
 
 // 字典分类标签
 const CATEGORY_LABELS: Record<string, string> = {
@@ -67,6 +68,8 @@ export default function DictionariesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [dictToDelete, setDictToDelete] = useState<string | null>(null)
   const { toast } = useToast()
+  const { dictionaries: dictionariesPerm } = usePermission()
+  const canDeleteDictionary = dictionariesPerm.delete()
 
   // 加载字典列表
   useEffect(() => {
@@ -91,12 +94,31 @@ export default function DictionariesPage() {
 
   // 删除字典项
   const handleDeleteClick = (id: string) => {
+    if (!canDeleteDictionary) {
+      toast({
+        variant: "destructive",
+        title: "权限不足",
+        description: "当前账号没有删除字典项的权限",
+      })
+      return
+    }
+
     setDictToDelete(id)
     setDeleteDialogOpen(true)
   }
 
   const handleDeleteConfirm = async () => {
     if (!dictToDelete) return
+    if (!canDeleteDictionary) {
+      toast({
+        variant: "destructive",
+        title: "权限不足",
+        description: "当前账号没有删除字典项的权限",
+      })
+      setDeleteDialogOpen(false)
+      setDictToDelete(null)
+      return
+    }
 
     try {
       setIsDeleting(dictToDelete)
@@ -243,18 +265,20 @@ export default function DictionariesPage() {
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteClick(item.id)}
-                              disabled={isDeleting === item.id}
-                            >
-                              {isDeleting === item.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              )}
-                            </Button>
+                            {canDeleteDictionary && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteClick(item.id)}
+                                disabled={isDeleting === item.id}
+                              >
+                                {isDeleting === item.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                )}
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -268,7 +292,7 @@ export default function DictionariesPage() {
       </div>
 
       {/* 删除确认对话框 */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <Dialog open={canDeleteDictionary && deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <div className="flex items-center gap-2">

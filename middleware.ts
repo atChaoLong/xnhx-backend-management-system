@@ -6,9 +6,10 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { authenticateUser, AuthStatus } from '@/lib/middleware'
-import { hasPermission } from '@/lib/permissions'
-import { getRoutePermission, PUBLIC_PATHS } from '@/lib/route-permissions'
+import { Action, hasPermission } from '@/lib/permissions'
+import { getRoutePermission, isPublicPath } from '@/lib/route-permissions'
 import { createLogger } from '@/lib/logger'
+import { applyRateLimitHeaders, checkRateLimit, createRateLimitResponse } from '@/lib/rate-limit'
 
 const logger = createLogger('Middleware:Permission')
 
@@ -20,19 +21,28 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // 2. 跳过公开路径（认证、上传等）
-  const isPublic = PUBLIC_PATHS.some(path => pathname.startsWith(path))
-  if (isPublic) {
-    return NextResponse.next()
+  const rateLimitDecision = checkRateLimit(request)
+  if (rateLimitDecision && !rateLimitDecision.allowed) {
+    return createRateLimitResponse(rateLimitDecision)
+  }
+
+  // 2. 跳过公开路径（认证、外部回调等）
+  if (isPublicPath(pathname)) {
+    return applyRateLimitHeaders(NextResponse.next(), rateLimitDecision)
   }
 
   // 3. 获取路由的权限要求
   const permission = getRoutePermission(pathname, request.method)
 
   if (!permission) {
-    // 没有配置权限，记录警告但放行
-    logger.warn(`未配置权限: ${pathname} ${request.method}`)
-    return NextResponse.next()
+    logger.warn(`未配置权限，默认拒绝: ${pathname} ${request.method}`)
+    return NextResponse.json(
+      {
+        error: '接口未配置权限',
+        code: 'ROUTE_PERMISSION_UNREGISTERED',
+      },
+      { status: 403 }
+    )
   }
 
   // 4. 先检查认证状态（第一步：认证）
@@ -72,6 +82,30 @@ export async function middleware(request: NextRequest) {
     )
   }
 
+  if (authResult.status === AuthStatus.ACCOUNT_DISABLED) {
+    logger.warn('中间件认证失败：账号已停用', {
+      path: pathname,
+      method: request.method,
+      userId: authResult.userId,
+    })
+    return NextResponse.json(
+      { error: '账号已停用，请联系管理员', code: 'ACCOUNT_DISABLED' },
+      { status: 403 }
+    )
+  }
+
+  if (authResult.status === AuthStatus.PROFILE_UNAVAILABLE) {
+    logger.warn('中间件认证失败：用户档案不可用', {
+      path: pathname,
+      method: request.method,
+      userId: authResult.userId,
+    })
+    return NextResponse.json(
+      { error: '用户档案暂时不可用，请稍后重试', code: 'PROFILE_UNAVAILABLE' },
+      { status: 500 }
+    )
+  }
+
   // 检查用户角色
   if (!authResult.role) {
     logger.warn('认证成功但用户没有角色', {
@@ -86,14 +120,19 @@ export async function middleware(request: NextRequest) {
   }
 
   // 5. 再检查权限（第二步：授权）
-  const authorized = hasPermission(authResult.role, permission.resource, permission.action)
+  const requiredActions: Action[] = Array.isArray(permission.action)
+    ? [...permission.action]
+    : [permission.action]
+  const authorized = requiredActions.some((action) =>
+    hasPermission(authResult.role, permission.resource, action)
+  )
 
   if (!authorized) {
     logger.info('权限不足', {
       path: pathname,
       method: request.method,
       requiredResource: permission.resource,
-      requiredAction: permission.action,
+      requiredActions,
       userRole: authResult.role,
       userId: authResult.userId,
     })
@@ -101,10 +140,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.json(
       {
         error: '权限不足',
-        message: `您需要 ${permission.resource} 资源的 ${permission.action} 权限`,
+        message: `您需要 ${permission.resource} 资源的 ${requiredActions.join(' 或 ')} 权限`,
         code: 'PERMISSION_DENIED',
         requiredResource: permission.resource,
-        requiredAction: permission.action,
+        requiredActions,
       },
       { status: 403 }
     )
@@ -118,7 +157,7 @@ export async function middleware(request: NextRequest) {
     userId: authResult.userId,
   })
 
-  return NextResponse.next()
+  return applyRateLimitHeaders(NextResponse.next(), rateLimitDecision)
 }
 
 export const config = {

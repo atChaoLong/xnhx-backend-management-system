@@ -1,9 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
 import { getClassInSDKService } from '@/lib/services/classin-sdk/service'
+import { requireClassInOpsProfile } from '@/lib/server-classin-ops'
+import { createLogger } from '@/lib/logger'
+import { summarizeError } from '@/lib/safe-error'
+
+const logger = createLogger('ClassIn:Classrooms')
+
+const CLASSIN_CLASSROOM_SELECT = [
+  'class_id',
+  'name',
+  'course_id',
+  'course_name',
+  'start_time',
+  'end_time',
+  'sync_time',
+  'activity_id',
+].join(',')
 
 export async function GET(request: NextRequest) {
   try {
+    const access = await requireClassInOpsProfile(request)
+    if (access.ok === false) return access.response
+
     const { searchParams } = new URL(request.url)
     const from = parseInt(searchParams.get('from') || '0')
     const to = parseInt(searchParams.get('to') || '19')
@@ -11,34 +30,41 @@ export async function GET(request: NextRequest) {
     // 先获取总数
     const { count: totalCount } = await supabaseServer
       .from('classroom_classin')
-      .select('*', { count: 'exact', head: true })
+      .select('class_id', { count: 'exact', head: true })
 
     // 分页查询数据
     const { data, error } = await supabaseServer
       .from('classroom_classin')
-      .select('*')
+      .select(CLASSIN_CLASSROOM_SELECT)
       .order('start_time', { ascending: false })
       .range(from, to)
 
     if (error) {
-      console.error('查询 ClassIn 课堂失败:', error)
+      logger.error('查询 ClassIn 课堂失败', summarizeError(error))
       return NextResponse.json(
-        { error: '查询失败', details: error.message },
+        { error: '查询失败' },
         { status: 500 }
       )
     }
 
+    const classrooms = (data || []).map((classroom: any) => ({
+      ...classroom,
+      stu_num: 0,
+      audit_num: 0,
+      class_status: 0,
+    }))
+
     return NextResponse.json({
       success: true,
-      data: data || [],
+      data: classrooms,
       count: totalCount || 0,
       from,
       to,
     })
-  } catch (error: any) {
-    console.error('获取 ClassIn 课堂数据出错:', error)
+  } catch (error: unknown) {
+    logger.error('获取 ClassIn 课堂数据异常', summarizeError(error))
     return NextResponse.json(
-      { error: '服务器错误', details: error.message },
+      { error: '服务器错误' },
       { status: 500 }
     )
   }
@@ -46,8 +72,11 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const access = await requireClassInOpsProfile(request)
+    if (access.ok === false) return access.response
+
     const body = await request.json()
-    
+
     // 验证必需参数
     const { courseId, classId } = body
     if (!courseId || !classId) {
@@ -60,13 +89,16 @@ export async function PUT(request: NextRequest) {
     // 先检查课节是否存在
     const { data: existingClass, error: fetchError } = await supabaseServer
       .from('classroom_classin')
-      .select('*')
+      .select('class_id, activity_id')
       .eq('class_id', classId)
       .single()
 
     if (fetchError || !existingClass) {
+      if (fetchError) {
+        logger.warn('查询待修改 ClassIn 课堂失败', summarizeError(fetchError))
+      }
       return NextResponse.json(
-        { error: '课节不存在', details: `class_id: ${classId}` },
+        { error: '课节不存在' },
         { status: 404 }
       )
     }
@@ -89,13 +121,13 @@ export async function PUT(request: NextRequest) {
       live: body.live,
       replay: body.replay,
     })
-    
+
     // 更新本地数据库记录
     if (result) {
       const updateData: any = {
         updated_at: new Date().toISOString(),
       }
-      
+
       if (body.className) {
         updateData.name = body.className
       }
@@ -115,13 +147,9 @@ export async function PUT(request: NextRequest) {
         .eq('class_id', classId)
 
       if (updateError) {
-        console.error('更新本地课堂记录失败:', updateError)
+        logger.error('更新本地课堂记录失败', summarizeError(updateError))
         return NextResponse.json(
-          { 
-            error: '数据库更新失败', 
-            details: updateError.message,
-            sdkResult: result
-          },
+          { error: '数据库更新失败' },
           { status: 500 }
         )
       }
@@ -132,10 +160,10 @@ export async function PUT(request: NextRequest) {
       data: result,
       message: '课节修改成功'
     })
-  } catch (error: any) {
-    console.error('修改课节出错:', error)
+  } catch (error: unknown) {
+    logger.error('修改课节异常', summarizeError(error))
     return NextResponse.json(
-      { error: '修改课节失败', details: error.message },
+      { error: '修改课节失败' },
       { status: 500 }
     )
   }
@@ -143,6 +171,9 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const access = await requireClassInOpsProfile(request)
+    if (access.ok === false) return access.response
+
     const { searchParams } = new URL(request.url)
     const courseId = searchParams.get('courseId')
     const classId = searchParams.get('classId')
@@ -158,13 +189,16 @@ export async function DELETE(request: NextRequest) {
     // 先检查课节是否存在
     const { data: existingClass, error: fetchError } = await supabaseServer
       .from('classroom_classin')
-      .select('*')
+      .select('class_id, activity_id')
       .eq('class_id', classId)
       .single()
 
     if (fetchError || !existingClass) {
+      if (fetchError) {
+        logger.warn('查询待删除 ClassIn 课堂失败', summarizeError(fetchError))
+      }
       return NextResponse.json(
-        { error: '课节不存在', details: `class_id: ${classId}` },
+        { error: '课节不存在' },
         { status: 404 }
       )
     }
@@ -178,7 +212,7 @@ export async function DELETE(request: NextRequest) {
       courseId: parseInt(courseId),
       activityId: activityId,
     })
-    
+
     // 删除本地数据库记录
     if (result) {
       const { error: deleteError } = await supabaseServer
@@ -187,13 +221,9 @@ export async function DELETE(request: NextRequest) {
         .eq('class_id', classId)
 
       if (deleteError) {
-        console.error('删除本地课堂记录失败:', deleteError)
+        logger.error('删除本地课堂记录失败', summarizeError(deleteError))
         return NextResponse.json(
-          { 
-            error: '数据库删除失败', 
-            details: deleteError.message,
-            sdkResult: result
-          },
+          { error: '数据库删除失败' },
           { status: 500 }
         )
       }
@@ -204,14 +234,10 @@ export async function DELETE(request: NextRequest) {
       data: result,
       message: '课节删除成功'
     })
-  } catch (error: any) {
-    console.error('删除课节出错:', error)
+  } catch (error: unknown) {
+    logger.error('删除课节异常', summarizeError(error))
     return NextResponse.json(
-      { 
-        error: '删除课节失败', 
-        details: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      },
+      { error: '删除课节失败' },
       { status: 500 }
     )
   }

@@ -190,14 +190,19 @@ curl -X GET http://localhost:3000/api/auth/session \
 
 ```typescript
 export const PUBLIC_PATHS = [
-  '/api/auth',           // 认证相关
+  '/api/health',         // 健康检查
   '/api/upload',         // 文件上传
-  '/api/init-admin',     // 初始化管理员
-  '/api/cleanup-all-admins', // 清理管理员
+  '/api/init-admin',     // 初始化管理员，路由内强制校验 INIT_ADMIN_SECRET
+  '/api/classin/callback', // ClassIn 回调，路由内校验 SafeKey
+]
+
+export const PUBLIC_PREFIXES = [
+  '/api/auth',           // 认证相关
+  '/api/teacher-form',   // 外部老师二维码信息采集
 ]
 ```
 
-这些路径会跳过权限检查。
+这些路径会跳过中间件权限检查，但 `/api/init-admin` 与 `/api/classin/callback` 仍有路由内安全校验。
 
 ---
 

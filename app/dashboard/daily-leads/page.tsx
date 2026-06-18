@@ -30,6 +30,7 @@ import Link from "next/link"
 import { DailyLeadsService, DailyLead } from "@/lib/services/dailyLeads"
 import { useToast } from "@/hooks/use-toast"
 import { usePagination } from "@/lib/hooks/usePagination"
+import { usePermission } from "@/lib/hooks/usePermission"
 
 export default function DailyLeadsPage() {
   const [leads, setLeads] = useState<DailyLead[]>([])
@@ -39,6 +40,8 @@ export default function DailyLeadsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [leadToDelete, setLeadToDelete] = useState<string | null>(null)
   const { toast } = useToast()
+  const { leads: leadsPerm } = usePermission()
+  const canDeleteDailyLead = leadsPerm.delete()
 
   const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
 
@@ -85,12 +88,31 @@ export default function DailyLeadsPage() {
 
   // 删除线索
   const handleDeleteClick = (id: string) => {
+    if (!canDeleteDailyLead) {
+      toast({
+        variant: "destructive",
+        title: "权限不足",
+        description: "当前账号没有删除每日线索的权限",
+      })
+      return
+    }
+
     setLeadToDelete(id)
     setDeleteDialogOpen(true)
   }
 
   const handleDeleteConfirm = async () => {
     if (!leadToDelete) return
+    if (!canDeleteDailyLead) {
+      toast({
+        variant: "destructive",
+        title: "权限不足",
+        description: "当前账号没有删除每日线索的权限",
+      })
+      setDeleteDialogOpen(false)
+      setLeadToDelete(null)
+      return
+    }
 
     try {
       setIsDeleting(leadToDelete)
@@ -234,18 +256,20 @@ export default function DailyLeadsPage() {
                                 <Edit className="h-4 w-4" />
                               </Button>
                             </Link>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteClick(lead.id)}
-                              disabled={isDeleting === lead.id}
-                            >
-                              {isDeleting === lead.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              )}
-                            </Button>
+                            {canDeleteDailyLead && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteClick(lead.id)}
+                                disabled={isDeleting === lead.id}
+                              >
+                                {isDeleting === lead.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                )}
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -312,7 +336,7 @@ export default function DailyLeadsPage() {
       </div>
 
       {/* 删除确认对话框 */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <Dialog open={canDeleteDailyLead && deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <div className="flex items-center gap-2">

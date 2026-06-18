@@ -152,6 +152,7 @@ supabase/migrations/
 ```bash
 curl -X POST http://localhost:3000/api/init-admin \
   -H "Content-Type: application/json" \
+  -H "x-init-admin-secret: $INIT_ADMIN_SECRET" \
   -d '{
     "email": "admin@example.com",
     "password": "admin123456",
@@ -187,9 +188,9 @@ curl -X POST http://localhost:3000/api/users \
 
 2. ✅ **权限验证**：所有修改操作都验证 admin 权限
 
-3. ⚠️ **初始化接口**：`/api/init-admin` 应在使用后删除或禁用
+3. ✅ **初始化接口**：`/api/init-admin` 默认关闭，必须在服务端配置 `INIT_ADMIN_SECRET`，且请求带 `x-init-admin-secret`、`init_admin_secret` 或 `initAdminSecret` 才能使用。使用后建议删除该环境变量或轮换为不可访问值。
 
-4. ⚠️ **清理接口**：`/api/cleanup-all-admins` 仅用于开发/重置
+4. ⚠️ **清理接口**：`/api/cleanup-all-admins` 仅用于开发/重置，生产环境默认返回 404。如确需生产重置，必须临时设置 `ENABLE_ADMIN_RESET_API=true`，并在操作后立即关闭。
 
 ## 常见问题
 

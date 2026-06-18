@@ -11,7 +11,11 @@ import { TeacherCandidatesService, NewTeacherCandidate } from "@/lib/services/te
 import { useDictionary } from "@/lib/hooks/useDictionary"
 import type { DictionaryItem } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
-import { uploadFile } from "@/lib/supabase-client"
+import {
+  TEACHER_RESUME_ACCEPT,
+  uploadTeacherResume,
+  validateTeacherResumeFile,
+} from "@/lib/services/upload"
 
 export default function NewTeacherCandidatePage() {
   const router = useRouter()
@@ -69,6 +73,25 @@ export default function NewTeacherCandidatePage() {
     })
   }
 
+  const handleResumeFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const validationError = validateTeacherResumeFile(file)
+    if (validationError) {
+      toast({
+        variant: "destructive",
+        title: "文件不符合要求",
+        description: validationError,
+      })
+      e.target.value = ""
+      setResumeFile(null)
+      return
+    }
+
+    setResumeFile(file)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -91,6 +114,16 @@ export default function NewTeacherCandidatePage() {
       return
     }
 
+    const resumeValidationError = validateTeacherResumeFile(resumeFile)
+    if (resumeValidationError) {
+      toast({
+        variant: "destructive",
+        title: "文件不符合要求",
+        description: resumeValidationError,
+      })
+      return
+    }
+
 
 
     setIsSubmitting(true)
@@ -102,7 +135,7 @@ export default function NewTeacherCandidatePage() {
        if (resumeFile) {
          try {
            setIsUploading(true)
-           resume_url = await uploadFile(resumeFile, 'teacher-resumes')
+           resume_url = await uploadTeacherResume(resumeFile)
            toast({
              title: "上传成功",
              description: "简历已上传",
@@ -208,12 +241,8 @@ export default function NewTeacherCandidatePage() {
                     <Input
                       id="resume_file"
                       type="file"
-                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp"
-                      onChange={(e) => {
-                        if (e.target.files?.[0]) {
-                          setResumeFile(e.target.files[0])
-                        }
-                      }}
+                      accept={TEACHER_RESUME_ACCEPT}
+                      onChange={handleResumeFileChange}
                       className="h-9 text-sm flex-1"
                       disabled={isUploading}
                       required

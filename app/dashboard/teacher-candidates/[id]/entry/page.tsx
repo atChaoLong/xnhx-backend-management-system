@@ -10,22 +10,25 @@ import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
 import { TeacherCandidatesService, TeacherCandidate } from "@/lib/services/teacherCandidates"
 import { useToast } from "@/hooks/use-toast"
+import { api } from "@/lib/fetch"
+import { usePermission } from "@/lib/hooks/usePermission"
 
 export default function EntryPreviewPage() {
   const router = useRouter()
   const params = useParams()
   const { toast } = useToast()
+  const { teacherCandidates } = usePermission()
   const [candidate, setCandidate] = useState<TeacherCandidate | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [teacherCode, setTeacherCode] = useState("")
-  const [initialPassword, setInitialPassword] = useState("123456")
+  const [initialPassword, setInitialPassword] = useState("")
   const [entryName, setEntryName] = useState("")
   const [entryMobile, setEntryMobile] = useState("")
   const [entryTeacherLevel, setEntryTeacherLevel] = useState("")
   const [entryHourlyRate, setEntryHourlyRate] = useState("")
 
   const candidateId = params.id as string
+  const canConfirmEntry = teacherCandidates.confirmEntry()
 
   useEffect(() => {
     const fetchCandidate = async () => {
@@ -34,7 +37,7 @@ export default function EntryPreviewPage() {
         const data = await TeacherCandidatesService.getTeacherCandidateById(candidateId)
         setCandidate(data)
         setEntryName(data.name || "")
-        setEntryMobile(data.wechat_id || "")
+        setEntryMobile(data.phone || data.wechat_id || "")
         setEntryTeacherLevel(data.teacher_level || "")
         setEntryHourlyRate(data.approved_hourly_rate?.toString() || "")
       } catch (error: any) {
@@ -53,30 +56,25 @@ export default function EntryPreviewPage() {
 
   const handleConfirmEntry = async () => {
     if (!candidate) return
-    if (!teacherCode.trim()) {
+    if (!canConfirmEntry) {
       toast({
         variant: "destructive",
-        title: "校验失败",
-        description: "请先填写老师编号",
+        title: "权限不足",
+        description: "你没有老师入库权限",
       })
       return
     }
 
     setIsSubmitting(true)
     try {
-      const resp = await fetch("/api/teacher-entries/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          candidate_id: candidate.id,
-          teacher_code: teacherCode.trim(),
-          initial_password: initialPassword,
-          status: "active",
-          name: entryName.trim(),
-          mobile: entryMobile.trim(),
-          teacher_level: entryTeacherLevel.trim(),
-          approved_hourly_rate: entryHourlyRate ? parseFloat(entryHourlyRate) : null,
-        }),
+      const resp = await api.post("/api/teacher-entries/confirm", {
+        candidate_id: candidate.id,
+        initial_password: initialPassword,
+        status: "active",
+        name: entryName.trim(),
+        mobile: entryMobile.trim(),
+        teacher_level: entryTeacherLevel.trim(),
+        approved_hourly_rate: entryHourlyRate ? parseFloat(entryHourlyRate) : null,
       })
 
       if (!resp.ok) {
@@ -84,9 +82,12 @@ export default function EntryPreviewPage() {
         throw new Error(err.error || "老师入库失败")
       }
 
+      const result = await resp.json()
+      const generatedCode = result.data?.teacher?.teacher_code
+
       toast({
         title: "入库成功",
-        description: "已保存老师编号并标记为入库",
+        description: generatedCode ? `老师编号：${generatedCode}` : "已标记为入库",
       })
       router.push("/dashboard/teacher-candidates")
     } catch (error: any) {
@@ -128,16 +129,6 @@ export default function EntryPreviewPage() {
       <div className="flex-1 overflow-auto p-6">
         <Card className="max-w-2xl mx-auto">
           <CardContent className="p-6 space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="teacher_code">老师编号（手动填写）</Label>
-              <Input
-                id="teacher_code"
-                placeholder="请输入老师编号"
-                value={teacherCode}
-                onChange={(e) => setTeacherCode(e.target.value)}
-              />
-            </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>老师名字</Label>
@@ -167,7 +158,7 @@ export default function EntryPreviewPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>手机号</Label>
+                <Label>ClassIn注册手机号</Label>
                 <Input
                   value={entryMobile}
                   onChange={(e) => setEntryMobile(e.target.value)}
@@ -179,7 +170,7 @@ export default function EntryPreviewPage() {
             <Label htmlFor="classin_initial_password">ClassIn 初始密码</Label>
             <Input
               id="classin_initial_password"
-              placeholder="请输入初始密码"
+              placeholder="留空自动生成"
               value={initialPassword}
               onChange={(e) => setInitialPassword(e.target.value)}
             />
@@ -189,16 +180,18 @@ export default function EntryPreviewPage() {
               <Button variant="outline" onClick={() => router.push("/dashboard/teacher-candidates")} disabled={isSubmitting}>
                 取消
               </Button>
-              <Button onClick={handleConfirmEntry} disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    入库中...
-                  </>
-                ) : (
-                  "确认入库"
-                )}
-              </Button>
+              {canConfirmEntry && (
+                <Button onClick={handleConfirmEntry} disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      入库中...
+                    </>
+                  ) : (
+                    "确认入库"
+                  )}
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>

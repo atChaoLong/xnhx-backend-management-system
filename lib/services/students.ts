@@ -41,6 +41,18 @@ export interface Student {
   head_teacher_name?: string  // 班主任姓名（关联查询）
   classin_initial_password?: string
   classin_uid?: number
+  formal_summary?: {
+    formal_order_count: number
+    total_formal_hours: number
+    completed_formal_hours: number
+    remaining_formal_hours: number
+    total_formal_amount: number
+    remaining_formal_amount: number
+    formal_subjects: string[]
+    formal_teachers: string[]
+    latest_order_id: string | null
+    latest_order_time: string | null
+  }
 }
 
 /**
@@ -68,6 +80,21 @@ export async function getStudents(from: number = 0, to: number = 19): Promise<{ 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: '获取学生列表失败' }))
     throw new Error(error.error || '获取学生列表失败')
+  }
+
+  const result = await response.json()
+  return { data: result.data as Student[], count: result.count || 0 }
+}
+
+/**
+ * 获取正式生列表（带正式订单汇总）
+ */
+export async function getFormalStudents(from: number = 0, to: number = 19): Promise<{ data: Student[], count: number }> {
+  const response = await api.get(`/api/students?from=${from}&to=${to}&formal=true&include_summary=true`)
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: '获取正式生列表失败' }))
+    throw new Error(error.error || '获取正式生列表失败')
   }
 
   const result = await response.json()
@@ -122,7 +149,7 @@ export async function createStudent(student: NewStudent): Promise<Student> {
 /**
  * 更新学生信息
  */
-export async function updateStudent(student: Student & { id?: string }): Promise<Student> {
+export async function updateStudent(student: Partial<Student> & { id?: string }): Promise<Student> {
   const { id, ...updateData } = student
 
   if (!id) {
@@ -159,6 +186,7 @@ export async function deleteStudent(id: string): Promise<boolean> {
  */
 export const StudentsService = {
   getStudents,
+  getFormalStudents,
   getAllStudents,
   getStudentById,
   createStudent,

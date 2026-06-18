@@ -2,6 +2,7 @@
  * 时区处理工具
  * 统一处理中国时区 (UTC+8) 的时间转换
  */
+import { summarizeError } from '@/lib/safe-error'
 
 /**
  * 中国时区偏移量（UTC+8）
@@ -50,7 +51,7 @@ export function fromISOToDatetimeLocal(isoTime: string): string {
 
     return `${year}-${month}-${day}T${hours}:${minutes}`
   } catch (error) {
-    console.error('转换时间失败:', error)
+    console.error('转换时间失败:', summarizeError(error))
     return ''
   }
 }

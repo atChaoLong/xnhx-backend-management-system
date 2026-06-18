@@ -10,17 +10,22 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Loader2, CheckCircle, XCircle, UserPlus, Users } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { api } from "@/lib/fetch"
+import { usePermission } from "@/lib/hooks/usePermission"
 
 export default function ClassInTestPage() {
   const { toast } = useToast()
+  const { teachers, isLoading: isPermissionLoading } = usePermission()
   const [isLoading, setIsLoading] = useState(false)
   const [cookie, setCookie] = useState("")
   const [connectionStatus, setConnectionStatus] = useState<"idle" | "success" | "error">("idle")
+  const canUseClassInOps = !isPermissionLoading && teachers.notes()
 
   // 添加老师表单
   const [teacherForm, setTeacherForm] = useState({
     name: "",
     mobile: "",
+    password: "",
     email: "",
     subject: "",
     autoRegister: 1,
@@ -30,6 +35,7 @@ export default function ClassInTestPage() {
   const [studentForm, setStudentForm] = useState({
     name: "",
     mobile: "",
+    password: "",
     email: "",
     stuno: "",
     autoRegister: 1,
@@ -51,11 +57,7 @@ export default function ClassInTestPage() {
 
     try {
       // 测试登录
-      const loginResponse = await fetch("/api/classin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cookie }),
-      })
+      const loginResponse = await api.post("/api/classin/login", { cookie })
 
       if (!loginResponse.ok) {
         throw new Error("登录失败")
@@ -87,22 +89,13 @@ export default function ClassInTestPage() {
   const handleAddTeacher = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!cookie.trim()) {
-      toast({
-        variant: "destructive",
-        title: "验证失败",
-        description: "请先配置 Cookie 并测试连接",
-      })
-      return
-    }
-
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/classin/teachers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(teacherForm),
+      const response = await api.post("/api/classin-sdk/register/teacher", {
+        telephone: teacherForm.mobile,
+        nickname: teacherForm.name,
+        password: teacherForm.password,
       })
 
       const data = await response.json()
@@ -124,6 +117,7 @@ export default function ClassInTestPage() {
       setTeacherForm({
         name: "",
         mobile: "",
+        password: "",
         email: "",
         subject: "",
         autoRegister: 1,
@@ -143,22 +137,13 @@ export default function ClassInTestPage() {
   const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!cookie.trim()) {
-      toast({
-        variant: "destructive",
-        title: "验证失败",
-        description: "请先配置 Cookie 并测试连接",
-      })
-      return
-    }
-
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/classin/students", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(studentForm),
+      const response = await api.post("/api/classin-sdk/register/student", {
+        telephone: studentForm.mobile,
+        nickname: studentForm.name,
+        password: studentForm.password,
       })
 
       const data = await response.json()
@@ -180,6 +165,7 @@ export default function ClassInTestPage() {
       setStudentForm({
         name: "",
         mobile: "",
+        password: "",
         email: "",
         stuno: "",
         autoRegister: 1,
@@ -193,6 +179,38 @@ export default function ClassInTestPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (isPermissionLoading) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header
+          title="ClassIn API 测试"
+          description="测试添加老师和学生的功能"
+        />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!canUseClassInOps) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header
+          title="ClassIn API 测试"
+          description="测试添加老师和学生的功能"
+        />
+        <div className="flex-1 p-6">
+          <Card>
+            <CardContent className="p-6 text-sm text-muted-foreground">
+              当前角色无权访问 ClassIn API 测试。
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -322,6 +340,22 @@ export default function ClassInTestPage() {
                       </div>
 
                       <div className="space-y-2">
+                        <Label htmlFor="teacher-password">
+                          密码 <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="teacher-password"
+                          type="password"
+                          placeholder="请输入 ClassIn 登录密码"
+                          value={teacherForm.password}
+                          onChange={(e) =>
+                            setTeacherForm({ ...teacherForm, password: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
                         <Label htmlFor="teacher-email">邮箱</Label>
                         <Input
                           id="teacher-email"
@@ -408,6 +442,22 @@ export default function ClassInTestPage() {
                       </div>
 
                       <div className="space-y-2">
+                        <Label htmlFor="student-password">
+                          密码 <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="student-password"
+                          type="password"
+                          placeholder="请输入 ClassIn 登录密码"
+                          value={studentForm.password}
+                          onChange={(e) =>
+                            setStudentForm({ ...studentForm, password: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
                         <Label htmlFor="student-email">邮箱</Label>
                         <Input
                           id="student-email"
@@ -460,8 +510,8 @@ export default function ClassInTestPage() {
               <div>
                 <h4 className="font-semibold mb-2">测试流程</h4>
                 <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-                  <li>配置 ClassIn Cookie</li>
-                  <li>点击"测试连接"验证 API 可用性</li>
+                  <li>配置 ClassIn Cookie 后可测试旧登录接口</li>
+                  <li>老师和学生注册使用 ClassIn SDK 接口</li>
                   <li>在"添加老师"或"添加学生"标签页填写信息</li>
                   <li>点击"添加"按钮提交数据</li>
                   <li>查看操作结果</li>
@@ -472,18 +522,17 @@ export default function ClassInTestPage() {
                 <h4 className="font-semibold mb-2">可用接口</h4>
                 <ul className="list-disc list-inside space-y-1 text-muted-foreground">
                   <li>GET /api/classin/teachers - 获取老师列表</li>
-                  <li>POST /api/classin/teachers - 添加老师</li>
+                  <li>POST /api/classin-sdk/register/teacher - 注册老师</li>
                   <li>GET /api/classin/students - 获取学生列表</li>
-                  <li>POST /api/classin/students - 添加学生</li>
+                  <li>POST /api/classin-sdk/register/student - 注册学生</li>
                 </ul>
               </div>
 
               <div>
                 <h4 className="font-semibold mb-2">注意事项</h4>
                 <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                  <li>Cookie 有效期约为 2 小时</li>
-                  <li>手机号为必填项</li>
-                  <li>添加前请先测试连接</li>
+                  <li>Cookie 有效期约为 2 小时，仅用于连接测试</li>
+                  <li>手机号和密码为必填项</li>
                   <li>所有操作都会实时调用 ClassIn API</li>
                 </ul>
               </div>

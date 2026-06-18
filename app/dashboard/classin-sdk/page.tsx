@@ -9,10 +9,14 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Loader2, CheckCircle, XCircle, UserPlus, Users, BookOpen, FolderOpen, Video } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { api } from "@/lib/fetch"
+import { usePermission } from "@/lib/hooks/usePermission"
 
 export default function ClassInSDKPage() {
   const { toast } = useToast()
+  const { teachers, isLoading: isPermissionLoading } = usePermission()
   const [isLoading, setIsLoading] = useState(false)
+  const canUseClassInOps = !isPermissionLoading && teachers.notes()
 
   // 老师注册表单
   const [teacherForm, setTeacherForm] = useState({
@@ -67,11 +71,7 @@ export default function ClassInSDKPage() {
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/classin-sdk/register/teacher", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(teacherForm),
-      })
+      const response = await api.post("/api/classin-sdk/register/teacher", teacherForm)
 
       const data = await response.json()
 
@@ -103,11 +103,7 @@ export default function ClassInSDKPage() {
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/classin-sdk/register/student", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(studentForm),
-      })
+      const response = await api.post("/api/classin-sdk/register/student", studentForm)
 
       const data = await response.json()
 
@@ -139,11 +135,7 @@ export default function ClassInSDKPage() {
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/classin-sdk/course", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(courseForm),
-      })
+      const response = await api.post("/api/classin-sdk/course", courseForm)
 
       const data = await response.json()
 
@@ -175,13 +167,9 @@ export default function ClassInSDKPage() {
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/classin-sdk/unit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          courseId: parseInt(unitForm.courseId),
-          name: unitForm.name,
-        }),
+      const response = await api.post("/api/classin-sdk/unit", {
+        courseId: parseInt(unitForm.courseId),
+        name: unitForm.name,
       })
 
       const data = await response.json()
@@ -214,17 +202,13 @@ export default function ClassInSDKPage() {
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/classin-sdk/classroom", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          courseId: parseInt(classroomForm.courseId),
-          unitId: parseInt(classroomForm.unitId),
-          name: classroomForm.name,
-          teacherUid: parseInt(classroomForm.teacherUid),
-          startTime: classroomForm.startTime,
-          endTime: classroomForm.endTime,
-        }),
+      const response = await api.post("/api/classin-sdk/classroom", {
+        courseId: parseInt(classroomForm.courseId),
+        unitId: parseInt(classroomForm.unitId),
+        name: classroomForm.name,
+        teacherUid: parseInt(classroomForm.teacherUid),
+        startTime: classroomForm.startTime,
+        endTime: classroomForm.endTime,
       })
 
       const data = await response.json()
@@ -264,27 +248,23 @@ export default function ClassInSDKPage() {
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/classin-sdk/complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          teacher: {
-            telephone: completeForm.teacherTelephone,
-            nickname: completeForm.teacherNickname,
-            password: completeForm.teacherPassword,
-          },
-          course: {
-            courseName: completeForm.courseName,
-          },
-          unit: {
-            name: completeForm.unitName,
-          },
-          classroom: {
-            name: completeForm.classroomName,
-            startTime: completeForm.startTime,
-            endTime: completeForm.endTime,
-          },
-        }),
+      const response = await api.post("/api/classin-sdk/complete", {
+        teacher: {
+          telephone: completeForm.teacherTelephone,
+          nickname: completeForm.teacherNickname,
+          password: completeForm.teacherPassword,
+        },
+        course: {
+          courseName: completeForm.courseName,
+        },
+        unit: {
+          name: completeForm.unitName,
+        },
+        classroom: {
+          name: completeForm.classroomName,
+          startTime: completeForm.startTime,
+          endTime: completeForm.endTime,
+        },
       })
 
       const data = await response.json()
@@ -318,6 +298,32 @@ export default function ClassInSDKPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (isPermissionLoading) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="ClassIn SDK 管理" description="使用官方 API 进行操作" />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!canUseClassInOps) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="ClassIn SDK 管理" description="使用官方 API 进行操作" />
+        <div className="flex-1 p-6">
+          <Card>
+            <CardContent className="p-6 text-sm text-muted-foreground">
+              当前角色无权访问 ClassIn 运维操作。
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
   }
 
   return (

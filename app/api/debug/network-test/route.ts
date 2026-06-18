@@ -15,6 +15,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createLogger } from '@/lib/logger'
+import { summarizeError } from '@/lib/safe-error'
 import {
   testSupabaseConnection,
   getEnvironmentDiagnostics,
@@ -22,8 +23,16 @@ import {
 
 const logger = createLogger('Debug:NetworkTest')
 
+function isDebugApiEnabled(): boolean {
+  return process.env.NODE_ENV !== 'production' || process.env.ENABLE_DEBUG_API === 'true'
+}
+
 export async function GET(request: NextRequest) {
   try {
+    if (!isDebugApiEnabled()) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
     logger.info('开始网络诊断测试')
 
     // 获取环境信息
@@ -47,13 +56,12 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json(diagnostics)
-  } catch (error: any) {
-    logger.error('网络诊断失败', { error: error.message, stack: error.stack })
+  } catch (error: unknown) {
+    logger.error('网络诊断失败', summarizeError(error))
 
     return NextResponse.json(
       {
         error: '诊断失败',
-        message: error.message,
         environment: getEnvironmentDiagnostics(),
       },
       { status: 500 }
@@ -76,7 +84,7 @@ function generateRecommendations(
   }
 
   // 2. 检查 Supabase URL 配置
-  if (!env.supabaseUrl) {
+  if (!env.supabaseUrlConfigured) {
     recommendations.push('❌ NEXT_PUBLIC_SUPABASE_URL 未配置')
     return recommendations
   }

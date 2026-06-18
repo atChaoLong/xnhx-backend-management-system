@@ -21,6 +21,8 @@ export interface Lead {
 
   // 可选字段
   grade_code?: string             // 年级代码（可选）
+  channel_platform?: string        // 渠道平台
+  customer_social_id?: string      // 客户社媒账号ID
   subject_codes?: string[]        // 学科代码数组
   region_ip?: string              // 地域IP
   parent_wechat?: string          // 家长微信号
@@ -42,12 +44,14 @@ export interface Lead {
 }
 
 export interface NewLead {
-  report_number: string
+  report_number?: string
   entry_date: string
   xhs_source: string
   add_method_code: string
   operator_id: string
   grade_code?: string              // 年级代码（可选）
+  channel_platform?: string
+  customer_social_id?: string
   subject_codes?: string[]
   region_ip?: string
   parent_wechat?: string
@@ -62,12 +66,25 @@ export interface NewLead {
   conversion_status?: string
 }
 
+export interface GetLeadsOptions {
+  scope?: 'public' | 'owned'
+}
+
 export const LeadsService = {
   /**
    * 获取所有线索（支持分页）
    */
-  async getLeads(from: number = 0, to: number = 19): Promise<{ data: Lead[], count: number }> {
-    const response = await api.get(`/api/leads?from=${from}&to=${to}`)
+  async getLeads(from: number = 0, to: number = 19, options: GetLeadsOptions = {}): Promise<{ data: Lead[], count: number }> {
+    const params = new URLSearchParams({
+      from: String(from),
+      to: String(to),
+    })
+
+    if (options.scope) {
+      params.set('scope', options.scope)
+    }
+
+    const response = await api.get(`/api/leads?${params.toString()}`)
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: '获取线索失败' }))

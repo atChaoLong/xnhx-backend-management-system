@@ -20,9 +20,10 @@ import { ArrowLeft, Loader2 } from "lucide-react"
 import { LeadsService, NewLead } from "@/lib/services/leads"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { UserProfilesService, UserProfile } from "@/lib/services/userProfiles"
-import { uploadChatScreenshot } from "@/lib/services/upload"
+import { CHAT_SCREENSHOT_ACCEPT, uploadChatScreenshot, validateChatScreenshotFile } from "@/lib/services/upload"
 import { useToast } from "@/hooks/use-toast"
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser"
+import { summarizeError } from "@/lib/safe-error"
 import Link from "next/link"
 
 export default function NewLeadPage() {
@@ -56,9 +57,10 @@ export default function NewLeadPage() {
   const [operators, setOperators] = useState<UserProfile[]>([])
 
   const [formData, setFormData] = useState({
-    report_number: "",
     entry_date: new Date().toISOString().split("T")[0],
     xhs_source: "",
+    channel_platform: "",
+    customer_social_id: "",
     add_method_code: "",
     operator_id: "",
     grade_code: "",
@@ -88,7 +90,7 @@ export default function NewLeadPage() {
           sources: dicts.xhs_source || [],
         })
       } catch (error) {
-        console.error("加载字典失败:", error)
+        console.error("加载字典失败:", summarizeError(error))
       } finally {
         setIsLoadingDict(false)
       }
@@ -105,7 +107,7 @@ export default function NewLeadPage() {
         const profiles = await UserProfilesService.getAllOperators()
         setOperators(profiles)
       } catch (error) {
-        console.error("加载运营人员失败:", error)
+        console.error("加载运营人员失败:", summarizeError(error))
       } finally {
         setIsLoadingOperators(false)
       }
@@ -128,6 +130,20 @@ export default function NewLeadPage() {
   const handleChatScreenshotChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files)
+      const validationError = files
+        .map((file) => validateChatScreenshotFile(file))
+        .find((message): message is string => Boolean(message))
+
+      if (validationError) {
+        e.target.value = ''
+        toast({
+          variant: "destructive",
+          title: "文件不可用",
+          description: validationError,
+        })
+        return
+      }
+
       setChatScreenshotFiles(prev => [...prev, ...files])
 
       try {
@@ -163,7 +179,8 @@ export default function NewLeadPage() {
     e.preventDefault()
 
     // 验证必填字段
-    if (!formData.report_number || !formData.entry_date || !formData.xhs_source ||
+    if (!formData.entry_date || !formData.xhs_source ||
+        !formData.channel_platform || !formData.customer_social_id ||
         !formData.add_method_code || !formData.operator_id) {
       toast({
         variant: "destructive",
@@ -177,9 +194,10 @@ export default function NewLeadPage() {
 
     try {
       const payload: NewLead = {
-        report_number: formData.report_number,
         entry_date: formData.entry_date,
         xhs_source: formData.xhs_source,
+        channel_platform: formData.channel_platform,
+        customer_social_id: formData.customer_social_id,
         add_method_code: formData.add_method_code,
         operator_id: formData.operator_id,
         grade_code: formData.grade_code || undefined,
@@ -189,11 +207,13 @@ export default function NewLeadPage() {
         chat_screenshots: chatScreenshotPreviews.length > 0 ? chatScreenshotPreviews.join(',') : undefined,
       }
 
-      await LeadsService.createLead(payload)
+      const createdLead = await LeadsService.createLead(payload)
 
       toast({
-        title: "创建成功",
-        description: "线索已创建",
+        title: createdLead.duplicate_mark ? "创建成功，检测到重复线索" : "创建成功",
+        description: createdLead.duplicate_mark
+          ? `线索已创建，编号：${createdLead.report_number}；疑似与 ${createdLead.collision_operator || '已有线索'} 重复`
+          : `线索已创建，编号：${createdLead.report_number}`,
       })
 
       router.push("/dashboard/leads")
@@ -229,19 +249,6 @@ export default function NewLeadPage() {
                   <h3 className="text-sm font-semibold">基本信息</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="report_number">
-                        报单序号 <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="report_number"
-                        value={formData.report_number}
-                        onChange={(e) => handleInputChange("report_number", e.target.value)}
-                        placeholder="请输入报单序号"
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
                       <Label htmlFor="entry_date">
                         录单日期 <span className="text-destructive">*</span>
                       </Label>
@@ -270,6 +277,32 @@ export default function NewLeadPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="channel_platform">
+                        渠道平台 <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="channel_platform"
+                        value={formData.channel_platform}
+                        onChange={(e) => handleInputChange("channel_platform", e.target.value)}
+                        placeholder="例如：小红书、抖音、微信"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="customer_social_id">
+                        客户社媒账号 ID <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="customer_social_id"
+                        value={formData.customer_social_id}
+                        onChange={(e) => handleInputChange("customer_social_id", e.target.value)}
+                        placeholder="请输入客户在该平台的账号 ID"
+                        required
+                      />
                     </div>
 
                     <div className="space-y-2">
@@ -385,7 +418,7 @@ export default function NewLeadPage() {
                   <Input
                     id="chat_screenshots"
                     type="file"
-                    accept="image/*"
+                    accept={CHAT_SCREENSHOT_ACCEPT}
                     multiple
                     onChange={handleChatScreenshotChange}
                     disabled={isUploadingFile}

@@ -5,16 +5,18 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2, X } from "lucide-react"
-import { TeacherCandidate } from "@/lib/services/teacherCandidates"
+import { TeacherCandidate, TeacherCandidatesService } from "@/lib/services/teacherCandidates"
+import { advanceToNextStep } from "@/lib/services/recruitmentFlow"
+import { api } from "@/lib/fetch"
 import { useToast } from "@/hooks/use-toast"
 import { useDictionary } from "@/lib/hooks/useDictionary"
-import type { DictionaryItem } from "@/lib/services/dictionary"
+import { getClientSafeErrorMessage } from "@/lib/safe-error"
 
 interface SalaryNegotiationFormProps {
   candidate: TeacherCandidate
@@ -69,17 +71,19 @@ export default function SalaryNegotiationForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    const approvedHourlyRate = Number(formData.approved_hourly_rate)
+
     // 验证必填字段
-    if (!formData.approved_hourly_rate) {
+    if (!Number.isFinite(approvedHourlyRate) || approvedHourlyRate <= 0) {
       toast({
         variant: "destructive",
         title: "验证失败",
-        description: "请输入课时费",
+        description: "请输入大于 0 的课时费",
       })
       return
     }
 
-    if (!formData.bank_account) {
+    if (!formData.bank_account.trim()) {
       toast({
         variant: "destructive",
         title: "验证失败",
@@ -88,7 +92,7 @@ export default function SalaryNegotiationForm({
       return
     }
 
-    if (!formData.bank_account_name) {
+    if (!formData.bank_account_name.trim()) {
       toast({
         variant: "destructive",
         title: "验证失败",
@@ -97,7 +101,7 @@ export default function SalaryNegotiationForm({
       return
     }
 
-    if (!formData.bank_name) {
+    if (!formData.bank_name.trim()) {
       toast({
         variant: "destructive",
         title: "验证失败",
@@ -106,22 +110,79 @@ export default function SalaryNegotiationForm({
       return
     }
 
+    const entryMobile = (candidate.phone || candidate.wechat_id || "").trim()
+    if (!entryMobile) {
+      toast({
+        variant: "destructive",
+        title: "验证失败",
+        description: "缺少老师入库手机号或微信号，请先补充联系方式",
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
-      // TODO: 调用 API 更新信息并推进到下一步
+      await TeacherCandidatesService.updateTeacherCandidate({
+        id: candidate.id,
+        approved_hourly_rate: approvedHourlyRate,
+        trial_subject: formData.trial_subject.trim() || undefined,
+        can_teach_graduation_class: formData.can_teach_graduation_class,
+        grade_level: formData.grade_level || undefined,
+        teacher_type: formData.teacher_type || undefined,
+        subjects_taught: selectedSubjects,
+        bank_account: formData.bank_account.trim(),
+        bank_account_name: formData.bank_account_name.trim(),
+        bank_name: formData.bank_name.trim(),
+        bank_branch: formData.bank_branch.trim() || undefined,
+        hired_notes: formData.hired_notes.trim() || undefined,
+        notes_external: formData.notes_external.trim() || undefined,
+      } as TeacherCandidate)
+
+      if (candidate.recruitment_step !== "salary_negotiation") {
+        const salaryStepResult = await advanceToNextStep(candidate.id, "teaching_review")
+        if (!salaryStepResult.success) {
+          throw new Error(salaryStepResult.error || "无法进入谈薪步骤")
+        }
+      }
+
+      const entryResponse = await api.post("/api/teacher-entries/confirm", {
+        candidate_id: candidate.id,
+        status: "active",
+        name: candidate.name,
+        mobile: entryMobile,
+        teacher_level: candidate.teacher_level || undefined,
+        approved_hourly_rate: approvedHourlyRate,
+      })
+
+      if (!entryResponse.ok) {
+        if (entryResponse.status === 403) {
+          throw new Error("没有确认入库的权限")
+        }
+        if (entryResponse.status === 409) {
+          throw new Error("候选人已入库，不能重复确认")
+        }
+        throw new Error("老师入库失败")
+      }
+
+      const entryResult = await entryResponse.json()
+      const teacherCode = entryResult.data?.teacher?.teacher_code
 
       toast({
         title: "入库信息已保存",
-        description: "已进入最后一步：完成入库",
+        description: teacherCode ? `老师编号：${teacherCode}` : "已完成老师入库",
       })
 
       onSuccess()
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "保存失败",
-        description: error.message || "无法保存入库信息",
+        description: getClientSafeErrorMessage(error, "无法保存入库信息，请稍后重试", [
+          "没有确认入库的权限",
+          "候选人已入库，不能重复确认",
+          "老师入库失败",
+        ]),
       })
     } finally {
       setIsSubmitting(false)

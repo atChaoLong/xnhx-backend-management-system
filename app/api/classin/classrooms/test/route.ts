@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getClassInSDKService } from '@/lib/services/classin-sdk/service'
 import { supabaseServer } from '@/lib/supabase'
+import { requireClassInOpsProfile } from '@/lib/server-classin-ops'
+import { createLogger } from '@/lib/logger'
+import { summarizeError } from '@/lib/safe-error'
+
+const logger = createLogger('ClassIn:ClassroomTest')
 
 export async function POST(request: NextRequest) {
   try {
+    const access = await requireClassInOpsProfile(request)
+    if (access.ok === false) return access.response
+
     const body = await request.json()
     const { action, ...params } = body
 
@@ -20,13 +28,16 @@ export async function POST(request: NextRequest) {
         // 先检查课节是否存在
         const { data: existingClass, error: fetchError } = await supabaseServer
           .from('classroom_classin')
-          .select('*')
+          .select('class_id, activity_id')
           .eq('class_id', params.classId)
           .single()
 
         if (fetchError || !existingClass) {
+          if (fetchError) {
+            logger.warn('查询测试修改课节失败', summarizeError(fetchError))
+          }
           return NextResponse.json(
-            { error: '课节不存在', details: `class_id: ${params.classId}` },
+            { error: '课节不存在' },
             { status: 404 }
           )
         }
@@ -36,7 +47,7 @@ export async function POST(request: NextRequest) {
           courseId: params.courseId,
           classId: params.classId,
           activityId: existingClass.activity_id || params.classId,
-          name: params.name,
+          name: params.name || params.className,
         })
         return NextResponse.json({
           success: true,
@@ -57,13 +68,16 @@ export async function POST(request: NextRequest) {
         // 先检查课节是否存在
         const { data: existingDeleteClass, error: deleteFetchError } = await supabaseServer
           .from('classroom_classin')
-          .select('*')
+          .select('class_id, activity_id')
           .eq('class_id', params.classId)
           .single()
 
         if (deleteFetchError || !existingDeleteClass) {
+          if (deleteFetchError) {
+            logger.warn('查询测试删除课节失败', summarizeError(deleteFetchError))
+          }
           return NextResponse.json(
-            { error: '课节不存在', details: `class_id: ${params.classId}` },
+            { error: '课节不存在' },
             { status: 404 }
           )
         }
@@ -87,21 +101,20 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
     }
-  } catch (error: any) {
-    console.error('测试课节操作出错:', error)
+  } catch (error: unknown) {
+    logger.error('测试课节操作异常', summarizeError(error))
     return NextResponse.json(
-      { 
-        error: '测试操作失败', 
-        details: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      },
+      { error: '测试操作失败' },
       { status: 500 }
     )
   }
 }
 
 // GET 方法用于查看API使用说明
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const access = await requireClassInOpsProfile(request)
+  if (access.ok === false) return access.response
+
   return NextResponse.json({
     message: 'ClassIn 课节管理测试API',
     usage: {
@@ -109,9 +122,6 @@ export async function GET() {
         method: 'POST',
         body: {
           action: 'edit',
-          SID: "your-classin-sid",
-          safeKey: "your-classin-safekey",
-          timeStamp: "1484719085",
           courseId: 442447,
           classId: 23644,
           className: "修改后的课节名称",
@@ -127,14 +137,11 @@ export async function GET() {
         method: 'POST',
         body: {
           action: 'delete',
-          SID: "your-classin-sid",
-          safeKey: "your-classin-safekey",
-          timeStamp: "1484719085",
           courseId: 442447,
           classId: 23644
         }
       }
     },
-    note: '请确保在环境变量中配置了 CLASSIN_SID 和 CLASSIN_SECRET'
+    note: '仅 admin / academic_affairs 可用；请确保服务端环境变量 CLASSIN_SID 和 CLASSIN_SECRET 已配置'
   })
 }

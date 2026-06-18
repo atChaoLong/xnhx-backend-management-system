@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ScrollableTable } from "@/components/ui/scrollable-table"
 import {
@@ -30,8 +31,9 @@ import { format } from "date-fns"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { TrialLessonsService, TrialLesson } from "@/lib/services/trialLessons"
-import { TeachersService } from "@/lib/services/teachers"
+import { type ClassInTeacherOption, TeachersService } from "@/lib/services/teachers"
 import { DictionaryService } from "@/lib/services/dictionary"
+import { api } from "@/lib/fetch"
 import { useToast } from "@/hooks/use-toast"
 import { usePermission } from "@/lib/hooks/usePermission"
 import { usePagination } from "@/lib/hooks/usePagination"
@@ -54,6 +56,9 @@ export default function TrialLessonsPage() {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [lessonToConfirm, setLessonToConfirm] = useState<TrialLesson | null>(null)
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null)
+  const [matchDialogOpen, setMatchDialogOpen] = useState(false)
+  const [lessonToMatch, setLessonToMatch] = useState<TrialLesson | null>(null)
+  const [selectedMatchTeacherId, setSelectedMatchTeacherId] = useState("")
   const { toast } = useToast()
 
   const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
@@ -91,12 +96,7 @@ export default function TrialLessonsPage() {
   })
 
   // 教师数据
-  const [teachers, setTeachers] = useState<Array<{
-    id: string
-    name: string
-    subject?: string
-    classin_uid?: number
-  }>>([])
+  const [teachers, setTeachers] = useState<ClassInTeacherOption[]>([])
 
   // 加载试听课程列表
   const fetchLessons = async (page: number = 1, size: number = pageSize) => {
@@ -132,8 +132,12 @@ export default function TrialLessonsPage() {
           courseStatuses: dicts.trial_course_status || [],
           studentTypes: dicts.student_type || [],
         })
-      } catch (error) {
-        console.error("加载字典失败:", error)
+      } catch {
+        toast({
+          variant: "destructive",
+          title: "加载字典失败",
+          description: "无法加载试听课程字典",
+        })
       } finally {
         setIsLoadingDict(false)
       }
@@ -147,30 +151,18 @@ export default function TrialLessonsPage() {
     const loadTeachers = async () => {
       try {
         setIsLoadingTeachers(true)
-        const data = await TeachersService.getAllTeachers()
+        const data = await TeachersService.getClassInTeachers()
 
-        // 如果没有教师数据，显示提示
         if (data.length === 0) {
-          console.warn('没有找到教师数据，请检查 user_profiles 表中是否有 role=teacher 的记录')
           toast({
             title: "提示",
-            description: "系统中暂无教师数据，请先添加教师账号",
+            description: "暂无可用的 ClassIn 老师，请先同步或确认老师账号",
             variant: "default"
           })
         }
 
-        // 映射 teachers 字段到组件状态
-        const mappedTeachers = (data || []).map((t: any) => ({
-          id: t.id,
-          name: t.name || '未知',
-          subject: Array.isArray(t.subjects) && t.subjects.length > 0 ? t.subjects[0] : '',
-          classin_uid: t.classin_uid,
-        }))
-
-        console.log('映射后的教师数据:', mappedTeachers)
-        setTeachers(mappedTeachers)
+        setTeachers(data || [])
       } catch (error: any) {
-        console.error("加载教师失败:", error)
         toast({
           variant: "destructive",
           title: "加载教师失败",
@@ -200,25 +192,46 @@ export default function TrialLessonsPage() {
 
   // 删除试听课程
   const handleDeleteClick = (id: string) => {
+    if (!trialLessonsPerm.delete()) {
+      toast({
+        variant: "destructive",
+        title: "无法删除",
+        description: "当前角色无权删除试听课程",
+      })
+      return
+    }
+
     setLessonToDelete(id)
     setDeleteDialogOpen(true)
   }
 
   // 快捷匹配老师（销售操作）
   const handleQuickMatchTeacher = async (lesson: TrialLesson) => {
-    const teacherName = prompt("请输入匹配的老师姓名：")
-    if (!teacherName || !teacherName.trim()) return
+    const currentTeacher = teachers.find(t => t.teacher_name === lesson.matched_teacher)
+    setLessonToMatch(lesson)
+    setSelectedMatchTeacherId(currentTeacher?.id || "")
+    setMatchDialogOpen(true)
+  }
+
+  const handleConfirmMatchTeacher = async () => {
+    if (!lessonToMatch || !selectedMatchTeacherId) return
+
+    const selectedTeacher = teachers.find(t => t.id === selectedMatchTeacherId)
+    if (!selectedTeacher) return
 
     try {
-      setIsMatching(lesson.id)
+      setIsMatching(lessonToMatch.id)
       await TrialLessonsService.updateTrialLesson({
-        ...lesson,
-        matched_teacher: teacherName.trim(),
+        ...lessonToMatch,
+        matched_teacher: selectedTeacher.teacher_name,
       })
       toast({
         title: "匹配成功",
-        description: "已成功匹配老师",
+        description: `已匹配老师：${selectedTeacher.teacher_name}`,
       })
+      setMatchDialogOpen(false)
+      setLessonToMatch(null)
+      setSelectedMatchTeacherId("")
       fetchLessons()
     } catch (error: any) {
       toast({
@@ -254,11 +267,11 @@ export default function TrialLessonsPage() {
       setIsConfirming(lessonToConfirm.id)
       await TrialLessonsService.updateTrialLesson({
         ...lessonToConfirm,
-        confirmed_teacher: selectedTeacher.name,
+        confirmed_teacher: selectedTeacher.teacher_name,
       })
       toast({
         title: "确认成功",
-        description: `已确认老师：${selectedTeacher.name}`,
+        description: `已确认老师：${selectedTeacher.teacher_name}`,
       })
       setConfirmDialogOpen(false)
       setLessonToConfirm(null)
@@ -300,15 +313,7 @@ export default function TrialLessonsPage() {
       setIsCreatingClass(lesson.id)
 
       // 后端接口内部处理：若无课程则创建课程+单元+课堂；若有课程则仅创建课堂
-      const token = localStorage.getItem('supabase.auth.token')
-      const resp = await fetch('/api/trial-lessons/open-class', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({ trialLessonId: lesson.id })
-      })
+      const resp = await api.post('/api/trial-lessons/open-class', { trialLessonId: lesson.id })
       const result = await resp.json()
       if (!resp.ok || !result.success) {
         throw new Error(result.error || '开课失败')
@@ -331,6 +336,16 @@ export default function TrialLessonsPage() {
 
   const handleDeleteConfirm = async () => {
     if (!lessonToDelete) return
+    if (!trialLessonsPerm.delete()) {
+      toast({
+        variant: "destructive",
+        title: "无法删除",
+        description: "当前角色无权删除试听课程",
+      })
+      setDeleteDialogOpen(false)
+      setLessonToDelete(null)
+      return
+    }
 
     try {
       setIsDeleting(lessonToDelete)
@@ -439,6 +454,9 @@ export default function TrialLessonsPage() {
     return urgencyMap[urgency] || urgency
   }
 
+  const getConversionFlag = (lesson: TrialLesson) =>
+    lesson.is_converted_calculated ?? lesson.is_converted
+
   // 切换状态
   const handleToggleStatus = async (lesson: TrialLesson) => {
     const statusFlow: Record<string, string> = {
@@ -502,12 +520,6 @@ export default function TrialLessonsPage() {
                 <Button variant="outline" onClick={() => fetchLessons(currentPage, pageSize)} disabled={isLoading}>
                   刷新
                 </Button>
-                <Link href="/dashboard/trial-lessons/new">
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    新增试听课程
-                  </Button>
-                </Link>
               </div>
             </div>
 
@@ -517,11 +529,13 @@ export default function TrialLessonsPage() {
                   <TableRow>
                     <TableHead className="sticky left-0 z-30 bg-background w-[160px] min-w-[160px]">孩子称呼</TableHead>
                     <TableHead className="sticky left-[160px] z-30 bg-background w-[140px] min-w-[140px]">试听科目</TableHead>
+                    <TableHead>线索编号</TableHead>
                     <TableHead>年级</TableHead>
                     <TableHead>地域</TableHead>
                     <TableHead>试听时间</TableHead>
                     <TableHead>时长</TableHead>
                     <TableHead>手机号</TableHead>
+                    <TableHead>ClassIn学生</TableHead>
                     <TableHead>试听金额</TableHead>
                     <TableHead>渠道</TableHead>
                     <TableHead>课程状态</TableHead>
@@ -538,15 +552,15 @@ export default function TrialLessonsPage() {
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={18} className="text-center py-8">
+                      <TableCell colSpan={20} className="text-center py-8">
                         <Loader2 className="h-6 w-6 animate-spin inline mr-2" />
                         加载中...
                       </TableCell>
                     </TableRow>
                   ) : lessons.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={18} className="text-center py-8 text-muted-foreground">
-                        暂无数据，点击&quot;新增试听课程&quot;开始添加
+                      <TableCell colSpan={20} className="text-center py-8 text-muted-foreground">
+                        暂无数据，请从线索页面创建试听
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -558,6 +572,7 @@ export default function TrialLessonsPage() {
                         <TableCell className="sticky left-[160px] z-20 bg-background group-hover:bg-muted/50 w-[140px] min-w-[140px]">
                           {getLabelByCode(lesson.trial_subject || "", 'subjects')}
                         </TableCell>
+                        <TableCell>{lesson.lead?.report_number || "-"}</TableCell>
                         <TableCell>{getLabelByCode(lesson.grade || "", 'grades')}</TableCell>
                         <TableCell>{getLabelByCode(lesson.region || "", 'regions')}</TableCell>
                         <TableCell>
@@ -565,6 +580,22 @@ export default function TrialLessonsPage() {
                         </TableCell>
                         <TableCell>{lesson.trial_duration || "-"}</TableCell>
                         <TableCell>{lesson.phone || "-"}</TableCell>
+                        <TableCell>
+                          {lesson.classin_student_uid || lesson.classin_student_bound ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              已绑定
+                            </span>
+                          ) : lesson.classin_student_error ? (
+                            <span
+                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"
+                              title={lesson.classin_student_error}
+                            >
+                              绑定失败
+                            </span>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
                         <TableCell>
                           {lesson.trial_amount ? `¥${lesson.trial_amount}` : "-"}
                         </TableCell>
@@ -590,11 +621,14 @@ export default function TrialLessonsPage() {
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getLessonStatusBadge(lesson.lesson_status)}`}>
                             {lesson.lesson_status_name || "-"}
                           </span>
-                          {lesson.is_converted !== undefined && (
-                            <span className={`ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${lesson.is_converted ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                              {lesson.is_converted ? '已转化' : '未转化'}
+                          {getConversionFlag(lesson) !== undefined && (
+                            <span className={`ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getConversionFlag(lesson) ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                              {getConversionFlag(lesson) ? '已转化' : '未转化'}
                             </span>
                           )}
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate" title={lesson.notes || ""}>
+                          {lesson.notes || "-"}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
@@ -689,30 +723,31 @@ export default function TrialLessonsPage() {
                             </Link>
 
                             {/* 编辑 */}
-                            <Link href={`/dashboard/trial-lessons/${lesson.id}/edit`}>
-                              <Button variant="ghost" size="icon" title="编辑">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </Link>
+                            {trialLessonsPerm.edit() && (
+                              <Link href={`/dashboard/trial-lessons/${lesson.id}/edit`}>
+                                <Button variant="ghost" size="icon" title="编辑">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                            )}
 
                             {/* 删除 */}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteClick(lesson.id)}
-                              disabled={isDeleting === lesson.id}
-                              title="删除"
-                            >
-                              {isDeleting === lesson.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              )}
-                            </Button>
+                            {trialLessonsPerm.delete() && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteClick(lesson.id)}
+                                disabled={isDeleting === lesson.id}
+                                title="删除"
+                              >
+                                {isDeleting === lesson.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                )}
+                              </Button>
+                            )}
                           </div>
-                        </TableCell>
-                        <TableCell className="max-w-xs truncate" title={lesson.notes || ""}>
-                          {lesson.notes || "-"}
                         </TableCell>
                       </TableRow>
                     ))
@@ -781,7 +816,7 @@ export default function TrialLessonsPage() {
       </div>
 
       {/* 删除确认对话框 */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <Dialog open={trialLessonsPerm.delete() && deleteDialogOpen} onOpenChange={(open) => !open && handleDeleteCancel()}>
         <DialogContent>
           <DialogHeader>
             <div className="flex items-center gap-2">
@@ -804,6 +839,67 @@ export default function TrialLessonsPage() {
                 </>
               ) : (
                 "确认删除"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 确认老师对话框 */}
+      <Dialog
+        open={matchDialogOpen}
+        onOpenChange={(open) => {
+          setMatchDialogOpen(open)
+          if (!open) {
+            setLessonToMatch(null)
+            setSelectedMatchTeacherId("")
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>匹配老师</DialogTitle>
+            <DialogDescription>
+              请从老师库中选择试听匹配老师
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <SearchableSelect
+              id="matched_teacher_id"
+              label="老师"
+              placeholder="请输入老师姓名或科目搜索..."
+              value={selectedMatchTeacherId}
+              onChange={(value) => setSelectedMatchTeacherId(value)}
+              options={teachers.map((teacher) => ({
+                id: teacher.id,
+                name: [
+                  teacher.teacher_name,
+                  teacher.teacher_subject,
+                  "已绑定ClassIn",
+                ].filter(Boolean).join(" - "),
+              }))}
+              loading={isLoadingTeachers}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setMatchDialogOpen(false)}
+              disabled={isMatching !== null}
+            >
+              取消
+            </Button>
+            <Button
+              onClick={handleConfirmMatchTeacher}
+              disabled={isMatching !== null || !selectedMatchTeacherId}
+            >
+              {isMatching ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  匹配中...
+                </>
+              ) : (
+                "确认匹配"
               )}
             </Button>
           </DialogFooter>
@@ -842,9 +938,9 @@ export default function TrialLessonsPage() {
                     }`}
                   >
                     <div className="flex flex-col items-start">
-                      <span className="font-medium">{teacher.name}</span>
-                      {teacher.subject && (
-                        <span className="text-xs text-muted-foreground">{teacher.subject}</span>
+                      <span className="font-medium">{teacher.teacher_name}</span>
+                      {teacher.teacher_subject && (
+                        <span className="text-xs text-muted-foreground">{teacher.teacher_subject}</span>
                       )}
                     </div>
                     {teacher.classin_uid && (

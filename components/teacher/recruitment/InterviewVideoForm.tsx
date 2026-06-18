@@ -11,9 +11,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2, X, Upload } from "lucide-react"
-import { TeacherCandidate } from "@/lib/services/teacherCandidates"
+import { TeacherCandidate, TeacherCandidatesService } from "@/lib/services/teacherCandidates"
 import { useToast } from "@/hooks/use-toast"
-import { uploadFile } from "@/lib/supabase-client"
+import { advanceToNextStep } from "@/lib/services/recruitmentFlow"
+import {
+  INTERVIEW_VIDEO_ACCEPT,
+  uploadTeacherInterviewVideo,
+  validateInterviewVideoFile,
+} from "@/lib/services/upload"
+import { getClientSafeErrorMessage } from "@/lib/safe-error"
 
 interface InterviewVideoFormProps {
   candidate: TeacherCandidate
@@ -43,6 +49,26 @@ export default function InterviewVideoForm({
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
+  const handleVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const validationError = validateInterviewVideoFile(file)
+    if (validationError) {
+      toast({
+        variant: "destructive",
+        title: "文件不符合要求",
+        description: validationError,
+      })
+      e.target.value = ""
+      setVideoFile(null)
+      return
+    }
+
+    setVideoFile(file)
+    setVideoUrl("")
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -56,6 +82,18 @@ export default function InterviewVideoForm({
       return
     }
 
+    if (videoFile) {
+      const validationError = validateInterviewVideoFile(videoFile)
+      if (validationError) {
+        toast({
+          variant: "destructive",
+          title: "文件不符合要求",
+          description: validationError,
+        })
+        return
+      }
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -65,23 +103,42 @@ export default function InterviewVideoForm({
       if (videoFile) {
         try {
           setIsUploading(true)
-          finalVideoUrl = await uploadFile(videoFile, 'teacher-interview-videos')
+          finalVideoUrl = await uploadTeacherInterviewVideo(videoFile)
           toast({
             title: "上传成功",
             description: "面试视频已上传",
           })
-        } catch (error: any) {
+        } catch (error: unknown) {
           toast({
             variant: "destructive",
             title: "上传失败",
-            description: error.message || "无法上传面试视频",
+            description: getClientSafeErrorMessage(error, "无法上传面试视频，请稍后重试", [
+              "上传超时，请检查网络后重试",
+            ]),
           })
           setIsSubmitting(false)
           return
         }
       }
 
-      // TODO: 调用 API 更新信息并推进到下一步
+      await TeacherCandidatesService.updateTeacherCandidate({
+        id: candidate.id,
+        video_recording_url: finalVideoUrl,
+        interview_exception: formData.interview_exception.trim() || undefined,
+        interview_notes: formData.interview_notes.trim() || undefined,
+      } as TeacherCandidate)
+
+      if (!candidate.recruitment_step || candidate.recruitment_step === "scheduling") {
+        const scheduleResult = await advanceToNextStep(candidate.id, "scheduling")
+        if (!scheduleResult.success) {
+          throw new Error(scheduleResult.error || "招聘流程推进失败")
+        }
+      }
+
+      const result = await advanceToNextStep(candidate.id, "interview_video")
+      if (!result.success) {
+        throw new Error(result.error || "招聘流程推进失败")
+      }
 
       toast({
         title: "面试视频已保存",
@@ -89,11 +146,11 @@ export default function InterviewVideoForm({
       })
 
       onSuccess()
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "保存失败",
-        description: error.message || "无法保存面试视频信息",
+        description: getClientSafeErrorMessage(error, "无法保存面试视频信息，请稍后重试"),
       })
     } finally {
       setIsSubmitting(false)
@@ -159,13 +216,8 @@ export default function InterviewVideoForm({
                     <Input
                       id="video_file"
                       type="file"
-                      accept="video/*"
-                      onChange={(e) => {
-                        if (e.target.files?.[0]) {
-                          setVideoFile(e.target.files[0])
-                          setVideoUrl("") // 清除之前的链接
-                        }
-                      }}
+                      accept={INTERVIEW_VIDEO_ACCEPT}
+                      onChange={handleVideoFileChange}
                       className="h-9 text-sm flex-1"
                       disabled={isUploading || isSubmitting}
                     />

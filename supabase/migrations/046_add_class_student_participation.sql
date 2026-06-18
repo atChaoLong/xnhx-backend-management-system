@@ -67,6 +67,8 @@ COMMENT ON COLUMN public.class_student_participation.inout_details IS '进出教
 ALTER TABLE public.class_student_participation ENABLE ROW LEVEL SECURITY;
 
 -- 创建 RLS 策略：只有认证用户可以读取
+DROP POLICY IF EXISTS "Authenticated users can view student participation" ON public.class_student_participation;
+
 CREATE POLICY "Authenticated users can view student participation"
   ON public.class_student_participation
   FOR SELECT
@@ -74,6 +76,8 @@ CREATE POLICY "Authenticated users can view student participation"
   USING (true);
 
 -- 创建 RLS 策略：只有认证用户可以插入（通过API）
+DROP POLICY IF EXISTS "Authenticated users can insert student participation" ON public.class_student_participation;
+
 CREATE POLICY "Authenticated users can insert student participation"
   ON public.class_student_participation
   FOR INSERT
@@ -81,6 +85,8 @@ CREATE POLICY "Authenticated users can insert student participation"
   WITH CHECK (true);
 
 -- 创建 RLS 策略：只有认证用户可以更新
+DROP POLICY IF EXISTS "Authenticated users can update student participation" ON public.class_student_participation;
+
 CREATE POLICY "Authenticated users can update student participation"
   ON public.class_student_participation
   FOR UPDATE
@@ -89,6 +95,8 @@ CREATE POLICY "Authenticated users can update student participation"
   WITH CHECK (true);
 
 -- 创建 RLS 策略：只有认证用户可以删除
+DROP POLICY IF EXISTS "Authenticated users can delete student participation" ON public.class_student_participation;
+
 CREATE POLICY "Authenticated users can delete student participation"
   ON public.class_student_participation
   FOR DELETE

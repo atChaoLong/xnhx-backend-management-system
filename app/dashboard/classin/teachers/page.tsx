@@ -19,6 +19,8 @@ import {
 import { Loader2, RefreshCw } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { usePagination } from "@/lib/hooks/usePagination"
+import { usePermission } from "@/lib/hooks/usePermission"
+import { api } from "@/lib/fetch"
 
 interface ClassInTeacher {
   uid: number
@@ -40,6 +42,8 @@ export default function ClassInTeachersPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
   const { toast } = useToast()
+  const { teachers: teacherPermissions, isLoading: isPermissionLoading } = usePermission()
+  const canUseClassInOps = !isPermissionLoading && teacherPermissions.notes()
 
   const {
     currentPage,
@@ -64,7 +68,7 @@ export default function ClassInTeachersPage() {
       const from = (page - 1) * size
       const to = from + size - 1
 
-      const response = await fetch(`/api/classin/teachers?from=${from}&to=${to}`)
+      const response = await api.get(`/api/classin/teachers?from=${from}&to=${to}`)
 
       if (!response.ok) {
         throw new Error('加载失败')
@@ -85,8 +89,35 @@ export default function ClassInTeachersPage() {
   }
 
   useEffect(() => {
+    if (isPermissionLoading || !canUseClassInOps) return
     fetchTeachers(1, pageSize)
-  }, [])
+  }, [isPermissionLoading, canUseClassInOps])
+
+  if (isPermissionLoading) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="ClassIn 老师" description="查看 ClassIn 平台的老师数据" />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!canUseClassInOps) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="ClassIn 老师" description="查看 ClassIn 平台的老师数据" />
+        <div className="flex-1 overflow-auto p-6">
+          <Card>
+            <CardContent className="p-6 text-sm text-muted-foreground">
+              当前角色无权访问 ClassIn 镜像数据。
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -194,6 +225,7 @@ export default function ClassInTeachersPage() {
                       <PaginationItem>
                         <PaginationPrevious
                           onClick={goToPreviousPage}
+                          disabled={!canGoPrevious}
                           className={!canGoPrevious ? "pointer-events-none opacity-50" : "cursor-pointer"}
                         />
                       </PaginationItem>
@@ -210,6 +242,7 @@ export default function ClassInTeachersPage() {
                             <PaginationLink
                               onClick={() => goToPage(page)}
                               isActive={page === currentPage}
+                              disabled={false}
                               className="cursor-pointer"
                             >
                               {page}
@@ -220,6 +253,7 @@ export default function ClassInTeachersPage() {
                       <PaginationItem>
                         <PaginationNext
                           onClick={goToNextPage}
+                          disabled={!canGoNext}
                           className={!canGoNext ? "pointer-events-none opacity-50" : "cursor-pointer"}
                         />
                       </PaginationItem>
