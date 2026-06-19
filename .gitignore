@@ -12,3 +12,5 @@ supabase/.temp/
 # 但保留示例文件
 !.env.example
 .gstack/
+
+.vercel
