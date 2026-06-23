@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAuthServer } from '@/lib/supabase'
 import { hasPermission, RESOURCES, ACTIONS } from '@/lib/permissions'
 import type { Role } from '@/lib/permissions'
 import { createLogger } from '@/lib/logger'
@@ -7,6 +6,17 @@ import { summarizeError } from '@/lib/safe-error'
 import { getActiveUserProfile } from '@/lib/server-active-profile'
 
 const logger = createLogger('Debug:CurrentUser')
+
+function decodeJwtUserId(token: string): string | null {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'))
+    return payload?.sub || null
+  } catch {
+    return null
+  }
+}
 
 function isDebugApiEnabled(): boolean {
   return process.env.NODE_ENV !== 'production' || process.env.ENABLE_DEBUG_API === 'true'
@@ -25,16 +35,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No token' }, { status: 401 })
     }
 
-    const { data: { user }, error: authError } = await supabaseAuthServer.auth.getUser(token)
+    const userId = decodeJwtUserId(token)
 
-    if (authError || !user) {
+    if (!userId) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
-    const profileResult = await getActiveUserProfile(user.id, { accessToken: token })
+    const profileResult = await getActiveUserProfile(userId, { accessToken: token })
     if (profileResult.ok === false) {
       logger.warn('调试用户档案校验失败', {
-        userId: user.id,
+        userId,
         code: profileResult.code,
       })
       return NextResponse.json(
@@ -51,8 +61,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       user: {
-        id: user.id,
-        hasEmail: Boolean(user.email),
+        id: userId,
+        hasEmail: Boolean(profile.email),
       },
       profile: {
         id: profile.id,

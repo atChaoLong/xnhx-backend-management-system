@@ -82,15 +82,6 @@ export async function apiRequest(
         localStorage.getItem('supabase.auth.token')
       : null
 
-  // 请求发出前如果 token 即将过期，先续期，减少用户停留页面时遇到 401 的概率
-  if (typeof window !== 'undefined' && tokenRefreshManager.isTokenExpiringSoon()) {
-    const refreshedSession = await tokenRefreshManager.refreshToken()
-
-    if (refreshedSession?.access_token) {
-      token = refreshedSession.access_token
-    }
-  }
-
   const headers = buildRequestHeaders(options, token)
 
   const response = await fetch(url, {

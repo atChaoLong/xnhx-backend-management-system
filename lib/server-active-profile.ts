@@ -1,6 +1,7 @@
 import { createLogger } from '@/lib/logger'
 import { summarizeError } from '@/lib/safe-error'
 import { createUserScopedServerClient, hasSupabaseServiceRoleKey, supabaseAdmin } from '@/lib/supabase'
+import { getCachedProfile, setCachedProfile } from '@/lib/profile-cache'
 
 const logger = createLogger('Auth:ActiveProfile')
 
@@ -65,6 +66,14 @@ export async function getActiveUserProfile(
   options: ActiveProfileLookupOptions = {}
 ): Promise<ActiveProfileResult> {
   const accessToken = typeof options.accessToken === 'string' ? options.accessToken.trim() : ''
+
+  const cached = getCachedProfile(userId)
+  if (cached) {
+    if (cached.is_active === false) {
+      return { ok: false, status: 403, error: '账号已停用，请联系管理员', code: 'ACCOUNT_DISABLED' }
+    }
+    return { ok: true, profile: mapActiveProfile(cached) }
+  }
 
   if (!hasSupabaseServiceRoleKey) {
     logger.error('用户档案查询缺少 Supabase service role 配置', {
@@ -156,6 +165,7 @@ export async function getActiveUserProfile(
 
   if (profile.is_active === false) {
     logger.warn('账号已停用，拒绝认证', { userId })
+    setCachedProfile(userId, mapActiveProfile(profile))
     return {
       ok: false,
       status: 403,
@@ -164,8 +174,10 @@ export async function getActiveUserProfile(
     }
   }
 
+  const mapped = mapActiveProfile(profile)
+  setCachedProfile(userId, mapped)
   return {
     ok: true,
-    profile: mapActiveProfile(profile),
+    profile: mapped,
   }
 }

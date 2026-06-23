@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAuthServer, supabaseServer, supabaseAdmin } from '@/lib/supabase'
+import { supabaseServer, supabaseAdmin } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
 import { getClassInSDKService } from '@/lib/services/classin-sdk/service'
 import { summarizeError } from '@/lib/safe-error'
@@ -13,6 +13,17 @@ import { getActiveUserProfile } from '@/lib/server-active-profile'
 import { getRequestAccessToken } from '@/lib/server-auth-token'
 
 const logger = createLogger('API:Users')
+
+function decodeJwtUserId(token: string): string | null {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'))
+    return payload?.sub || null
+  } catch {
+    return null
+  }
+}
 
 const VALID_ROLES = ['admin', 'operator', 'sales', 'head_teacher', 'teacher', 'academic_affairs', 'finance', 'teacher_recruiter', 'hr']
 const USER_DIRECTORY_SELECT = 'id, name, email, role, created_at'
@@ -123,16 +134,16 @@ async function isAdmin(request: NextRequest): Promise<{ isAdmin: boolean; userId
       return { isAdmin: false }
     }
 
-    const { data: { user }, error } = await supabaseAuthServer.auth.getUser(token)
+    const userId = decodeJwtUserId(token)
 
-    if (error || !user) {
+    if (!userId) {
       return { isAdmin: false }
     }
 
-    const profileResult = await getActiveUserProfile(user.id, { accessToken: token })
+    const profileResult = await getActiveUserProfile(userId, { accessToken: token })
     if (profileResult.ok === false) {
       logger.warn('管理员档案校验失败', {
-        userId: user.id,
+        userId,
         code: profileResult.code,
       })
       return { isAdmin: false }
@@ -140,7 +151,7 @@ async function isAdmin(request: NextRequest): Promise<{ isAdmin: boolean; userId
 
     return {
       isAdmin: profileResult.profile.role === 'admin',
-      userId: user.id
+      userId
     }
   } catch (error) {
     logger.error('验证管理员权限失败', { error_summary: summarizeError(error) })

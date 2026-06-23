@@ -41,35 +41,30 @@ export default function TrialLessonDetailPage() {
     studentTypes: [],
   })
 
-  // 加载试听课程数据
+  // 并行加载试听课程和字典数据
   useEffect(() => {
-    const fetchLesson = async () => {
-      try {
-        setIsLoading(true)
-        const data = await TrialLessonsService.getTrialLessonById(lessonId)
-        setLesson(data)
-      } catch (error: any) {
+    let cancelled = false
+    const loadAll = async () => {
+      const [lessonResult, dictResult] = await Promise.allSettled([
+        TrialLessonsService.getTrialLessonById(lessonId),
+        DictionaryService.getAllDictionaries(),
+      ])
+
+      if (cancelled) return
+
+      if (lessonResult.status === 'fulfilled') {
+        setLesson(lessonResult.value)
+      } else {
         toast({
           variant: "destructive",
           title: "加载失败",
-          description: error.message || "无法加载试听课程数据",
+          description: "无法加载试听课程数据",
         })
-      } finally {
-        setIsLoading(false)
       }
-    }
+      setIsLoading(false)
 
-    fetchLesson()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lessonId])
-
-  // 加载字典数据
-  useEffect(() => {
-    const loadDictionaries = async () => {
-      try {
-        setIsLoadingDict(true)
-        const dicts = await DictionaryService.getAllDictionaries()
-
+      if (dictResult.status === 'fulfilled') {
+        const dicts = dictResult.value
         setDictOptions({
           grades: dicts.grade || [],
           subjects: dicts.subject || [],
@@ -77,19 +72,14 @@ export default function TrialLessonDetailPage() {
           courseStatuses: dicts.trial_course_status || [],
           studentTypes: dicts.student_type || [],
         })
-      } catch {
-        toast({
-          variant: "destructive",
-          title: "加载字典失败",
-          description: "无法加载试听课程字典",
-        })
-      } finally {
-        setIsLoadingDict(false)
       }
+      setIsLoadingDict(false)
     }
 
-    loadDictionaries()
-  }, [])
+    loadAll()
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lessonId])
 
   // 根据编码获取标签
   const getLabelByCode = (

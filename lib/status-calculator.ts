@@ -70,7 +70,7 @@ async function getLeadIdsWithRelatedRows(
   )
 }
 
-function calculateLeadAddStatusFromFlags(lead: any, hasTrialLesson: boolean): LeadAddStatus {
+export function calculateLeadAddStatusFromFlags(lead: any, hasTrialLesson: boolean): LeadAddStatus {
   // 1. 运营未派单：抢单微信号为空
   if (!lead.grab_wechat || lead.grab_wechat.trim() === '') {
     return LeadAddStatus.UNASSIGNED
@@ -94,7 +94,7 @@ function calculateLeadAddStatusFromFlags(lead: any, hasTrialLesson: boolean): Le
   return LeadAddStatus.WAITING_FEEDBACK
 }
 
-function calculateLeadConvertStatusFromFlags(
+export function calculateLeadConvertStatusFromFlags(
   hasTrialLesson: boolean,
   hasFormalOrder: boolean
 ): LeadConvertStatus {
@@ -369,6 +369,28 @@ async function countVisitsThisMonth(studentId: string): Promise<number> {
     .lt('visit_date', endOfMonth.toISOString().split('T')[0])
 
   return data?.length || 0
+}
+
+/**
+ * 批量查询本月回访状态
+ * 用 1 次 DB 查询替代 N 次单独查询
+ */
+async function batchVisitStatusThisMonth(studentIds: string[]): Promise<Map<string, boolean>> {
+  if (studentIds.length === 0) return new Map()
+
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+
+  const { data } = await supabaseServer
+    .from('visit_records')
+    .select('student_id')
+    .in('student_id', studentIds)
+    .gte('visit_date', startOfMonth.toISOString().split('T')[0])
+    .lt('visit_date', endOfMonth.toISOString().split('T')[0])
+
+  const visitedSet = new Set((data || []).map((row: any) => row?.student_id).filter(Boolean))
+  return new Map(studentIds.map(id => [id, visitedSet.has(id)]))
 }
 
 /**
@@ -659,12 +681,16 @@ export async function batchCalculateTrialLessonStatus(lessons: any[]) {
  * 批量计算学生状态
  */
 export async function batchCalculateStudentStatus(students: any[]) {
+  const studentIds = students.map((s) => s?.id).filter(Boolean)
+  const visitMap = await batchVisitStatusThisMonth(studentIds)
+
   const results = []
 
   for (const student of students) {
     const status = calculateStudentStatus(student)
     const newStatus = calculateStudentNewStatus(student)
-    const visitStatus = await calculateVisitStatus(student)
+    const hasVisited = visitMap.get(student.id) ?? false
+    const visitStatus = hasVisited ? VisitStatus.VISITED : VisitStatus.NOT_VISITED
 
     results.push({
       id: student.id,

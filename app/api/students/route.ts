@@ -11,12 +11,7 @@ import {
   leadGrabWechatEqualsProfileFilter,
 } from "@/lib/server-lead-access"
 import {
-  calculateStudentNewStatus,
-  calculateStudentStatus,
-  calculateVisitStatus,
-  getStudentNewStatusName,
-  getStudentStatusName,
-  getVisitStatusName,
+  batchCalculateStudentStatus,
 } from "@/lib/status-calculator"
 
 const logger = createLogger('API:Students')
@@ -87,33 +82,6 @@ function createEmptyFormalStudentSummary(): FormalStudentSummary {
   }
 }
 
-async function attachStudentComputedStatus<T extends Record<string, any>>(student: T): Promise<T & {
-  student_status: string
-  student_status_name: string
-  new_student_status: string
-  new_student_status_name: string
-  visit_status: string
-  visit_status_name: string
-}> {
-  const studentStatus = calculateStudentStatus(student)
-  const newStudentStatus = calculateStudentNewStatus(student)
-  const visitStatus = await calculateVisitStatus(student)
-
-  return {
-    ...student,
-    student_status: studentStatus,
-    student_status_name: getStudentStatusName(studentStatus),
-    new_student_status: newStudentStatus,
-    new_student_status_name: getStudentNewStatusName(newStudentStatus),
-    visit_status: visitStatus,
-    visit_status_name: getVisitStatusName(visitStatus),
-  }
-}
-
-async function attachStudentsComputedStatus<T extends Record<string, any>>(students: T[]) {
-  return Promise.all(students.map((student) => attachStudentComputedStatus(student)))
-}
-
 function uniqueValues(values: Array<string | null | undefined>): string[] {
   return Array.from(new Set(values.map((value) => value?.trim()).filter(Boolean) as string[]))
 }
@@ -134,40 +102,17 @@ async function buildFormalStudentSummaries(studentIds: string[]): Promise<Map<st
 
   const { data: orders } = await supabaseServer
     .from('formal_orders')
-    .select('id, student_id, subjects, teacher_names, total_hours, payment_amount, hourly_rate, first_class_time, created_at, status')
+    .select(`
+      id, student_id, subjects, teacher_names, total_hours, payment_amount, hourly_rate, first_class_time, created_at, status,
+      courses!inner (
+        id, order_id, subject, teacher_name, total_hours,
+        class_sessions (
+          course_id, status, scheduled_duration_minutes
+        )
+      )
+    `)
     .in('student_id', studentIds)
     .neq('status', 'cancelled')
-
-  const orderIds = (orders || []).map((order: any) => order.id).filter(Boolean)
-  const { data: courses } = orderIds.length > 0
-    ? await supabaseServer
-      .from('courses')
-      .select('id, student_id, order_id, subject, teacher_name, total_hours')
-      .in('order_id', orderIds)
-    : { data: [] as any[] }
-
-  const courseIds = (courses || []).map((course: any) => course.id).filter(Boolean)
-  const { data: sessions } = courseIds.length > 0
-    ? await supabaseServer
-      .from('class_sessions')
-      .select('course_id, status, scheduled_duration_minutes')
-      .in('course_id', courseIds)
-      .neq('status', 'cancelled')
-    : { data: [] as any[] }
-
-  const completedHoursByCourse = new Map<string, number>()
-  ;(sessions || []).forEach((session: any) => {
-    if (session.status !== 'completed') return
-    const current = completedHoursByCourse.get(session.course_id) || 0
-    completedHoursByCourse.set(session.course_id, current + ((session.scheduled_duration_minutes || 0) / 60))
-  })
-
-  const coursesByOrder = new Map<string, any[]>()
-  ;(courses || []).forEach((course: any) => {
-    const list = coursesByOrder.get(course.order_id) || []
-    list.push(course)
-    coursesByOrder.set(course.order_id, list)
-  })
 
   ;(orders || []).forEach((order: any) => {
     const studentId = order.student_id
@@ -178,43 +123,47 @@ async function buildFormalStudentSummaries(studentIds: string[]): Promise<Map<st
       remaining_formal_hours: 0,
       total_formal_amount: 0,
       remaining_formal_amount: 0,
-      formal_subjects: [],
-      formal_teachers: [],
-      latest_order_id: null,
-      latest_order_time: null,
+      formal_subjects: [] as string[],
+      formal_teachers: [] as string[],
+      latest_order_id: null as string | null,
+      latest_order_time: null as string | null,
     }
 
-    const orderCourses = coursesByOrder.get(order.id) || []
-    const completedHours = orderCourses.reduce((sum, course) => sum + (completedHoursByCourse.get(course.id) || 0), 0)
+    const orderCourses = order.courses || []
+    const completedHours = orderCourses.reduce((sum: number, course: any) => {
+      const courseCompleted = (course.class_sessions || [])
+        .filter((s: any) => s.status === 'completed')
+        .reduce((s: number, session: any) => s + ((session.scheduled_duration_minutes || 0) / 60), 0)
+      return sum + courseCompleted
+    }, 0)
     const totalHours = Number(order.total_hours || 0)
     const remainingHours = Math.max(0, totalHours - completedHours)
-    const hourlyRate = Number(order.hourly_rate || 0) || (totalHours > 0 ? Number(order.payment_amount || 0) / totalHours : 0)
-    const orderTime = order.first_class_time || order.created_at || null
+    const paymentAmount = Number(order.payment_amount || 0)
+    const hourlyRate = Number(order.hourly_rate || 0)
+    const remainingAmount = hourlyRate > 0 ? remainingHours * hourlyRate : Math.max(0, paymentAmount - (completedHours * hourlyRate))
 
-    summaries.set(studentId, {
-      formal_order_count: existing.formal_order_count + 1,
-      total_formal_hours: existing.total_formal_hours + totalHours,
-      completed_formal_hours: existing.completed_formal_hours + completedHours,
-      remaining_formal_hours: existing.remaining_formal_hours + remainingHours,
-      total_formal_amount: existing.total_formal_amount + Number(order.payment_amount || 0),
-      remaining_formal_amount: existing.remaining_formal_amount + (remainingHours * hourlyRate),
-      formal_subjects: uniqueValues([
-        ...existing.formal_subjects,
-        ...((order.subjects || []) as string[]),
-        ...orderCourses.map((course) => course.subject),
-      ]),
-      formal_teachers: uniqueValues([
-        ...existing.formal_teachers,
-        ...((order.teacher_names || []) as string[]),
-        ...orderCourses.map((course) => course.teacher_name),
-      ]),
-      latest_order_id: !existing.latest_order_time || (orderTime && new Date(orderTime) > new Date(existing.latest_order_time))
-        ? order.id
-        : existing.latest_order_id,
-      latest_order_time: !existing.latest_order_time || (orderTime && new Date(orderTime) > new Date(existing.latest_order_time))
-        ? orderTime
-        : existing.latest_order_time,
-    })
+    existing.formal_order_count += 1
+    existing.total_formal_hours += totalHours
+    existing.completed_formal_hours += completedHours
+    existing.remaining_formal_hours += remainingHours
+    existing.total_formal_amount += paymentAmount
+    existing.remaining_formal_amount += remainingAmount
+
+    if (order.subjects) {
+      const subjects = Array.isArray(order.subjects) ? order.subjects : [order.subjects]
+      existing.formal_subjects.push(...subjects.filter(Boolean))
+    }
+    if (order.teacher_names) {
+      const teachers = Array.isArray(order.teacher_names) ? order.teacher_names : [order.teacher_names]
+      existing.formal_teachers.push(...teachers.filter(Boolean))
+    }
+
+    if (!existing.latest_order_time || (order.created_at && order.created_at > existing.latest_order_time)) {
+      existing.latest_order_id = order.id
+      existing.latest_order_time = order.created_at
+    }
+
+    summaries.set(studentId, existing)
   })
 
   return summaries
@@ -341,29 +290,35 @@ export async function GET(request: NextRequest) {
         )
       }
 
-      // 如果有班主任ID，获取班主任姓名
-      let studentWithTeacher = data
-      if (data?.head_teacher_id) {
-        const { data: teacher } = await supabaseServer
-          .from('user_profiles')
-          .select('name')
-          .eq('id', data.head_teacher_id)
-          .single()
+      // 班主任信息、正式订单汇总、回访状态三者互不依赖，并行查询
+      const [teacherData, summaryMap, statusResults] = await Promise.all([
+        data?.head_teacher_id
+          ? supabaseServer
+            .from('user_profiles')
+            .select('name')
+            .eq('id', data.head_teacher_id)
+            .single()
+            .then(({ data: t }) => t)
+          : Promise.resolve(null),
+        buildFormalStudentSummaries([data.id]),
+        batchCalculateStudentStatus([data]),
+      ])
 
-        studentWithTeacher = {
-          ...data,
-          head_teacher_name: teacher?.name,
-        } as typeof data & { head_teacher_name?: string }
-      }
-
-      const summaryMap = await buildFormalStudentSummaries([data.id])
-      const studentWithSummary = {
-        ...studentWithTeacher,
+      const sr = statusResults[0]
+      const studentWithAll = {
+        ...data,
+        head_teacher_name: teacherData?.name,
         formal_summary: summaryMap.get(data.id) || createEmptyFormalStudentSummary(),
+        student_status: sr.status,
+        student_status_name: sr.statusName,
+        new_student_status: sr.newStatus,
+        new_student_status_name: sr.newStatusName,
+        visit_status: sr.visitStatus,
+        visit_status_name: sr.visitStatusName,
       }
 
       logger.debug('获取学生成功', { id })
-      return NextResponse.json({ data: redactStudentClassInSecrets(await attachStudentComputedStatus(studentWithSummary), profile) })
+      return NextResponse.json({ data: redactStudentClassInSecrets(studentWithAll, profile) })
     }
 
     // 构建查询（支持按班主任过滤）
@@ -455,12 +410,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 获取总数
-    const { count: totalCount } = await countQuery
+    // 总数和当前页数据互不依赖，并行查询以减少耗时
+    const [
+      { count: totalCount },
+      dataResult,
+    ] = await Promise.all([
+      countQuery,
+      query.order('created_at', { ascending: false }).range(from, to),
+    ])
 
-    // 获取学生列表
-    query = query.order('created_at', { ascending: false }).range(from, to)
-    const { data, error } = await query
+    const { data, error } = dataResult
 
     if (error) {
       logger.error('获取学生列表失败', { error_summary: summarizeError(error) })
@@ -473,46 +432,53 @@ export async function GET(request: NextRequest) {
     // 批量获取班主任信息
     let studentsWithTeachers = data || []
     if (data && data.length > 0) {
-      // 收集所有唯一的班主任ID
       const headTeacherIds = Array.from(
         new Set(data.map(s => s.head_teacher_id).filter(Boolean))
       )
 
-      // 批量查询班主任信息
-      let teacherMap = new Map<string, string>()
-      if (headTeacherIds.length > 0) {
-        const { data: teachers } = await supabaseServer
-          .from('user_profiles')
-          .select('id, name')
-          .in('id', headTeacherIds)
+      // 班主任信息、正式订单汇总、回访状态三者互不依赖，并行查询
+      const studentIds = data.map((student: any) => student.id)
 
-        if (teachers) {
-          teachers.forEach(teacher => {
-            teacherMap.set(teacher.id, teacher.name)
-          })
-        }
-      }
+      const [teacherMap, summaries, statusResults] = await Promise.all([
+        headTeacherIds.length > 0
+          ? supabaseServer
+            .from('user_profiles')
+            .select('id, name')
+            .in('id', headTeacherIds)
+            .then(({ data: teachers }) => {
+              const map = new Map<string, string>()
+              if (teachers) {
+                teachers.forEach(teacher => map.set(teacher.id, teacher.name))
+              }
+              return map
+            })
+          : Promise.resolve(new Map<string, string>()),
+        buildFormalStudentSummaries(studentIds),
+        batchCalculateStudentStatus(data as any[]),
+      ])
 
-      // 添加班主任姓名到学生数据
-      studentsWithTeachers = data.map(student => ({
-        ...student,
-        head_teacher_name: student.head_teacher_id
-          ? (teacherMap.get(student.head_teacher_id) || null)
-          : null,
-      })) as Array<typeof data[0] & { head_teacher_name?: string | null }>
-
-      const summaries = await buildFormalStudentSummaries(data.map((student) => student.id))
-      studentsWithTeachers = studentsWithTeachers.map((student: any) => {
+      studentsWithTeachers = data.map((student: any, i: number) => {
+        const sr = statusResults[i]
         const formal_summary = summaries.get(student.id) || createEmptyFormalStudentSummary()
-
-        return { ...student, formal_summary }
+        return {
+          ...student,
+          head_teacher_name: student.head_teacher_id
+            ? (teacherMap.get(student.head_teacher_id) || null)
+            : null,
+          formal_summary,
+          student_status: sr.status,
+          student_status_name: sr.statusName,
+          new_student_status: sr.newStatus,
+          new_student_status_name: sr.newStatusName,
+          visit_status: sr.visitStatus,
+          visit_status_name: sr.visitStatusName,
+        }
       })
     }
 
-    const studentsWithStatus = await attachStudentsComputedStatus(studentsWithTeachers as any[])
     const responsePayload = includeSummary
-      ? studentsWithStatus
-      : studentsWithStatus.map(({ formal_summary, ...student }) => student)
+      ? studentsWithTeachers
+      : studentsWithTeachers.map(({ formal_summary, ...student }: any) => student)
     const responseStudents = redactStudentsClassInSecrets(
       responsePayload,
       profile

@@ -1,0 +1,1371 @@
+psql:supabase_clean.sql:15359: ERROR:  insert or update on table "identities" violates foreign key constraint "identities_user_id_fkey"
+描述:  Key (user_id)=(970d1962-9506-43c4-91a1-53fd83cf3224) is not present in table "users".
+psql:supabase_clean.sql:15360: ERROR:  insert or update on table "identities" violates foreign key constraint "identities_user_id_fkey"
+描述:  Key (user_id)=(557c4b8f-1c69-4d5d-8074-6e0beb78052d) is not present in table "users".
+psql:supabase_clean.sql:15361: ERROR:  insert or update on table "identities" violates foreign key constraint "identities_user_id_fkey"
+描述:  Key (user_id)=(f3477c87-ccac-4364-b48b-d099e4fb7f5e) is not present in table "users".
+psql:supabase_clean.sql:15362: ERROR:  insert or update on table "identities" violates foreign key constraint "identities_user_id_fkey"
+描述:  Key (user_id)=(c3605537-a9e0-41df-81e9-c96a6d00b5bd) is not present in table "users".
+psql:supabase_clean.sql:15363: ERROR:  insert or update on table "identities" violates foreign key constraint "identities_user_id_fkey"
+描述:  Key (user_id)=(ae2794a0-8992-4ec0-88fa-8d85ca8b20f7) is not present in table "users".
+psql:supabase_clean.sql:15364: ERROR:  insert or update on table "identities" violates foreign key constraint "identities_user_id_fkey"
+描述:  Key (user_id)=(d15fd47e-ca4f-42e6-8d56-2ec9e6ac7a9f) is not present in table "users".
+psql:supabase_clean.sql:15365: ERROR:  insert or update on table "identities" violates foreign key constraint "identities_user_id_fkey"
+描述:  Key (user_id)=(322be5b7-e144-4ffd-8aae-797c991669d1) is not present in table "users".
+psql:supabase_clean.sql:15366: ERROR:  insert or update on table "identities" violates foreign key constraint "identities_user_id_fkey"
+描述:  Key (user_id)=(6d4c67a9-3f1e-4993-99a9-bd9b8b5b15cc) is not present in table "users".
+psql:supabase_clean.sql:15367: ERROR:  insert or update on table "identities" violates foreign key constraint "identities_user_id_fkey"
+描述:  Key (user_id)=(efaee530-e4db-4e6c-8772-816fbe259d8b) is not present in table "users".
+psql:supabase_clean.sql:15368: ERROR:  insert or update on table "identities" violates foreign key constraint "identities_user_id_fkey"
+描述:  Key (user_id)=(398210c5-9d28-4fdc-b4cf-37a60a1793d9) is not present in table "users".
+psql:supabase_clean.sql:15369: ERROR:  insert or update on table "identities" violates foreign key constraint "identities_user_id_fkey"
+描述:  Key (user_id)=(f6eaa993-215f-4d83-a594-b83e7afbf7e6) is not present in table "users".
+psql:supabase_clean.sql:15370: ERROR:  insert or update on table "identities" violates foreign key constraint "identities_user_id_fkey"
+描述:  Key (user_id)=(71e672ad-519f-41eb-b567-4e5a19a61d9c) is not present in table "users".
+psql:supabase_clean.sql:15371: ERROR:  insert or update on table "identities" violates foreign key constraint "identities_user_id_fkey"
+描述:  Key (user_id)=(5d8ef9f5-1b10-45e3-81c9-81dd0f092724) is not present in table "users".
+psql:supabase_clean.sql:15372: ERROR:  insert or update on table "identities" violates foreign key constraint "identities_user_id_fkey"
+描述:  Key (user_id)=(f2f4fd37-73f6-4581-9e44-c7afcf3f04ed) is not present in table "users".
+psql:supabase_clean.sql:15373: ERROR:  insert or update on table "identities" violates foreign key constraint "identities_user_id_fkey"
+描述:  Key (user_id)=(afc3655a-42e6-4783-8753-224ef80edd5a) is not present in table "users".
+psql:supabase_clean.sql:15374: ERROR:  insert or update on table "identities" violates foreign key constraint "identities_user_id_fkey"
+描述:  Key (user_id)=(858ef0ee-16ad-4245-9080-76d3c0d91031) is not present in table "users".
+psql:supabase_clean.sql:15375: ERROR:  insert or update on table "identities" violates foreign key constraint "identities_user_id_fkey"
+描述:  Key (user_id)=(3c9b6afd-6fb3-4f08-8dc0-b6fdbbb5ff33) is not present in table "users".
+psql:supabase_clean.sql:15376: ERROR:  insert or update on table "identities" violates foreign key constraint "identities_user_id_fkey"
+描述:  Key (user_id)=(cf6a8f86-197b-4976-9eba-30be38103718) is not present in table "users".
+psql:supabase_clean.sql:15377: ERROR:  insert or update on table "identities" violates foreign key constraint "identities_user_id_fkey"
+描述:  Key (user_id)=(2933e7e7-490d-4316-9514-7b7c56e146ff) is not present in table "users".
+psql:supabase_clean.sql:15390: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(5ba756c7-b65e-4482-98c6-59141d7f1933) is not present in table "sessions".
+psql:supabase_clean.sql:15391: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(262ff886-0876-43ca-9ac8-cb7987b4e7c3) is not present in table "sessions".
+psql:supabase_clean.sql:15392: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(e9861bbb-46bf-48bb-a7f3-767222c8ff57) is not present in table "sessions".
+psql:supabase_clean.sql:15393: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(fb6172de-eeb7-45b4-8436-7e6914a7524a) is not present in table "sessions".
+psql:supabase_clean.sql:15394: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(d1481989-2656-4224-b6c9-855fd6b5b758) is not present in table "sessions".
+psql:supabase_clean.sql:15395: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(40f97d0e-995d-4723-8ae9-ee8111ebae37) is not present in table "sessions".
+psql:supabase_clean.sql:15396: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(45a108e8-f804-4557-b68e-b8488028063e) is not present in table "sessions".
+psql:supabase_clean.sql:15397: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(774c13f7-dc06-44e1-b848-b1fa2aef4bec) is not present in table "sessions".
+psql:supabase_clean.sql:15398: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(60250f67-bc11-4163-8f4e-761ff376d902) is not present in table "sessions".
+psql:supabase_clean.sql:15399: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(bf42598e-54c6-41a1-bc16-c8f7a1f56d21) is not present in table "sessions".
+psql:supabase_clean.sql:15400: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(6a53f984-36bb-45fd-a9ad-09e22baf7007) is not present in table "sessions".
+psql:supabase_clean.sql:15401: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(7b8530bb-30bd-4f2c-ae08-0cc8ac7081c0) is not present in table "sessions".
+psql:supabase_clean.sql:15402: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(c54342d5-ff13-4b8e-9dab-599a53025d06) is not present in table "sessions".
+psql:supabase_clean.sql:15403: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(72ec35aa-6d62-4d9c-85fd-b4c7929851df) is not present in table "sessions".
+psql:supabase_clean.sql:15404: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(97914050-f148-44b8-95b0-030fecbb31ea) is not present in table "sessions".
+psql:supabase_clean.sql:15405: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(7683fbf6-69d0-4c8a-8ed7-c916aedb494a) is not present in table "sessions".
+psql:supabase_clean.sql:15406: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(13475ad1-fa40-4485-9960-91892c498859) is not present in table "sessions".
+psql:supabase_clean.sql:15407: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(16a52e73-ba72-4bf4-9a10-9111293dfcaf) is not present in table "sessions".
+psql:supabase_clean.sql:15408: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(3abe0e90-c3f7-4cf4-b143-3da9a2aea065) is not present in table "sessions".
+psql:supabase_clean.sql:15409: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(b22d54e3-1e98-4ea4-94f9-0b6d998ae45a) is not present in table "sessions".
+psql:supabase_clean.sql:15410: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(3cd134de-3757-47b7-9267-c0360cf48bb5) is not present in table "sessions".
+psql:supabase_clean.sql:15411: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(853534d9-ef96-478e-a751-6b8ece760130) is not present in table "sessions".
+psql:supabase_clean.sql:15412: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(822267d5-aaae-479a-9690-f775f46f5fd6) is not present in table "sessions".
+psql:supabase_clean.sql:15413: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(b13d8172-8efe-48db-9dab-0177283c86b5) is not present in table "sessions".
+psql:supabase_clean.sql:15414: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(2acf829a-2b35-47f2-a3ba-e73e0fb189d2) is not present in table "sessions".
+psql:supabase_clean.sql:15415: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(11637023-1ab8-40f5-991c-65af56c97ac2) is not present in table "sessions".
+psql:supabase_clean.sql:15416: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(68675623-8cec-4d75-8016-8fdcfb4f19d4) is not present in table "sessions".
+psql:supabase_clean.sql:15417: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(ac35549e-60b3-474b-bc57-5c24742de20e) is not present in table "sessions".
+psql:supabase_clean.sql:15418: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(b3ba0303-748d-4390-89a5-23d176c453b3) is not present in table "sessions".
+psql:supabase_clean.sql:15419: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(b6e4ce68-247e-49f8-bd29-2e81b67ba011) is not present in table "sessions".
+psql:supabase_clean.sql:15420: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(f864dd1a-0928-4ba7-92a6-d0c9177c2501) is not present in table "sessions".
+psql:supabase_clean.sql:15421: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(e2f1ca13-5df0-457d-adc3-91dd8f3a2eb3) is not present in table "sessions".
+psql:supabase_clean.sql:15422: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(8e184148-e553-4fdc-8104-3c625cd2ce46) is not present in table "sessions".
+psql:supabase_clean.sql:15423: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(16d5a4e8-73f2-4e88-9b57-08fdf9e2b673) is not present in table "sessions".
+psql:supabase_clean.sql:15424: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(89e4a94c-d04b-4a96-b0d8-61cb3bd810ad) is not present in table "sessions".
+psql:supabase_clean.sql:15425: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(edf9ba84-1c96-477c-9b70-272a45761f62) is not present in table "sessions".
+psql:supabase_clean.sql:15426: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(ca7569ad-fd2c-482f-b9f0-e7f3595ad424) is not present in table "sessions".
+psql:supabase_clean.sql:15427: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(9e6852f0-f17d-4e41-9568-1a2a5bd5e037) is not present in table "sessions".
+psql:supabase_clean.sql:15428: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15429: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(6d2b7592-e0ed-4ad5-a6c0-c276d5fb45cb) is not present in table "sessions".
+psql:supabase_clean.sql:15430: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(5b022858-46d6-4a99-80bb-fd58914d3e5d) is not present in table "sessions".
+psql:supabase_clean.sql:15431: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(0ac69c8a-f64a-4f01-8743-6c8e3c05eab9) is not present in table "sessions".
+psql:supabase_clean.sql:15432: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(248fb2b7-5fd8-48c7-883b-6f35ba16979a) is not present in table "sessions".
+psql:supabase_clean.sql:15433: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(60f479e6-68e7-471e-ab94-40ea50dd023a) is not present in table "sessions".
+psql:supabase_clean.sql:15434: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(ee02e93f-eef5-4a49-bede-5c48b702ccb7) is not present in table "sessions".
+psql:supabase_clean.sql:15435: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(421d13f9-cf18-4c29-a65c-63321fc64ab0) is not present in table "sessions".
+psql:supabase_clean.sql:15436: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(5e2bbaf5-e22e-4cb4-acac-c6c943c5868a) is not present in table "sessions".
+psql:supabase_clean.sql:15437: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(73429752-9f79-427b-9fd2-43e3b78f7afa) is not present in table "sessions".
+psql:supabase_clean.sql:15438: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(98dd0674-108d-49be-8579-649d3653b07e) is not present in table "sessions".
+psql:supabase_clean.sql:15439: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(1944b2a8-1641-40be-9722-4bae59d01749) is not present in table "sessions".
+psql:supabase_clean.sql:15440: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(76f1364e-4c23-4bb5-997c-1b4a435ddcac) is not present in table "sessions".
+psql:supabase_clean.sql:15441: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(7294065a-efb0-450b-a18a-3495222d9174) is not present in table "sessions".
+psql:supabase_clean.sql:15442: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(0e2b7f8f-e3da-4889-8922-134a9eb5965c) is not present in table "sessions".
+psql:supabase_clean.sql:15443: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(782d05ac-4516-4704-bfa4-b4ecec0e0c9d) is not present in table "sessions".
+psql:supabase_clean.sql:15444: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(cff7f084-dacf-4d93-b87a-ff758fdfbf44) is not present in table "sessions".
+psql:supabase_clean.sql:15445: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(07005f54-ec3e-4aaa-a6a2-f1105b3c0705) is not present in table "sessions".
+psql:supabase_clean.sql:15446: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(5af1b8ee-403d-45cd-8c54-edd1ea12d1aa) is not present in table "sessions".
+psql:supabase_clean.sql:15447: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(844544a3-515f-4c35-b28c-1dbd8594553b) is not present in table "sessions".
+psql:supabase_clean.sql:15448: ERROR:  insert or update on table "mfa_amr_claims" violates foreign key constraint "mfa_amr_claims_session_id_fkey"
+描述:  Key (session_id)=(3562caec-d4d7-4952-ab56-81c6bb9c3db6) is not present in table "sessions".
+psql:supabase_clean.sql:15491: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(98dd0674-108d-49be-8579-649d3653b07e) is not present in table "sessions".
+psql:supabase_clean.sql:15492: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(3abe0e90-c3f7-4cf4-b143-3da9a2aea065) is not present in table "sessions".
+psql:supabase_clean.sql:15493: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(13475ad1-fa40-4485-9960-91892c498859) is not present in table "sessions".
+psql:supabase_clean.sql:15494: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(5ba756c7-b65e-4482-98c6-59141d7f1933) is not present in table "sessions".
+psql:supabase_clean.sql:15495: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(7b8530bb-30bd-4f2c-ae08-0cc8ac7081c0) is not present in table "sessions".
+psql:supabase_clean.sql:15496: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(5b022858-46d6-4a99-80bb-fd58914d3e5d) is not present in table "sessions".
+psql:supabase_clean.sql:15497: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(7b8530bb-30bd-4f2c-ae08-0cc8ac7081c0) is not present in table "sessions".
+psql:supabase_clean.sql:15498: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(60f479e6-68e7-471e-ab94-40ea50dd023a) is not present in table "sessions".
+psql:supabase_clean.sql:15499: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(7b8530bb-30bd-4f2c-ae08-0cc8ac7081c0) is not present in table "sessions".
+psql:supabase_clean.sql:15500: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(60250f67-bc11-4163-8f4e-761ff376d902) is not present in table "sessions".
+psql:supabase_clean.sql:15501: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(7b8530bb-30bd-4f2c-ae08-0cc8ac7081c0) is not present in table "sessions".
+psql:supabase_clean.sql:15502: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(421d13f9-cf18-4c29-a65c-63321fc64ab0) is not present in table "sessions".
+psql:supabase_clean.sql:15503: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(7b8530bb-30bd-4f2c-ae08-0cc8ac7081c0) is not present in table "sessions".
+psql:supabase_clean.sql:15504: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c54342d5-ff13-4b8e-9dab-599a53025d06) is not present in table "sessions".
+psql:supabase_clean.sql:15505: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(7b8530bb-30bd-4f2c-ae08-0cc8ac7081c0) is not present in table "sessions".
+psql:supabase_clean.sql:15506: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(16a52e73-ba72-4bf4-9a10-9111293dfcaf) is not present in table "sessions".
+psql:supabase_clean.sql:15507: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(782d05ac-4516-4704-bfa4-b4ecec0e0c9d) is not present in table "sessions".
+psql:supabase_clean.sql:15508: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15509: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(b13d8172-8efe-48db-9dab-0177283c86b5) is not present in table "sessions".
+psql:supabase_clean.sql:15510: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(07005f54-ec3e-4aaa-a6a2-f1105b3c0705) is not present in table "sessions".
+psql:supabase_clean.sql:15511: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(68675623-8cec-4d75-8016-8fdcfb4f19d4) is not present in table "sessions".
+psql:supabase_clean.sql:15512: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15513: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(b3ba0303-748d-4390-89a5-23d176c453b3) is not present in table "sessions".
+psql:supabase_clean.sql:15514: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15515: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(89e4a94c-d04b-4a96-b0d8-61cb3bd810ad) is not present in table "sessions".
+psql:supabase_clean.sql:15516: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15517: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(3562caec-d4d7-4952-ab56-81c6bb9c3db6) is not present in table "sessions".
+psql:supabase_clean.sql:15518: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(89e4a94c-d04b-4a96-b0d8-61cb3bd810ad) is not present in table "sessions".
+psql:supabase_clean.sql:15519: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15520: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(3562caec-d4d7-4952-ab56-81c6bb9c3db6) is not present in table "sessions".
+psql:supabase_clean.sql:15521: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15522: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15523: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15524: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(89e4a94c-d04b-4a96-b0d8-61cb3bd810ad) is not present in table "sessions".
+psql:supabase_clean.sql:15525: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(89e4a94c-d04b-4a96-b0d8-61cb3bd810ad) is not present in table "sessions".
+psql:supabase_clean.sql:15526: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(ac35549e-60b3-474b-bc57-5c24742de20e) is not present in table "sessions".
+psql:supabase_clean.sql:15527: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(b22d54e3-1e98-4ea4-94f9-0b6d998ae45a) is not present in table "sessions".
+psql:supabase_clean.sql:15528: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(3cd134de-3757-47b7-9267-c0360cf48bb5) is not present in table "sessions".
+psql:supabase_clean.sql:15529: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(1944b2a8-1641-40be-9722-4bae59d01749) is not present in table "sessions".
+psql:supabase_clean.sql:15530: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(822267d5-aaae-479a-9690-f775f46f5fd6) is not present in table "sessions".
+psql:supabase_clean.sql:15531: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(7b8530bb-30bd-4f2c-ae08-0cc8ac7081c0) is not present in table "sessions".
+psql:supabase_clean.sql:15532: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(fb6172de-eeb7-45b4-8436-7e6914a7524a) is not present in table "sessions".
+psql:supabase_clean.sql:15533: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(7b8530bb-30bd-4f2c-ae08-0cc8ac7081c0) is not present in table "sessions".
+psql:supabase_clean.sql:15534: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(f864dd1a-0928-4ba7-92a6-d0c9177c2501) is not present in table "sessions".
+psql:supabase_clean.sql:15535: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(e2f1ca13-5df0-457d-adc3-91dd8f3a2eb3) is not present in table "sessions".
+psql:supabase_clean.sql:15536: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(248fb2b7-5fd8-48c7-883b-6f35ba16979a) is not present in table "sessions".
+psql:supabase_clean.sql:15537: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(16d5a4e8-73f2-4e88-9b57-08fdf9e2b673) is not present in table "sessions".
+psql:supabase_clean.sql:15538: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(6a53f984-36bb-45fd-a9ad-09e22baf7007) is not present in table "sessions".
+psql:supabase_clean.sql:15539: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(7b8530bb-30bd-4f2c-ae08-0cc8ac7081c0) is not present in table "sessions".
+psql:supabase_clean.sql:15540: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(262ff886-0876-43ca-9ac8-cb7987b4e7c3) is not present in table "sessions".
+psql:supabase_clean.sql:15541: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(774c13f7-dc06-44e1-b848-b1fa2aef4bec) is not present in table "sessions".
+psql:supabase_clean.sql:15542: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(ca7569ad-fd2c-482f-b9f0-e7f3595ad424) is not present in table "sessions".
+psql:supabase_clean.sql:15543: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(7b8530bb-30bd-4f2c-ae08-0cc8ac7081c0) is not present in table "sessions".
+psql:supabase_clean.sql:15544: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(ee02e93f-eef5-4a49-bede-5c48b702ccb7) is not present in table "sessions".
+psql:supabase_clean.sql:15545: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(7b8530bb-30bd-4f2c-ae08-0cc8ac7081c0) is not present in table "sessions".
+psql:supabase_clean.sql:15546: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(7b8530bb-30bd-4f2c-ae08-0cc8ac7081c0) is not present in table "sessions".
+psql:supabase_clean.sql:15547: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(73429752-9f79-427b-9fd2-43e3b78f7afa) is not present in table "sessions".
+psql:supabase_clean.sql:15548: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(7683fbf6-69d0-4c8a-8ed7-c916aedb494a) is not present in table "sessions".
+psql:supabase_clean.sql:15549: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(7294065a-efb0-450b-a18a-3495222d9174) is not present in table "sessions".
+psql:supabase_clean.sql:15550: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(853534d9-ef96-478e-a751-6b8ece760130) is not present in table "sessions".
+psql:supabase_clean.sql:15551: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(edf9ba84-1c96-477c-9b70-272a45761f62) is not present in table "sessions".
+psql:supabase_clean.sql:15552: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(11637023-1ab8-40f5-991c-65af56c97ac2) is not present in table "sessions".
+psql:supabase_clean.sql:15553: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15554: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15555: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15556: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(844544a3-515f-4c35-b28c-1dbd8594553b) is not present in table "sessions".
+psql:supabase_clean.sql:15557: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15558: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15559: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(89e4a94c-d04b-4a96-b0d8-61cb3bd810ad) is not present in table "sessions".
+psql:supabase_clean.sql:15560: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15561: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15562: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(89e4a94c-d04b-4a96-b0d8-61cb3bd810ad) is not present in table "sessions".
+psql:supabase_clean.sql:15563: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(89e4a94c-d04b-4a96-b0d8-61cb3bd810ad) is not present in table "sessions".
+psql:supabase_clean.sql:15564: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(89e4a94c-d04b-4a96-b0d8-61cb3bd810ad) is not present in table "sessions".
+psql:supabase_clean.sql:15565: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(89e4a94c-d04b-4a96-b0d8-61cb3bd810ad) is not present in table "sessions".
+psql:supabase_clean.sql:15566: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(89e4a94c-d04b-4a96-b0d8-61cb3bd810ad) is not present in table "sessions".
+psql:supabase_clean.sql:15567: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(40f97d0e-995d-4723-8ae9-ee8111ebae37) is not present in table "sessions".
+psql:supabase_clean.sql:15568: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(d1481989-2656-4224-b6c9-855fd6b5b758) is not present in table "sessions".
+psql:supabase_clean.sql:15569: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(97914050-f148-44b8-95b0-030fecbb31ea) is not present in table "sessions".
+psql:supabase_clean.sql:15570: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(6d2b7592-e0ed-4ad5-a6c0-c276d5fb45cb) is not present in table "sessions".
+psql:supabase_clean.sql:15571: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(0e2b7f8f-e3da-4889-8922-134a9eb5965c) is not present in table "sessions".
+psql:supabase_clean.sql:15572: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(7b8530bb-30bd-4f2c-ae08-0cc8ac7081c0) is not present in table "sessions".
+psql:supabase_clean.sql:15573: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(8e184148-e553-4fdc-8104-3c625cd2ce46) is not present in table "sessions".
+psql:supabase_clean.sql:15574: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(7b8530bb-30bd-4f2c-ae08-0cc8ac7081c0) is not present in table "sessions".
+psql:supabase_clean.sql:15575: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(7b8530bb-30bd-4f2c-ae08-0cc8ac7081c0) is not present in table "sessions".
+psql:supabase_clean.sql:15576: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(6a53f984-36bb-45fd-a9ad-09e22baf7007) is not present in table "sessions".
+psql:supabase_clean.sql:15577: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(7b8530bb-30bd-4f2c-ae08-0cc8ac7081c0) is not present in table "sessions".
+psql:supabase_clean.sql:15578: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(262ff886-0876-43ca-9ac8-cb7987b4e7c3) is not present in table "sessions".
+psql:supabase_clean.sql:15579: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(e9861bbb-46bf-48bb-a7f3-767222c8ff57) is not present in table "sessions".
+psql:supabase_clean.sql:15580: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(0ac69c8a-f64a-4f01-8743-6c8e3c05eab9) is not present in table "sessions".
+psql:supabase_clean.sql:15581: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(45a108e8-f804-4557-b68e-b8488028063e) is not present in table "sessions".
+psql:supabase_clean.sql:15582: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(bf42598e-54c6-41a1-bc16-c8f7a1f56d21) is not present in table "sessions".
+psql:supabase_clean.sql:15583: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(5e2bbaf5-e22e-4cb4-acac-c6c943c5868a) is not present in table "sessions".
+psql:supabase_clean.sql:15584: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(72ec35aa-6d62-4d9c-85fd-b4c7929851df) is not present in table "sessions".
+psql:supabase_clean.sql:15585: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(76f1364e-4c23-4bb5-997c-1b4a435ddcac) is not present in table "sessions".
+psql:supabase_clean.sql:15586: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15587: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(cff7f084-dacf-4d93-b87a-ff758fdfbf44) is not present in table "sessions".
+psql:supabase_clean.sql:15588: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(2acf829a-2b35-47f2-a3ba-e73e0fb189d2) is not present in table "sessions".
+psql:supabase_clean.sql:15589: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15590: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(9e6852f0-f17d-4e41-9568-1a2a5bd5e037) is not present in table "sessions".
+psql:supabase_clean.sql:15591: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(5af1b8ee-403d-45cd-8c54-edd1ea12d1aa) is not present in table "sessions".
+psql:supabase_clean.sql:15592: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15593: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15594: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15595: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(b6e4ce68-247e-49f8-bd29-2e81b67ba011) is not present in table "sessions".
+psql:supabase_clean.sql:15596: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15597: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(c641a98d-5483-4bc8-9ac8-0025f3c3aea6) is not present in table "sessions".
+psql:supabase_clean.sql:15598: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(89e4a94c-d04b-4a96-b0d8-61cb3bd810ad) is not present in table "sessions".
+psql:supabase_clean.sql:15599: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(3562caec-d4d7-4952-ab56-81c6bb9c3db6) is not present in table "sessions".
+psql:supabase_clean.sql:15600: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(89e4a94c-d04b-4a96-b0d8-61cb3bd810ad) is not present in table "sessions".
+psql:supabase_clean.sql:15601: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(89e4a94c-d04b-4a96-b0d8-61cb3bd810ad) is not present in table "sessions".
+psql:supabase_clean.sql:15602: ERROR:  insert or update on table "refresh_tokens" violates foreign key constraint "refresh_tokens_session_id_fkey"
+描述:  Key (session_id)=(89e4a94c-d04b-4a96-b0d8-61cb3bd810ad) is not present in table "sessions".
+psql:supabase_clean.sql:15621: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15622: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15623: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15624: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15625: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15626: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15627: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15628: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15629: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15630: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15631: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15632: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15633: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15634: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15635: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15636: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15637: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15638: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15639: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15640: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15641: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15642: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15643: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15644: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15645: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15646: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15647: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15648: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15649: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15650: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15651: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15652: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15653: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15654: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15655: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15656: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15657: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15658: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15659: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15660: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15661: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15662: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15663: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15664: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15665: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15666: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15667: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15668: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15669: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15670: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15671: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15672: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15673: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15674: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15675: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15676: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15677: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15678: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15679: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15680: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15681: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15682: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15683: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15684: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15685: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15686: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15687: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15688: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15689: ERROR:  permission denied for table schema_migrations
+psql:supabase_clean.sql:15696: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(2933e7e7-490d-4316-9514-7b7c56e146ff) is not present in table "users".
+psql:supabase_clean.sql:15697: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(6d4c67a9-3f1e-4993-99a9-bd9b8b5b15cc) is not present in table "users".
+psql:supabase_clean.sql:15698: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(ae2794a0-8992-4ec0-88fa-8d85ca8b20f7) is not present in table "users".
+psql:supabase_clean.sql:15699: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(398210c5-9d28-4fdc-b4cf-37a60a1793d9) is not present in table "users".
+psql:supabase_clean.sql:15700: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(d15fd47e-ca4f-42e6-8d56-2ec9e6ac7a9f) is not present in table "users".
+psql:supabase_clean.sql:15701: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(6d4c67a9-3f1e-4993-99a9-bd9b8b5b15cc) is not present in table "users".
+psql:supabase_clean.sql:15702: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(ae2794a0-8992-4ec0-88fa-8d85ca8b20f7) is not present in table "users".
+psql:supabase_clean.sql:15703: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(398210c5-9d28-4fdc-b4cf-37a60a1793d9) is not present in table "users".
+psql:supabase_clean.sql:15704: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(d15fd47e-ca4f-42e6-8d56-2ec9e6ac7a9f) is not present in table "users".
+psql:supabase_clean.sql:15705: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(6d4c67a9-3f1e-4993-99a9-bd9b8b5b15cc) is not present in table "users".
+psql:supabase_clean.sql:15706: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(6d4c67a9-3f1e-4993-99a9-bd9b8b5b15cc) is not present in table "users".
+psql:supabase_clean.sql:15707: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(ae2794a0-8992-4ec0-88fa-8d85ca8b20f7) is not present in table "users".
+psql:supabase_clean.sql:15708: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(557c4b8f-1c69-4d5d-8074-6e0beb78052d) is not present in table "users".
+psql:supabase_clean.sql:15709: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(398210c5-9d28-4fdc-b4cf-37a60a1793d9) is not present in table "users".
+psql:supabase_clean.sql:15710: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(6d4c67a9-3f1e-4993-99a9-bd9b8b5b15cc) is not present in table "users".
+psql:supabase_clean.sql:15711: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(970d1962-9506-43c4-91a1-53fd83cf3224) is not present in table "users".
+psql:supabase_clean.sql:15712: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(5d8ef9f5-1b10-45e3-81c9-81dd0f092724) is not present in table "users".
+psql:supabase_clean.sql:15713: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(d15fd47e-ca4f-42e6-8d56-2ec9e6ac7a9f) is not present in table "users".
+psql:supabase_clean.sql:15714: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(6d4c67a9-3f1e-4993-99a9-bd9b8b5b15cc) is not present in table "users".
+psql:supabase_clean.sql:15715: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(cf6a8f86-197b-4976-9eba-30be38103718) is not present in table "users".
+psql:supabase_clean.sql:15716: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(557c4b8f-1c69-4d5d-8074-6e0beb78052d) is not present in table "users".
+psql:supabase_clean.sql:15717: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(6d4c67a9-3f1e-4993-99a9-bd9b8b5b15cc) is not present in table "users".
+psql:supabase_clean.sql:15718: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(557c4b8f-1c69-4d5d-8074-6e0beb78052d) is not present in table "users".
+psql:supabase_clean.sql:15719: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(ae2794a0-8992-4ec0-88fa-8d85ca8b20f7) is not present in table "users".
+psql:supabase_clean.sql:15720: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(557c4b8f-1c69-4d5d-8074-6e0beb78052d) is not present in table "users".
+psql:supabase_clean.sql:15721: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(398210c5-9d28-4fdc-b4cf-37a60a1793d9) is not present in table "users".
+psql:supabase_clean.sql:15722: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(c3605537-a9e0-41df-81e9-c96a6d00b5bd) is not present in table "users".
+psql:supabase_clean.sql:15723: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(71e672ad-519f-41eb-b567-4e5a19a61d9c) is not present in table "users".
+psql:supabase_clean.sql:15724: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(71e672ad-519f-41eb-b567-4e5a19a61d9c) is not present in table "users".
+psql:supabase_clean.sql:15725: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(f3477c87-ccac-4364-b48b-d099e4fb7f5e) is not present in table "users".
+psql:supabase_clean.sql:15726: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(f3477c87-ccac-4364-b48b-d099e4fb7f5e) is not present in table "users".
+psql:supabase_clean.sql:15727: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(557c4b8f-1c69-4d5d-8074-6e0beb78052d) is not present in table "users".
+psql:supabase_clean.sql:15728: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(557c4b8f-1c69-4d5d-8074-6e0beb78052d) is not present in table "users".
+psql:supabase_clean.sql:15729: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(ae2794a0-8992-4ec0-88fa-8d85ca8b20f7) is not present in table "users".
+psql:supabase_clean.sql:15730: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(557c4b8f-1c69-4d5d-8074-6e0beb78052d) is not present in table "users".
+psql:supabase_clean.sql:15731: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(d15fd47e-ca4f-42e6-8d56-2ec9e6ac7a9f) is not present in table "users".
+psql:supabase_clean.sql:15732: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(322be5b7-e144-4ffd-8aae-797c991669d1) is not present in table "users".
+psql:supabase_clean.sql:15733: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(6d4c67a9-3f1e-4993-99a9-bd9b8b5b15cc) is not present in table "users".
+psql:supabase_clean.sql:15734: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(ae2794a0-8992-4ec0-88fa-8d85ca8b20f7) is not present in table "users".
+psql:supabase_clean.sql:15735: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(398210c5-9d28-4fdc-b4cf-37a60a1793d9) is not present in table "users".
+psql:supabase_clean.sql:15736: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(d15fd47e-ca4f-42e6-8d56-2ec9e6ac7a9f) is not present in table "users".
+psql:supabase_clean.sql:15737: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(6d4c67a9-3f1e-4993-99a9-bd9b8b5b15cc) is not present in table "users".
+psql:supabase_clean.sql:15738: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(ae2794a0-8992-4ec0-88fa-8d85ca8b20f7) is not present in table "users".
+psql:supabase_clean.sql:15739: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(f6eaa993-215f-4d83-a594-b83e7afbf7e6) is not present in table "users".
+psql:supabase_clean.sql:15740: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(398210c5-9d28-4fdc-b4cf-37a60a1793d9) is not present in table "users".
+psql:supabase_clean.sql:15741: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(2933e7e7-490d-4316-9514-7b7c56e146ff) is not present in table "users".
+psql:supabase_clean.sql:15742: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(6d4c67a9-3f1e-4993-99a9-bd9b8b5b15cc) is not present in table "users".
+psql:supabase_clean.sql:15743: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(6d4c67a9-3f1e-4993-99a9-bd9b8b5b15cc) is not present in table "users".
+psql:supabase_clean.sql:15744: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(d15fd47e-ca4f-42e6-8d56-2ec9e6ac7a9f) is not present in table "users".
+psql:supabase_clean.sql:15745: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(6d4c67a9-3f1e-4993-99a9-bd9b8b5b15cc) is not present in table "users".
+psql:supabase_clean.sql:15746: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(6d4c67a9-3f1e-4993-99a9-bd9b8b5b15cc) is not present in table "users".
+psql:supabase_clean.sql:15747: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(afc3655a-42e6-4783-8753-224ef80edd5a) is not present in table "users".
+psql:supabase_clean.sql:15748: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(ae2794a0-8992-4ec0-88fa-8d85ca8b20f7) is not present in table "users".
+psql:supabase_clean.sql:15749: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(398210c5-9d28-4fdc-b4cf-37a60a1793d9) is not present in table "users".
+psql:supabase_clean.sql:15750: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(d15fd47e-ca4f-42e6-8d56-2ec9e6ac7a9f) is not present in table "users".
+psql:supabase_clean.sql:15751: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(6d4c67a9-3f1e-4993-99a9-bd9b8b5b15cc) is not present in table "users".
+psql:supabase_clean.sql:15752: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(f3477c87-ccac-4364-b48b-d099e4fb7f5e) is not present in table "users".
+psql:supabase_clean.sql:15753: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(71e672ad-519f-41eb-b567-4e5a19a61d9c) is not present in table "users".
+psql:supabase_clean.sql:15754: ERROR:  insert or update on table "sessions" violates foreign key constraint "sessions_user_id_fkey"
+描述:  Key (user_id)=(ae2794a0-8992-4ec0-88fa-8d85ca8b20f7) is not present in table "users".
+psql:supabase_clean.sql:19543: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20211116024918) already exists.
+psql:supabase_clean.sql:19544: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20211116045059) already exists.
+psql:supabase_clean.sql:19545: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20211116050929) already exists.
+psql:supabase_clean.sql:19546: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20211116051442) already exists.
+psql:supabase_clean.sql:19547: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20211116212300) already exists.
+psql:supabase_clean.sql:19548: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20211116213355) already exists.
+psql:supabase_clean.sql:19549: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20211116213934) already exists.
+psql:supabase_clean.sql:19550: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20211116214523) already exists.
+psql:supabase_clean.sql:19551: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20211122062447) already exists.
+psql:supabase_clean.sql:19552: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20211124070109) already exists.
+psql:supabase_clean.sql:19553: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20211202204204) already exists.
+psql:supabase_clean.sql:19554: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20211202204605) already exists.
+psql:supabase_clean.sql:19555: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20211210212804) already exists.
+psql:supabase_clean.sql:19556: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20211228014915) already exists.
+psql:supabase_clean.sql:19557: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20220107221237) already exists.
+psql:supabase_clean.sql:19558: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20220228202821) already exists.
+psql:supabase_clean.sql:19559: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20220312004840) already exists.
+psql:supabase_clean.sql:19560: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20220603231003) already exists.
+psql:supabase_clean.sql:19561: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20220603232444) already exists.
+psql:supabase_clean.sql:19562: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20220615214548) already exists.
+psql:supabase_clean.sql:19563: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20220712093339) already exists.
+psql:supabase_clean.sql:19564: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20220908172859) already exists.
+psql:supabase_clean.sql:19565: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20220916233421) already exists.
+psql:supabase_clean.sql:19566: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20230119133233) already exists.
+psql:supabase_clean.sql:19567: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20230128025114) already exists.
+psql:supabase_clean.sql:19568: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20230128025212) already exists.
+psql:supabase_clean.sql:19569: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20230227211149) already exists.
+psql:supabase_clean.sql:19570: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20230228184745) already exists.
+psql:supabase_clean.sql:19571: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20230308225145) already exists.
+psql:supabase_clean.sql:19572: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20230328144023) already exists.
+psql:supabase_clean.sql:19573: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20231018144023) already exists.
+psql:supabase_clean.sql:19574: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20231204144023) already exists.
+psql:supabase_clean.sql:19575: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20231204144024) already exists.
+psql:supabase_clean.sql:19576: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20231204144025) already exists.
+psql:supabase_clean.sql:19577: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20240108234812) already exists.
+psql:supabase_clean.sql:19578: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20240109165339) already exists.
+psql:supabase_clean.sql:19579: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20240227174441) already exists.
+psql:supabase_clean.sql:19580: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20240311171622) already exists.
+psql:supabase_clean.sql:19581: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20240321100241) already exists.
+psql:supabase_clean.sql:19582: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20240401105812) already exists.
+psql:supabase_clean.sql:19583: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20240418121054) already exists.
+psql:supabase_clean.sql:19584: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20240523004032) already exists.
+psql:supabase_clean.sql:19585: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20240618124746) already exists.
+psql:supabase_clean.sql:19586: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20240801235015) already exists.
+psql:supabase_clean.sql:19587: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20240805133720) already exists.
+psql:supabase_clean.sql:19588: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20240827160934) already exists.
+psql:supabase_clean.sql:19589: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20240919163303) already exists.
+psql:supabase_clean.sql:19590: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20240919163305) already exists.
+psql:supabase_clean.sql:19591: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20241019105805) already exists.
+psql:supabase_clean.sql:19592: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20241030150047) already exists.
+psql:supabase_clean.sql:19593: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20241108114728) already exists.
+psql:supabase_clean.sql:19594: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20241121104152) already exists.
+psql:supabase_clean.sql:19595: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20241130184212) already exists.
+psql:supabase_clean.sql:19596: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20241220035512) already exists.
+psql:supabase_clean.sql:19597: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20241220123912) already exists.
+psql:supabase_clean.sql:19598: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20241224161212) already exists.
+psql:supabase_clean.sql:19599: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20250107150512) already exists.
+psql:supabase_clean.sql:19600: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20250110162412) already exists.
+psql:supabase_clean.sql:19601: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20250123174212) already exists.
+psql:supabase_clean.sql:19602: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20250128220012) already exists.
+psql:supabase_clean.sql:19603: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20250506224012) already exists.
+psql:supabase_clean.sql:19604: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20250523164012) already exists.
+psql:supabase_clean.sql:19605: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20250714121412) already exists.
+psql:supabase_clean.sql:19606: ERROR:  duplicate key value violates unique constraint "schema_migrations_pkey"
+描述:  Key (version)=(20250905041441) already exists.
+psql:supabase_clean.sql:19651: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19652: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19653: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19654: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19655: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19656: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19657: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19658: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19659: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19660: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19661: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19662: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19663: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19664: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19665: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19666: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19667: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19668: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19669: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19670: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19671: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19672: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19673: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19674: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19675: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19676: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19677: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19678: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19679: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19680: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19681: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19682: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19683: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19684: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19685: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19686: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19687: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19688: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19689: ERROR:  permission denied for table migrations
+psql:supabase_clean.sql:19696: ERROR:  INSERT has more expressions than target columns
+第1行...f46a375c', '847abd22-1fb8-4726-924f-332380b47f97', '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19697: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'dfc41cca-0207-40db-88d4-cb71c8d1822b', NULL, '{}', 1);
+                                                             ^ 
+psql:supabase_clean.sql:19698: ERROR:  INSERT has more expressions than target columns
+第1行...3889e422', '847abd22-1fb8-4726-924f-332380b47f97', '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19699: ERROR:  INSERT has more expressions than target columns
+第1行...c34e02d8', '847abd22-1fb8-4726-924f-332380b47f97', '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19700: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '5d802c5c-a292-4c06-8251-345b2b9a5bd0', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19701: ERROR:  INSERT has more expressions than target columns
+第1行...f0efb575', '847abd22-1fb8-4726-924f-332380b47f97', '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19702: ERROR:  INSERT has more expressions than target columns
+第1行...ef9f6080', '847abd22-1fb8-4726-924f-332380b47f97', '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19703: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '8d8cca0b-e5c4-40c6-8836-2e00e816c66c', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19704: ERROR:  INSERT has more expressions than target columns
+第1行...69bf7ba2', '847abd22-1fb8-4726-924f-332380b47f97', '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19705: ERROR:  INSERT has more expressions than target columns
+第1行...36dd8fcd', '847abd22-1fb8-4726-924f-332380b47f97', '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19706: ERROR:  INSERT has more expressions than target columns
+第1行...2497cd10', '847abd22-1fb8-4726-924f-332380b47f97', '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19707: ERROR:  INSERT has more expressions than target columns
+第1行...94b5378a', '847abd22-1fb8-4726-924f-332380b47f97', '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19708: ERROR:  INSERT has more expressions than target columns
+第1行...17840ac5', '847abd22-1fb8-4726-924f-332380b47f97', '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19709: ERROR:  INSERT has more expressions than target columns
+第1行...38c8f384', '847abd22-1fb8-4726-924f-332380b47f97', '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19710: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'b0ffdcb9-f12d-4681-89bb-01567419d726', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19711: ERROR:  INSERT has more expressions than target columns
+第1行...301c336e', '847abd22-1fb8-4726-924f-332380b47f97', '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19712: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'b1fc9f5c-723f-4939-b7fb-e112d3e64d4c', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19713: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '6f23f89f-4adf-49e3-b575-382daa3e66fb', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19714: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'bc97d6eb-44e6-47e7-80ee-d7e8d148e8c2', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19715: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '35b44b16-7ef6-4ca7-9952-3d979409002b', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19716: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '413dc6b3-a04b-4661-9b3e-1c3eed39549a', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19717: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '64f7e19e-f026-4e7e-b6d0-4743e43ddbee', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19718: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '29d446c1-023d-4049-8ca2-52e80a3e8c51', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19719: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'b50a6e36-278b-4e62-8fb3-101a281f5e9c', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19720: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '40801ac1-8205-49b4-b8ae-51a2f81f53d7', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19721: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'e72f90b1-da1d-4b8d-a8b1-c0f4670bb98a', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19722: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'cd816f50-cc41-42c1-94b9-d8bb4a6264d3', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19723: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'e7e81f2e-6d3a-44ea-b858-a788205628a6', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19724: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'b2533ee9-477b-4076-a5c9-9a9fbd7d5d26', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19725: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '494025be-223e-4c34-b1d8-aa94ad50cb2a', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19726: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '66a68fff-d94a-4a97-8a6b-ba0add75b4b3', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19727: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'cc315cb2-0706-4365-b400-c831e28c2a00', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19728: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '5de95d7f-8024-4e7c-8bba-7a6afc11440b', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19729: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '603d1259-ac65-4b05-b7af-d456627fdc86', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19730: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'b6bf8df6-a048-4f69-8da6-f138f5555174', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19731: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'f65a5d99-f6ed-45a2-9a67-78cb1c615d84', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19732: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '30e89162-9c21-4d41-a155-d28f39ffb4f3', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19733: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'e76c3afa-0c8c-40d3-aa6d-a1d86e8b9fb1', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19734: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'c33e1e4b-f9b8-4e1e-81ae-3998bd61849b', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19735: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '0a61b673-844f-4fa7-b50c-347778a9a927', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19736: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'd71392d0-8498-4e8e-8cf9-231ba200b887', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19737: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '6be184ee-9e54-45b5-870c-5f149184e6e4', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19738: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '9f0ef383-bec0-49a3-92e8-aa2d0218d6f7', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19739: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '9f269772-7d5c-4d74-985f-137f23a87d62', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19740: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '72c92d29-cdb7-41c3-9174-6426839633c6', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19741: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '29049231-dcf1-4403-b4f5-89ad67ce3446', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19742: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '37db2e25-f5aa-4b46-98a9-f36daf793e11', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19743: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '10549a36-50a6-4465-86bf-6c5dfb118400', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19744: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'ca5088be-f6b6-44e4-9f09-16793e76018a', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19745: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '3d841d22-fb7e-4000-a0fb-ebd2192f355a', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19746: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'dce3ae22-22d8-4885-a96e-0bb5a8420f2a', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19747: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '7da62b66-209d-4ccc-9324-05eda1a44a1d', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19748: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '7b98d096-b31b-4903-95f0-009371a99faa', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19749: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'd03ce8d3-8e6e-426e-95e6-59199e0e7cdb', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19750: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '9f8e7357-d5b3-474a-af80-0dfc9aae77a8', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19751: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'bd7fefb0-d21d-490f-9848-8c2e518fea2e', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19752: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '5e84b0cc-b274-4d4c-9bca-1cd3d4dca379', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19753: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '4769ae5f-ff6f-401b-b76b-84089f690af2', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19754: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '12054bcf-46ca-4bbf-aab1-75d19bf919bc', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19755: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '9cfc34f0-b2d3-4d00-a4e8-aae0f80f002f', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19756: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '4a4bd6d4-a963-4ef0-b295-9343373ee7d1', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19757: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'b259a7ed-25b3-474d-b4ab-e33bb5a5424c', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19758: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'decd43b6-d21a-4399-84d2-9a45af5a502a', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19759: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '775e1060-b1a6-4a5f-bfdf-321590592d8d', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19760: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '9ddd5f20-994e-494f-bc15-b71912203b51', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19761: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '57fa69db-d366-410d-969e-4582ce8426c4', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19762: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '74ea1e41-3d71-4d87-b8a9-641671f64be6', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19763: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '75475faa-218f-48cf-a9ca-2f7fa7671f46', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19764: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '2ef83597-168e-4d11-8cde-c9312cdd493f', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19765: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '7d5e4c0b-55ef-4448-aed7-0a51c5006cf1', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19766: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '27c0b49b-1e10-4c94-b30e-101fa7626444', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19767: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '0ee76059-f2c4-4097-91ad-ea551ac25fb7', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19768: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'fa5313c4-4275-4b58-bcaf-2e86cdf755fe', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19769: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'fd542009-7303-4055-b916-0760a616cfc4', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19770: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '2874887c-9308-4dc7-80db-d8e3be35cab6', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19771: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '9a36a6b9-6ccc-4d8a-9087-d2adeaa86ba5', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19772: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '089bb2e4-c6e2-46f9-9835-8e837330176f', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19773: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'a50ee376-04cd-4169-8153-b67642d832d1', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19774: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '80446479-b774-42d7-9c26-fdfc39e310d1', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19775: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '0dccd70c-aa43-42f1-add2-5f06757cc0ef', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19776: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '87346b3f-dd94-4bf7-b495-bb4c5d90f962', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19777: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '40799fbb-bf44-455e-8677-0b3f1d119469', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19778: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '4c985244-60d9-46de-853e-4d7da892a5d7', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19779: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'a5a1d8cc-e8c4-4ea8-839b-326b70ed07ac', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19780: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '5aa169e3-ebf1-4267-bf6f-ed00299dde0e', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19781: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '3f800450-5666-4812-8f33-fe6e8315adb7', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19782: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '2b0e6876-d39e-472b-99ba-8f7634ffe58b', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19783: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '3fc0db15-3116-4af8-892e-52ab1cc57afa', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19784: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '6a26515e-c7de-4a6a-9411-9a8412f97360', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19785: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'f14ab6c5-3146-4bdb-84dd-c2e13098d264', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19786: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'bc4799de-9690-414d-af9f-05f403d08503', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19787: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'a5a14021-57ec-45c9-9497-a51e199f8b39', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19788: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '36918f1e-f1fc-478e-a3d5-9c23b21f6df5', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19789: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'f059d533-6618-44fc-b221-d213083990d0', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19790: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '19a3be34-f1c5-4c02-82c0-e4b820744065', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19791: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'a8039afe-d35a-4caa-82a4-4f3d70e5f09b', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19792: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'b4dce8e6-7549-4ed8-ab72-8e541c1ffae5', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19793: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '1b189668-44e7-4d4c-8de7-04589fcdfcfc', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19794: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '6e6a43f2-bf6b-42ea-907e-9b4cb47a2a95', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19795: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'd6f7c8cb-ac77-4adf-b59a-5ff2eda5a347', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19796: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '197352f1-d0ac-49ba-ac3f-915ef8d9b715', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19797: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '6f991170-4438-4e24-9257-14f6eb1c6194', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19798: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '18b638a2-c8fa-4c8d-b676-707bfdeade63', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19799: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '8c546319-37c1-42a3-9a8a-648c728ce761', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19800: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'ca313722-acbc-43e5-ab43-7ecc508e13c0', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19801: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '806c283e-df78-4194-9cd0-e90339990f79', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19802: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'f10791b4-e1ad-445e-b169-e1ac0002d838', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19803: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'ac94c3e2-fc74-4446-bbcd-c6fb696e1b7c', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19804: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '712cab71-738e-42c2-b6c0-cdf18abdbfe8', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19805: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'eca080b1-7ff9-41bd-b29c-5a0a84eebc7a', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19806: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'd5534f86-3878-4c28-97d0-62703bcbc87a', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19807: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '250d3fc5-aa8b-4e59-9fe7-875a1b2add84', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19808: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'c5144288-d562-4299-a2a1-9dbc5cefb5b4', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19809: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '44c2e1a7-321d-4d91-9079-33fcde222fb9', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19810: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '3fcb40b5-3258-470a-a244-e4abce5ad64e', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19811: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'cef3ce2b-dd6b-4ee1-b1b9-32bb93bb1865', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19812: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '586b0dce-14f4-4431-bb43-64184b22bdb1', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19813: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '1d004f1b-0f4c-4618-bc0d-25bfdb651ebd', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19814: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'e905209e-74e1-45ea-bc95-3ce6a443daee', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19815: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'ac6a4625-9b85-4a70-89f4-b0a1ab2ac262', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19816: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '44d28b9c-993d-407e-9fd6-76157c2da262', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19817: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '5b857fb8-a227-4a9f-862e-20274e76bc5e', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19818: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '727225b6-c909-442d-8ef3-be226197fc4b', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19819: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '9060263b-ec36-4e2a-9496-650c09455ce0', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19820: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '59960cc3-da8b-493b-8adf-ac73feee4ea4', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19821: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '6a378f7c-9117-4a74-acf2-ba469605575b', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19822: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '24536208-ba92-4af9-87ae-b2195e0266aa', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19823: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'f6fb175d-efcb-4b42-ab48-35c026c2715f', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19824: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '943e0268-8786-4da2-af4b-3a350561da55', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19825: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '6b3e96dc-0528-4617-8609-d97ebc66536b', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19826: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'a6fa7824-d772-4429-beda-eaf954a56a5b', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19827: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '0cf2576e-fe6d-4551-a676-d000c67138ce', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19828: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '401adcd8-81d9-4773-b5bf-060591f3ca3a', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19829: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'fe1015d6-0d10-4107-8cdc-ed20b544a123', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19830: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '3685aa65-5f3d-4722-946e-9f4517652ba5', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19831: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '713c8bf7-a6a5-4055-91ea-ed165b99a538', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19832: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '477336bb-0132-44f3-bb30-9f648f6fed01', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19833: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'c821e35b-eff9-477d-b98c-a212203563f0', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19834: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '50ff3fde-4cdf-4f8e-b048-49d85f58fe25', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19835: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '29387751-c974-455d-b3f5-dc7ab6af4772', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19836: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, 'aa1e9c23-c421-4f90-8b1a-1900b0328bf9', NULL, '{}', 1);
+                                                               ^
+psql:supabase_clean.sql:19837: ERROR:  INSERT has more expressions than target columns
+第1行...ULT, '20b907f2-1b06-44d3-a3d4-e4c60c7b2db1', NULL, '{}', 1);
+                                                               ^
+INSERT 0 1
+INSERT 0 1
+ setval
+--------
+      1
+(1 行记录)
+ setval
+--------
+psql:supabase_clean.sql:20064: ERROR:  permission denied for sequence jobid_seq
+psql:supabase_clean.sql:20071: ERROR:  permission denied for sequence runid_seq
+ALTER TABLE
+psql:supabase_clean.sql:20418: ERROR:  must be owner of table mfa_amr_claims
+psql:supabase_clean.sql:20426: ERROR:  must be owner of table audit_log_entries
+psql:supabase_clean.sql:20434: ERROR:  must be owner of table flow_state
+psql:supabase_clean.sql:20442: ERROR:  must be owner of table identities
+psql:supabase_clean.sql:20450: ERROR:  must be owner of table identities
+psql:supabase_clean.sql:20458: ERROR:  must be owner of table instances
+psql:supabase_clean.sql:20466: ERROR:  must be owner of table mfa_amr_claims
+psql:supabase_clean.sql:20474: ERROR:  must be owner of table mfa_challenges
+psql:supabase_clean.sql:20482: ERROR:  must be owner of table mfa_factors
+psql:supabase_clean.sql:20490: ERROR:  must be owner of table mfa_factors
+psql:supabase_clean.sql:20498: ERROR:  must be owner of table oauth_authorizations
+psql:supabase_clean.sql:20506: ERROR:  must be owner of table oauth_authorizations
+psql:supabase_clean.sql:20514: ERROR:  must be owner of table oauth_authorizations
+psql:supabase_clean.sql:20522: ERROR:  must be owner of table oauth_clients
+psql:supabase_clean.sql:20530: ERROR:  must be owner of table oauth_consents
+psql:supabase_clean.sql:20538: ERROR:  must be owner of table oauth_consents
+psql:supabase_clean.sql:20546: ERROR:  must be owner of table one_time_tokens
+psql:supabase_clean.sql:20554: ERROR:  must be owner of table refresh_tokens
+psql:supabase_clean.sql:20562: ERROR:  must be owner of table refresh_tokens
+psql:supabase_clean.sql:20570: ERROR:  must be owner of table saml_providers
+psql:supabase_clean.sql:20578: ERROR:  must be owner of table saml_providers
+psql:supabase_clean.sql:20586: ERROR:  must be owner of table saml_relay_states
+psql:supabase_clean.sql:20594: ERROR:  must be owner of table schema_migrations
+psql:supabase_clean.sql:20602: ERROR:  must be owner of table sessions
+psql:supabase_clean.sql:20610: ERROR:  must be owner of table sso_domains
+psql:supabase_clean.sql:20618: ERROR:  must be owner of table sso_providers
+psql:supabase_clean.sql:20626: ERROR:  must be owner of table users
+psql:supabase_clean.sql:20634: ERROR:  must be owner of table users
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+psql:supabase_clean.sql:21074: ERROR:  must be owner of table subscription
+psql:supabase_clean.sql:21082: ERROR:  must be owner of table schema_migrations
+psql:supabase_clean.sql:21090: ERROR:  must be owner of table buckets_analytics
+psql:supabase_clean.sql:21098: ERROR:  must be owner of table buckets
+psql:supabase_clean.sql:21106: ERROR:  relation "storage.iceberg_namespaces" does not exist
+psql:supabase_clean.sql:21114: ERROR:  relation "storage.iceberg_tables" does not exist
+psql:supabase_clean.sql:21122: ERROR:  must be owner of table migrations
+psql:supabase_clean.sql:21130: ERROR:  must be owner of table migrations
+psql:supabase_clean.sql:21138: ERROR:  must be owner of table objects
+psql:supabase_clean.sql:21146: ERROR:  relation "storage.prefixes" does not exist
+psql:supabase_clean.sql:21154: ERROR:  must be owner of table s3_multipart_uploads_parts
+psql:supabase_clean.sql:21162: ERROR:  must be owner of table s3_multipart_uploads
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+psql:supabase_clean.sql:21535: ERROR:  must be owner of table audit_log_entries
+psql:supabase_clean.sql:21542: ERROR:  must be owner of table users
+psql:supabase_clean.sql:21549: ERROR:  must be owner of table users
+psql:supabase_clean.sql:21556: ERROR:  must be owner of table users
+psql:supabase_clean.sql:21563: ERROR:  must be owner of table mfa_factors
+psql:supabase_clean.sql:21570: ERROR:  must be owner of table flow_state
+psql:supabase_clean.sql:21577: ERROR:  must be owner of table identities
+psql:supabase_clean.sql:21584: ERROR:  must be owner of index identities_email_idx
+psql:supabase_clean.sql:21591: ERROR:  must be owner of table identities
+psql:supabase_clean.sql:21598: ERROR:  must be owner of table flow_state
+psql:supabase_clean.sql:21605: ERROR:  must be owner of table flow_state
+psql:supabase_clean.sql:21612: ERROR:  must be owner of table mfa_challenges
+psql:supabase_clean.sql:21619: ERROR:  must be owner of table mfa_factors
+psql:supabase_clean.sql:21626: ERROR:  must be owner of table mfa_factors
+psql:supabase_clean.sql:21633: ERROR:  must be owner of table oauth_authorizations
+psql:supabase_clean.sql:21640: ERROR:  must be owner of table oauth_clients
+psql:supabase_clean.sql:21647: ERROR:  must be owner of table oauth_consents
+psql:supabase_clean.sql:21654: ERROR:  must be owner of table oauth_consents
+psql:supabase_clean.sql:21661: ERROR:  must be owner of table oauth_consents
+psql:supabase_clean.sql:21668: ERROR:  must be owner of table one_time_tokens
+psql:supabase_clean.sql:21675: ERROR:  must be owner of table one_time_tokens
+psql:supabase_clean.sql:21682: ERROR:  must be owner of table one_time_tokens
+psql:supabase_clean.sql:21689: ERROR:  must be owner of table users
+psql:supabase_clean.sql:21696: ERROR:  must be owner of table users
+psql:supabase_clean.sql:21703: ERROR:  must be owner of table refresh_tokens
+psql:supabase_clean.sql:21710: ERROR:  must be owner of table refresh_tokens
+psql:supabase_clean.sql:21717: ERROR:  must be owner of table refresh_tokens
+psql:supabase_clean.sql:21724: ERROR:  must be owner of table refresh_tokens
+psql:supabase_clean.sql:21731: ERROR:  must be owner of table refresh_tokens
+psql:supabase_clean.sql:21738: ERROR:  must be owner of table saml_providers
+psql:supabase_clean.sql:21745: ERROR:  must be owner of table saml_relay_states
+psql:supabase_clean.sql:21752: ERROR:  must be owner of table saml_relay_states
+psql:supabase_clean.sql:21759: ERROR:  must be owner of table saml_relay_states
+psql:supabase_clean.sql:21766: ERROR:  must be owner of table sessions
+psql:supabase_clean.sql:21773: ERROR:  must be owner of table sessions
+psql:supabase_clean.sql:21780: ERROR:  must be owner of table sessions
+psql:supabase_clean.sql:21787: ERROR:  must be owner of table sso_domains
+psql:supabase_clean.sql:21794: ERROR:  must be owner of table sso_domains
+psql:supabase_clean.sql:21801: ERROR:  must be owner of table sso_providers
+psql:supabase_clean.sql:21808: ERROR:  must be owner of table sso_providers
+psql:supabase_clean.sql:21815: ERROR:  must be owner of table mfa_factors
+psql:supabase_clean.sql:21822: ERROR:  must be owner of table sessions
+psql:supabase_clean.sql:21829: ERROR:  must be owner of table users
+psql:supabase_clean.sql:21836: ERROR:  must be owner of index users_email_partial_key
+psql:supabase_clean.sql:21843: ERROR:  must be owner of table users
+psql:supabase_clean.sql:21850: ERROR:  must be owner of table users
+psql:supabase_clean.sql:21857: ERROR:  must be owner of table users
+psql:supabase_clean.sql:22865: ERROR:  must be owner of table subscription
+CREATE INDEX
+psql:supabase_clean.sql:22914: ERROR:  must be owner of table subscription
+psql:supabase_clean.sql:22921: ERROR:  must be owner of table buckets
+psql:supabase_clean.sql:22928: ERROR:  must be owner of table objects
+psql:supabase_clean.sql:22935: ERROR:  relation "storage.iceberg_namespaces" does not exist
+psql:supabase_clean.sql:22942: ERROR:  relation "storage.iceberg_tables" does not exist
+psql:supabase_clean.sql:22949: ERROR:  must be owner of table s3_multipart_uploads
+psql:supabase_clean.sql:22956: ERROR:  must be owner of table objects
+psql:supabase_clean.sql:22963: ERROR:  must be owner of table objects
+psql:supabase_clean.sql:22970: ERROR:  must be owner of table objects
+psql:supabase_clean.sql:22977: ERROR:  relation "storage.prefixes" does not exist
+psql:supabase_clean.sql:22984: ERROR:  must be owner of table objects
+psql:supabase_clean.sql:22991: ERROR:  must be owner of table objects
+CREATE INDEX
+CREATE INDEX
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+psql:supabase_clean.sql:23238: ERROR:  function storage.delete_prefix_hierarchy_trigger() does not exist
+psql:supabase_clean.sql:23245: ERROR:  function storage.objects_insert_prefix_trigger() does not exist
+psql:supabase_clean.sql:23252: ERROR:  function storage.objects_update_prefix_trigger() does not exist
+psql:supabase_clean.sql:23259: ERROR:  relation "storage.prefixes" does not exist
+psql:supabase_clean.sql:23266: ERROR:  relation "storage.prefixes" does not exist
+psql:supabase_clean.sql:23273: ERROR:  function storage.prevent_public_update() does not exist
+psql:supabase_clean.sql:23520: ERROR:  must be owner of table identities
+psql:supabase_clean.sql:23528: ERROR:  must be owner of table mfa_amr_claims
+psql:supabase_clean.sql:23536: ERROR:  must be owner of table mfa_challenges
+psql:supabase_clean.sql:23544: ERROR:  must be owner of table mfa_factors
+psql:supabase_clean.sql:23552: ERROR:  must be owner of table oauth_authorizations
+psql:supabase_clean.sql:23560: ERROR:  must be owner of table oauth_authorizations
+psql:supabase_clean.sql:23568: ERROR:  must be owner of table oauth_consents
+psql:supabase_clean.sql:23576: ERROR:  must be owner of table oauth_consents
+psql:supabase_clean.sql:23584: ERROR:  must be owner of table one_time_tokens
+psql:supabase_clean.sql:23592: ERROR:  must be owner of table refresh_tokens
+psql:supabase_clean.sql:23600: ERROR:  must be owner of table saml_providers
+psql:supabase_clean.sql:23608: ERROR:  must be owner of table saml_relay_states
+psql:supabase_clean.sql:23616: ERROR:  must be owner of table saml_relay_states
+psql:supabase_clean.sql:23624: ERROR:  must be owner of table sessions
+psql:supabase_clean.sql:23632: ERROR:  must be owner of table sessions
+psql:supabase_clean.sql:23640: ERROR:  must be owner of table sso_domains
+psql:supabase_clean.sql:23936: ERROR:  relation "storage.iceberg_namespaces" does not exist
+psql:supabase_clean.sql:23944: ERROR:  relation "storage.iceberg_tables" does not exist
+psql:supabase_clean.sql:23952: ERROR:  relation "storage.iceberg_tables" does not exist
+psql:supabase_clean.sql:23960: ERROR:  must be owner of table objects
+psql:supabase_clean.sql:23968: ERROR:  relation "storage.prefixes" does not exist
+psql:supabase_clean.sql:23976: ERROR:  must be owner of table s3_multipart_uploads
+psql:supabase_clean.sql:23984: ERROR:  must be owner of table s3_multipart_uploads_parts
+psql:supabase_clean.sql:23992: ERROR:  must be owner of table s3_multipart_uploads_parts
+psql:supabase_clean.sql:23999: ERROR:  must be owner of table audit_log_entries
+psql:supabase_clean.sql:24005: ERROR:  must be owner of table flow_state
+psql:supabase_clean.sql:24011: ERROR:  must be owner of table identities
+psql:supabase_clean.sql:24017: ERROR:  must be owner of table instances
+psql:supabase_clean.sql:24023: ERROR:  must be owner of table mfa_amr_claims
+psql:supabase_clean.sql:24029: ERROR:  must be owner of table mfa_challenges
+psql:supabase_clean.sql:24035: ERROR:  must be owner of table mfa_factors
+psql:supabase_clean.sql:24041: ERROR:  must be owner of table one_time_tokens
+psql:supabase_clean.sql:24047: ERROR:  must be owner of table refresh_tokens
+psql:supabase_clean.sql:24053: ERROR:  must be owner of table saml_providers
+psql:supabase_clean.sql:24059: ERROR:  must be owner of table saml_relay_states
+psql:supabase_clean.sql:24065: ERROR:  must be owner of table schema_migrations
+psql:supabase_clean.sql:24071: ERROR:  must be owner of table sessions
+psql:supabase_clean.sql:24077: ERROR:  must be owner of table sso_domains
+psql:supabase_clean.sql:24083: ERROR:  must be owner of table sso_providers
+psql:supabase_clean.sql:24089: ERROR:  must be owner of table users
+psql:supabase_clean.sql:24780: ERROR:  must be owner of table buckets
+psql:supabase_clean.sql:24786: ERROR:  must be owner of table buckets_analytics
+psql:supabase_clean.sql:24792: ERROR:  relation "storage.iceberg_namespaces" does not exist
+psql:supabase_clean.sql:24798: ERROR:  relation "storage.iceberg_tables" does not exist
+psql:supabase_clean.sql:24804: ERROR:  must be owner of table migrations
+psql:supabase_clean.sql:24810: ERROR:  must be owner of table objects
+psql:supabase_clean.sql:24816: ERROR:  relation "storage.prefixes" does not exist
+psql:supabase_clean.sql:24822: ERROR:  must be owner of table s3_multipart_uploads
+psql:supabase_clean.sql:24828: ERROR:  must be owner of table s3_multipart_uploads_parts
+psql:supabase_clean.sql:24913: ERROR:  Non-superuser owned event trigger must execute a non-superuser owned function
+描述:  The current user "postgres" is not a superuser and the function "extensions.set_graphql_placeholder" is owned by a superuser
+psql:supabase_clean.sql:24922: ERROR:  Non-superuser owned event trigger must execute a non-superuser owned function
+描述:  The current user "postgres" is not a superuser and the function "extensions.grant_pg_cron_access" is owned by a superuser
+psql:supabase_clean.sql:24931: ERROR:  Non-superuser owned event trigger must execute a non-superuser owned function
+描述:  The current user "postgres" is not a superuser and the function "extensions.grant_pg_graphql_access" is owned by a superuser
+psql:supabase_clean.sql:24940: ERROR:  Non-superuser owned event trigger must execute a non-superuser owned function
+描述:  The current user "postgres" is not a superuser and the function "extensions.grant_pg_net_access" is owned by a superuser
+psql:supabase_clean.sql:24948: ERROR:  Non-superuser owned event trigger must execute a non-superuser owned function
+描述:  The current user "postgres" is not a superuser and the function "extensions.pgrst_ddl_watch" is owned by a superuser
+psql:supabase_clean.sql:24956: ERROR:  Non-superuser owned event trigger must execute a non-superuser owned function
+描述:  The current user "postgres" is not a superuser and the function "extensions.pgrst_drop_watch" is owned by a superuser
+这是什么问题？

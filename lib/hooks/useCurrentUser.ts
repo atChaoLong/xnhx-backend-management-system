@@ -6,7 +6,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
 import type { User } from '@/lib/types'
 import { Role } from '@/lib/permissions'
 import { api } from '@/lib/fetch'
@@ -75,8 +74,6 @@ export function useCurrentUser() {
               localStorage.removeItem('supabase.auth.token')
               // 清除用户缓存
               sessionStorage.removeItem('currentUser')
-              // 清除 Supabase session
-              await supabase.auth.signOut()
             }
 
             setState({
@@ -129,30 +126,8 @@ export function useCurrentUser() {
 
     loadUser()
 
-    // 监听认证状态变化
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session?.user) {
-        // 清除缓存
-        if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('currentUser')
-        }
-        setState({
-          user: null,
-          isLoading: false,
-          error: null,
-        })
-      } else {
-        // 认证状态变化时重新加载用户信息（清除缓存）
-        if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('currentUser')
-        }
-        loadUser()
-      }
-    })
-
     return () => {
       mounted = false
-      subscription.unsubscribe()
     }
   }, [state.user, state.isLoading])
 

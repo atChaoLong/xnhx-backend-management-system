@@ -84,18 +84,28 @@ export default function TeacherDetailPage({ params }: { params: Promise<{ id: st
     try {
       setIsLoading(true)
 
-      // 获取老师基本信息
-      const teacherData = await TeachersService.getTeacherById(id)
-      setTeacher(teacherData)
+      const [teacherResult, interviewResult] = await Promise.allSettled([
+        TeachersService.getTeacherById(id),
+        api.get(`/api/teacher-candidates?name=${encodeURIComponent(id)}`),
+      ])
 
-      // 获取面试记录（通过姓名关联）
-      const response = await api.get(`/api/teacher-candidates?name=${encodeURIComponent(teacherData.name)}`)
-      if (response.ok) {
-        const result = await response.json()
-        setInterviews(result.data || [])
+      if (teacherResult.status === 'fulfilled') {
+        const teacherData = teacherResult.value
+        setTeacher(teacherData)
+
+        if (interviewResult.status === 'fulfilled') {
+          const response = interviewResult.value
+          if (response.ok) {
+            const result = await response.json()
+            setInterviews(result.data || [])
+          }
+        }
       } else {
-        // API 返回错误，但不阻塞页面加载
-        console.warn('获取面试记录失败', response.status)
+        toast({
+          variant: "destructive",
+          title: "加载失败",
+          description: "无法加载老师信息",
+        })
       }
     } catch (error: any) {
       toast({

@@ -17,6 +17,23 @@ export function useAuth() {
 
   useEffect(() => {
     const checkSession = async () => {
+      // 先检查 sessionStorage 缓存（5分钟内有效），避免每次导航都调 /api/auth/session
+      if (typeof window !== 'undefined') {
+        const cachedUser = sessionStorage.getItem('currentUser')
+        if (cachedUser) {
+          try {
+            const parsed = JSON.parse(cachedUser)
+            if (Date.now() - parsed.timestamp < 5 * 60 * 1000 && parsed.data) {
+              setUser(parsed.data)
+              setIsLoading(false)
+              return
+            }
+          } catch {
+            sessionStorage.removeItem('currentUser')
+          }
+        }
+      }
+
       try {
         const token = typeof window !== 'undefined'
           ? localStorage.getItem('supabase.auth.token')

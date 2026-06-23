@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAuthServer, supabaseServer } from '@/lib/supabase'
+import { supabaseServer } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
 import { hasPermission } from '@/lib/permissions'
 import { RESOURCES, ACTIONS } from '@/lib/permissions'
@@ -9,6 +9,17 @@ import { summarizeError } from '@/lib/safe-error'
 import { getActiveUserProfile } from '@/lib/server-active-profile'
 import { getRequestAccessToken } from '@/lib/server-auth-token'
 import { batchCalculateLeadStatus } from '@/lib/status-calculator'
+
+function decodeJwtUserId(token: string): string | null {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'))
+    return payload?.sub || null
+  } catch {
+    return null
+  }
+}
 
 const logger = createLogger('API:Leads:Feedback')
 const VALID_ADD_STATUSES = new Set(['added', 'not_added'])
@@ -128,19 +139,19 @@ export async function POST(request: NextRequest) {
     // 获取当前用户
     const token = getRequestAccessToken(request)
 
-    const { data: { user }, error: authError } = await supabaseAuthServer.auth.getUser(token)
+    const userId = token ? decodeJwtUserId(token) : null
 
-    if (authError || !user) {
+    if (!userId) {
       return NextResponse.json(
         { error: '未授权' },
         { status: 401 }
       )
     }
 
-    const profileResult = await getActiveUserProfile(user.id, { accessToken: token || '' })
+    const profileResult = await getActiveUserProfile(userId, { accessToken: token || '' })
     if (profileResult.ok === false) {
       logger.warn('反馈线索用户档案校验失败', {
-        userId: user.id,
+        userId,
         code: profileResult.code,
       })
       return NextResponse.json(

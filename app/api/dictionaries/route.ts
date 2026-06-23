@@ -7,6 +7,23 @@ import { summarizeError } from '@/lib/safe-error'
 const logger = createLogger('API:Dictionaries')
 const DICTIONARY_SELECT = 'id,created_at,updated_at,category,code,label,sort_order,is_active'
 
+const DICT_CACHE_TTL_MS = 5 * 60 * 1000
+const dictCache = new Map<string, { data: any[]; fetchedAt: number }>()
+
+function getCachedDicts(key: string): any[] | null {
+  const entry = dictCache.get(key)
+  if (!entry) return null
+  if (Date.now() - entry.fetchedAt > DICT_CACHE_TTL_MS) {
+    dictCache.delete(key)
+    return null
+  }
+  return entry.data
+}
+
+function setCachedDicts(key: string, data: any[]): void {
+  dictCache.set(key, { data, fetchedAt: Date.now() })
+}
+
 function summarizeDictionaryPayload(payload: Record<string, any>) {
   const fields = Object.keys(payload || {}).sort()
 
@@ -51,6 +68,13 @@ export async function GET(request: NextRequest) {
     }
 
     // 否则按分类筛选或获取所有
+    const cacheKey = category || '__all__'
+    const cached = getCachedDicts(cacheKey)
+    if (cached) {
+      logger.debug('字典缓存命中', { category: cacheKey, count: cached.length })
+      return NextResponse.json({ data: cached })
+    }
+
     let query = supabaseServer
       .from('sys_dictionaries')
       .select(DICTIONARY_SELECT)
@@ -71,6 +95,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    setCachedDicts(cacheKey, data || [])
     logger.debug('获取字典项成功', { count: data?.length || 0 })
     return NextResponse.json({ data })
   } catch (error: any) {
@@ -109,6 +134,7 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info('创建字典项成功', { id: data.id })
+    dictCache.clear()
     return NextResponse.json({ data })
   } catch (error: any) {
     logger.error('创建字典项异常', { error_summary: summarizeError(error) })
@@ -159,6 +185,7 @@ export async function PUT(request: NextRequest) {
     }
 
     logger.info('更新字典项成功', { id: data.id })
+    dictCache.clear()
     return NextResponse.json({ data })
   } catch (error: any) {
     logger.error('更新字典项异常', { error_summary: summarizeError(error) })
@@ -200,6 +227,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     logger.info('删除字典项成功', { id })
+    dictCache.clear()
     return NextResponse.json({ success: true })
   } catch (error: any) {
     logger.error('删除字典项异常', { error_summary: summarizeError(error) })

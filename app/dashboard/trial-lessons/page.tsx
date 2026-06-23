@@ -118,13 +118,20 @@ export default function TrialLessonsPage() {
     }
   }
 
-  // 加载字典数据
+  // 并行加载字典、教师、试听课程数据
   useEffect(() => {
-    const loadDictionaries = async () => {
-      try {
-        setIsLoadingDict(true)
-        const dicts = await DictionaryService.getAllDictionaries()
+    let cancelled = false
+    const loadAll = async () => {
+      const [dictResult, teacherResult, lessonResult] = await Promise.allSettled([
+        DictionaryService.getAllDictionaries(),
+        TeachersService.getClassInTeachers(),
+        TrialLessonsService.getTrialLessons(0, 20),
+      ])
 
+      if (cancelled) return
+
+      if (dictResult.status === 'fulfilled') {
+        const dicts = dictResult.value
         setDictOptions({
           grades: dicts.grade || [],
           subjects: dicts.subject || [],
@@ -132,27 +139,18 @@ export default function TrialLessonsPage() {
           courseStatuses: dicts.trial_course_status || [],
           studentTypes: dicts.student_type || [],
         })
-      } catch {
+      } else {
         toast({
           variant: "destructive",
           title: "加载字典失败",
           description: "无法加载试听课程字典",
         })
-      } finally {
-        setIsLoadingDict(false)
       }
-    }
+      setIsLoadingDict(false)
 
-    loadDictionaries()
-  }, [])
-
-  // 加载教师数据
-  useEffect(() => {
-    const loadTeachers = async () => {
-      try {
-        setIsLoadingTeachers(true)
-        const data = await TeachersService.getClassInTeachers()
-
+      if (teacherResult.status === 'fulfilled') {
+        const data = teacherResult.value
+        setTeachers(data || [])
         if (data.length === 0) {
           toast({
             title: "提示",
@@ -160,24 +158,31 @@ export default function TrialLessonsPage() {
             variant: "default"
           })
         }
-
-        setTeachers(data || [])
-      } catch (error: any) {
+      } else {
         toast({
           variant: "destructive",
           title: "加载教师失败",
-          description: error.message || "无法加载教师列表"
+          description: "无法加载教师列表"
         })
-      } finally {
-        setIsLoadingTeachers(false)
       }
+      setIsLoadingTeachers(false)
+
+      if (lessonResult.status === 'fulfilled') {
+        const { data, count } = lessonResult.value
+        setLessons(data)
+        setTotalCount(count)
+      } else {
+        toast({
+          variant: "destructive",
+          title: "加载失败",
+          description: "无法加载试听课程列表",
+        })
+      }
+      setIsLoading(false)
     }
 
-    loadTeachers()
-  }, [])
-
-  useEffect(() => {
-    fetchLessons(1, 20)
+    loadAll()
+    return () => { cancelled = true }
   }, [])
 
   // 根据编码获取标签

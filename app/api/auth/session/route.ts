@@ -1,4 +1,4 @@
-import { supabaseAuthServer } from '@/lib/supabase'
+import { supabaseServer } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
 import { createLogger } from '@/lib/logger'
 import { summarizeError } from '@/lib/safe-error'
@@ -6,6 +6,16 @@ import { getActiveUserProfile } from '@/lib/server-active-profile'
 import { getRequestAccessToken } from '@/lib/server-auth-token'
 
 const logger = createLogger('Auth:Session')
+
+function decodeJwtPayload(token: string): { sub?: string; email?: string } | null {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    return JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'))
+  } catch {
+    return null
+  }
+}
 
 function sessionJson(body: unknown, init?: ResponseInit) {
   const response = NextResponse.json(body, init)
@@ -25,25 +35,21 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    logger.debug('验证用户 session')
-
-    const { data: { user }, error } = await supabaseAuthServer.auth.getUser(token)
-
-    if (error || !user) {
-      logger.warn('Token 验证失败', error ? summarizeError(error) : { has_user: false })
+    const payload = decodeJwtPayload(token)
+    if (!payload?.sub) {
+      logger.warn('Token 解码失败')
       return sessionJson(
-        {
-          error: '未认证',
-          hint: '请重新登录',
-        },
+        { error: '未认证', hint: '请重新登录' },
         { status: 401 }
       )
     }
 
-    const profileResult = await getActiveUserProfile(user.id, { accessToken: token })
+    const userId = payload.sub
+
+    const profileResult = await getActiveUserProfile(userId, { accessToken: token })
     if (profileResult.ok === false) {
       logger.warn('Session 用户档案校验失败', {
-        userId: user.id,
+        userId,
         code: profileResult.code,
       })
       return sessionJson(
@@ -58,13 +64,13 @@ export async function GET(request: NextRequest) {
 
     const profile = profileResult.profile
 
-    logger.debug('Session 验证成功', { userId: user.id })
+    logger.debug('Session 验证成功', { userId })
     return sessionJson({
       data: {
         user: {
-          id: user.id,
-          email: profile.email || user.email,
-          name: profile.name || user.email?.split('@')[0],
+          id: userId,
+          email: profile.email || payload.email,
+          name: profile.name || payload.email?.split('@')[0],
           role: profile.role,
         },
       },

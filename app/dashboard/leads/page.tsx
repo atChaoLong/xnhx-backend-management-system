@@ -114,14 +114,22 @@ export default function LeadsPage() {
     },
   })
 
-  // 加载字典数据
+  // 并行加载字典和线索列表
   useEffect(() => {
-    const loadDictionaries = async () => {
-      try {
-        setIsLoadingDict(true)
-        const dicts = await DictionaryService.getAllDictionaries()
+    if (isUserLoading) return
+    let cancelled = false
 
-        // 将字典数组转换为 Map 以便快速查找
+    const loadAll = async () => {
+      const scope = user?.role === 'sales' ? 'owned' : undefined
+      const [dictResult, leadsResult] = await Promise.allSettled([
+        DictionaryService.getAllDictionaries(),
+        LeadsService.getLeads(0, pageSize - 1, { scope }),
+      ])
+
+      if (cancelled) return
+
+      if (dictResult.status === 'fulfilled') {
+        const dicts = dictResult.value
         setDictMaps({
           grades: new Map((dicts.grade || []).map(item => [item.code, item.label])),
           subjects: new Map((dicts.subject || []).map(item => [item.code, item.label])),
@@ -129,20 +137,19 @@ export default function LeadsPage() {
           regions: new Map((dicts.province || []).map(item => [item.code, item.label])),
           sources: new Map((dicts.xhs_source || []).map(item => [item.code, item.label])),
         })
-      } catch {
-        // 字典加载失败时保留原始字段值展示。
-      } finally {
-        setIsLoadingDict(false)
       }
+      setIsLoadingDict(false)
+
+      if (leadsResult.status === 'fulfilled') {
+        setLeads(leadsResult.value.data)
+        setTotalCount(leadsResult.value.count)
+      }
+      setIsLoading(false)
     }
 
-    loadDictionaries()
-  }, [])
-
-  useEffect(() => {
-    if (!isUserLoading) {
-      fetchLeads(1, pageSize)
-    }
+    setIsLoading(true)
+    loadAll()
+    return () => { cancelled = true }
   }, [isUserLoading, user?.role])
 
   const canWriteLead = (lead: Lead) => {

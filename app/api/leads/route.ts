@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
 import { handleDatabaseError } from '@/lib/utils'
-import { batchCalculateLeadStatus } from '@/lib/status-calculator'
+import { batchCalculateLeadStatus, calculateLeadAddStatusFromFlags, calculateLeadConvertStatusFromFlags, getLeadAddStatusName, getLeadConvertStatusName } from '@/lib/status-calculator'
 import { getCurrentProfile } from '@/lib/server-data-scope'
 import {
   isLeadAssignedToProfile,
@@ -45,6 +45,11 @@ const LEAD_SELECT = `
   updated_by
 `
 
+const LEAD_SELECT_NESTED = `${LEAD_SELECT},
+  trial_lessons(lead_id),
+  formal_orders(lead_id)
+`
+
 const LEAD_FALLBACK_SELECT = `
   id,
   created_at,
@@ -84,7 +89,8 @@ function isMissingLeadColumnError(error: unknown) {
     code === 'PGRST204' ||
     (message.includes('column') && message.includes('does not exist')) ||
     message.includes('could not find') ||
-    message.includes('schema cache')
+    message.includes('schema cache') ||
+    message.includes('relationship')
 }
 
 function countScreenshotRefs(value: unknown) {
@@ -100,6 +106,39 @@ function summarizeLeadPayload(payload: Record<string, any>) {
     chat_screenshot_count: countScreenshotRefs(payload.chat_screenshots),
     subject_count: Array.isArray(payload.subject_codes) ? payload.subject_codes.length : 0,
   }
+}
+
+let operatorCache: { data: Map<string, string>, expiry: number } | null = null
+const OPERATOR_CACHE_TTL = 60000
+
+const countCache = new Map<string, { count: number, expiry: number }>()
+const COUNT_CACHE_TTL = 30000
+
+function getCountCacheKey(scope: string | null, profileId: string): string {
+  return `${scope || 'default'}:${profileId}`
+}
+
+function clearAllCountCache() {
+  countCache.clear()
+}
+
+async function getOperatorMap(): Promise<Map<string, string>> {
+  if (operatorCache && Date.now() < operatorCache.expiry) {
+    return operatorCache.data
+  }
+  const { data, error } = await supabaseServer
+    .from('user_profiles')
+    .select('id, name')
+  if (error) {
+    logger.warn('获取运营人员列表失败', summarizeError(error))
+    return operatorCache?.data || new Map()
+  }
+  const map = new Map<string, string>()
+  if (data) {
+    data.forEach(op => map.set(op.id, op.name))
+  }
+  operatorCache = { data: map, expiry: Date.now() + OPERATOR_CACHE_TTL }
+  return map
 }
 
 function stripLeadChannelFields<T extends Record<string, any>>(payload: T) {
@@ -421,6 +460,7 @@ function buildLeadQueries(
 // GET: 获取所有线索
 export async function getLeadsResponse(request: NextRequest, fixedScope?: string) {
   try {
+    const t0 = Date.now()
     logger.debug('获取线索列表')
 
     // 获取分页参数
@@ -432,31 +472,50 @@ export async function getLeadsResponse(request: NextRequest, fixedScope?: string
     // 当前用户档案（用于销售角色筛选）
     const profile = await getCurrentProfile(request)
     const relatedLeadIds = await getHeadTeacherFormalLeadIds(profile)
+    const t1 = Date.now()
 
-    let { baseCountQuery, baseDataQuery } = buildLeadQueries(profile, scope, LEAD_SELECT, relatedLeadIds)
+    // 优先使用 nested select（trial_lessons/formal_orders 内联），减少 Supabase 往返次数
+    let { baseCountQuery, baseDataQuery } = buildLeadQueries(profile, scope, LEAD_SELECT_NESTED, relatedLeadIds)
 
-    // 总数和当前页数据互不依赖，合并等待以减少列表接口耗时。
+    // count 查询有 30s 缓存，缓存命中时只发 data 查询（1 次往返）
+    const countKey = getCountCacheKey(scope, profile?.id || 'unknown')
+    const cachedCount = countCache.get(countKey)
+    const countPromise = cachedCount && Date.now() < cachedCount.expiry
+      ? Promise.resolve({ count: cachedCount.count })
+      : baseCountQuery.then(res => {
+          if (res.count !== null && res.count !== undefined) {
+            countCache.set(countKey, { count: res.count, expiry: Date.now() + COUNT_CACHE_TTL })
+          }
+          return res
+        })
+
+    // Round 1: count(可能缓存) + data + operatorMap 全部并行
     const [
       { count: totalCount },
       dataResult,
+      operatorMap,
     ] = await Promise.all([
-      baseCountQuery,
+      countPromise,
       baseDataQuery
         .order('created_at', { ascending: false })
         .range(from, to),
+      getOperatorMap(),
     ])
+    const t2 = Date.now()
 
     let { data, error } = dataResult
+    let usedNestedSelect = !error
 
+    // nested select 失败（FK 不存在等），回退到基础字段 + 独立状态查询
     if (error && isMissingLeadColumnError(error)) {
-      logger.warn('线索列表字段与线上库结构不一致，回退到基础字段查询', summarizeError(error))
+      logger.warn('nested select 失败，回退到基础字段 + 独立状态查询', summarizeError(error))
       const fallbackQueries = buildLeadQueries(profile, scope, LEAD_FALLBACK_SELECT, relatedLeadIds)
-      baseDataQuery = fallbackQueries.baseDataQuery
-      const fallbackResult = await baseDataQuery
+      const fallbackResult = await fallbackQueries.baseDataQuery
         .order('created_at', { ascending: false })
         .range(from, to)
       data = fallbackResult.data
       error = fallbackResult.error
+      usedNestedSelect = false
     }
 
     if (error) {
@@ -471,48 +530,67 @@ export async function getLeadsResponse(request: NextRequest, fixedScope?: string
     const leadsWithStatus = []
     const leadRows = Array.isArray(data) ? data as Record<string, any>[] : []
     if (leadRows.length > 0) {
-      // 获取所有unique的operator_id
-      const operatorIds = Array.from(new Set(leadRows.map(lead => lead.operator_id).filter(Boolean)))
+      let statusResults: { addStatus: any; convertStatus: any; addStatusName: string; convertStatusName: string }[]
 
-      const operatorQueryPromise = operatorIds.length > 0
-        ? supabaseServer
-          .from('user_profiles')
-          .select('id, name')
-          .in('id', operatorIds)
-        : Promise.resolve({ data: [] })
-
-      const [statusResults, { data: operators }] = await Promise.all([
-        batchCalculateLeadStatus(leadRows),
-        operatorQueryPromise,
-      ])
-
-      // 批量查询运营人员信息
-      let operatorMap = new Map<string, string>()
-      if (operators) {
-        operators.forEach(op => {
-          operatorMap.set(op.id, op.name)
+      if (usedNestedSelect) {
+        // 从 nested select 数据本地计算状态，零额外查询
+        statusResults = leadRows.map(lead => {
+          const hasTrialLesson = Array.isArray(lead.trial_lessons) && lead.trial_lessons.length > 0
+          const hasFormalOrder = Array.isArray(lead.formal_orders) && lead.formal_orders.length > 0
+          const addStatus = calculateLeadAddStatusFromFlags(lead, hasTrialLesson)
+          const convertStatus = calculateLeadConvertStatusFromFlags(hasTrialLesson, hasFormalOrder)
+          return {
+            addStatus,
+            convertStatus,
+            addStatusName: getLeadAddStatusName(addStatus),
+            convertStatusName: getLeadConvertStatusName(convertStatus),
+          }
         })
+      } else {
+        // 回退路径：独立查询 trial_lessons + formal_orders
+        statusResults = await batchCalculateLeadStatus(leadRows)
       }
+      const t3 = Date.now()
 
       // 合并状态到数据
       for (let i = 0; i < leadRows.length; i++) {
         const lead = leadRows[i]
         const status = statusResults[i]
 
+        const { trial_lessons: _tl, formal_orders: _fo, ...leadFields } = lead
+
         leadsWithStatus.push(maskLeadForProfile({
-          ...lead,
-          // 添加状态字段
+          ...leadFields,
           add_status: status.addStatus,
           add_status_name: status.addStatusName,
           convert_status: status.convertStatus,
           convert_status_name: status.convertStatusName,
-          // 添加运营人员名字
           operator_name: operatorMap.get(lead.operator_id) || lead.operator_id,
         }, profile))
       }
+
+      logger.info('获取线索成功', {
+        count: leadsWithStatus.length || 0,
+        nested: usedNestedSelect,
+        timing: {
+          profile_related: `${t1 - t0}ms`,
+          round1: `${t2 - t1}ms`,
+          status: `${t3 - t2}ms`,
+          total: `${t3 - t0}ms`,
+        },
+      })
+    } else {
+      logger.info('获取线索成功', {
+        count: 0,
+        nested: usedNestedSelect,
+        timing: {
+          profile_related: `${t1 - t0}ms`,
+          round1: `${t2 - t1}ms`,
+          total: `${t2 - t0}ms`,
+        },
+      })
     }
 
-    logger.info('获取线索成功', { count: leadsWithStatus.length || 0 })
     return NextResponse.json({
       data: leadsWithStatus,
       count: totalCount || 0,
@@ -620,6 +698,7 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info('创建线索成功', { leadId: data.id })
+    clearAllCountCache()
     return NextResponse.json({ data })
   } catch (error) {
     logger.error('创建线索异常', summarizeError(error))
@@ -753,6 +832,7 @@ export async function PUT(request: NextRequest) {
     }
 
     logger.info('更新线索成功', { leadId: data.id })
+    clearAllCountCache()
     return NextResponse.json({ data })
   } catch (error) {
     logger.error('更新线索异常', summarizeError(error))

@@ -4,11 +4,10 @@
  */
 
 import { NextRequest } from 'next/server'
-import { supabaseAuthServer } from '@/lib/supabase'
-import { hasPermission, PermissionDeniedError, Role, Resource, Action } from '@/lib/permissions'
+import { hasPermission, Role, Resource, Action } from '@/lib/permissions'
 import { NextResponse } from 'next/server'
 import { createLogger } from '@/lib/logger'
-import { getErrorMessage, summarizeError } from '@/lib/safe-error'
+import { summarizeError } from '@/lib/safe-error'
 import { getActiveUserProfile } from '@/lib/server-active-profile'
 import { getRequestAccessToken } from '@/lib/server-auth-token'
 
@@ -35,53 +34,24 @@ export interface AuthResult {
   userId?: string
 }
 
-function isRecord(value: unknown): value is Record<string, any> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-async function authenticateViaProfileRoute(
-  request: NextRequest,
-  token: string
-): Promise<AuthResult | null> {
-  const origin = request.nextUrl?.origin
-  if (!origin) return null
-
+function decodeJwtPayload(token: string): { sub?: string; exp?: number } | null {
   try {
-    const response = await fetch(`${origin}/api/auth/profile`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      cache: 'no-store',
-    })
-
-    if (!response.ok) {
-      logger.debug('Node profile 兜底认证失败', { status: response.status })
-      return null
-    }
-
-    const payload = await response.json().catch(() => null)
-    const profile = isRecord(payload) && isRecord(payload.data)
-      ? payload.data
-      : null
-
-    const userId = typeof profile?.id === 'string' ? profile.id : undefined
-    const role = typeof profile?.role === 'string' ? profile.role as Role : undefined
-
-    if (!userId) return null
-
-    return {
-      status: AuthStatus.AUTHENTICATED,
-      role,
-      userId,
-    }
-  } catch (error: unknown) {
-    logger.warn('Node profile 兜底认证异常', summarizeError(error))
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    return JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'))
+  } catch {
     return null
   }
 }
 
+function isJwtExpired(payload: { exp?: number } | null): boolean {
+  if (!payload?.exp) return false
+  return Date.now() / 1000 > payload.exp
+}
+
 /**
  * 从请求中验证用户身份并获取角色
+ * 使用本地 JWT 解码 + 内存缓存，零网络调用
  */
 export async function authenticateUser(request: NextRequest): Promise<AuthResult> {
   try {
@@ -93,76 +63,52 @@ export async function authenticateUser(request: NextRequest): Promise<AuthResult
       return { status: AuthStatus.NO_TOKEN }
     }
 
-    // 2. 验证 token 是否有效
-    const { data: { user }, error } = await supabaseAuthServer.auth.getUser(token)
-
-    if (error) {
-      const fallbackResult = await authenticateViaProfileRoute(request, token)
-      if (fallbackResult) {
-        logger.warn('Supabase SDK token 校验失败，已使用 Node profile 兜底认证', {
-          ...summarizeError(error),
-          userId: fallbackResult.userId,
-        })
-        return fallbackResult
-      }
-
-      // 判断 token 是否过期
-      // Supabase 在 token 过期时返回 401 Unauthorized
-      const authErrorMessage = getErrorMessage(error)
-      const isExpired = error.status === 401 ||
-                       authErrorMessage.includes('expired') ||
-                       authErrorMessage.includes('过期')
-
-      if (isExpired) {
-        logger.debug('认证失败：token 已过期', summarizeError(error))
-        return { status: AuthStatus.EXPIRED_TOKEN }
-      }
-
-      logger.debug('认证失败：token 无效', summarizeError(error))
+    // 2. 本地解码 JWT，检查格式和过期时间
+    const payload = decodeJwtPayload(token)
+    if (!payload?.sub) {
+      logger.debug('认证失败：token 解码失败')
       return { status: AuthStatus.INVALID_TOKEN }
     }
 
-    if (!user) {
-      logger.debug('认证失败：未找到用户')
-      return { status: AuthStatus.INVALID_TOKEN }
+    if (isJwtExpired(payload)) {
+      logger.debug('认证失败：token 已过期')
+      return { status: AuthStatus.EXPIRED_TOKEN }
     }
 
-    // 3. 获取用户角色，并拦截停用账号
-    const profileResult = await getActiveUserProfile(user.id, { accessToken: token })
+    const userId = payload.sub
+
+    // 3. 获取用户角色（使用内存缓存，60s 内零 DB 查询）
+    const profileResult = await getActiveUserProfile(userId, { accessToken: token })
 
     if (profileResult.ok === false) {
       if (profileResult.code === 'ACCOUNT_DISABLED') {
-        return { status: AuthStatus.ACCOUNT_DISABLED, userId: user.id }
+        return { status: AuthStatus.ACCOUNT_DISABLED, userId }
       }
 
       if (profileResult.code === 'PROFILE_LOOKUP_FAILED') {
-        return { status: AuthStatus.PROFILE_UNAVAILABLE, userId: user.id }
+        return { status: AuthStatus.PROFILE_UNAVAILABLE, userId }
       }
 
       return {
         status: AuthStatus.AUTHENTICATED,
-        userId: user.id,
+        userId,
       }
     }
 
     const role = profileResult.profile.role as Role | undefined
 
     if (!role) {
-      logger.warn('用户没有角色信息', { userId: user.id })
+      logger.warn('用户没有角色信息', { userId })
     }
 
     return {
       status: AuthStatus.AUTHENTICATED,
       role,
-      userId: user.id,
+      userId,
     }
   } catch (error: unknown) {
     logger.error('认证异常', summarizeError(error))
-    // 捕获异常时，尝试判断是否是过期相关的错误
-    const authErrorMessage = getErrorMessage(error)
-    const isExpired = authErrorMessage.includes('expired') ||
-                     authErrorMessage.includes('过期')
-    return { status: isExpired ? AuthStatus.EXPIRED_TOKEN : AuthStatus.INVALID_TOKEN }
+    return { status: AuthStatus.INVALID_TOKEN }
   }
 }
 

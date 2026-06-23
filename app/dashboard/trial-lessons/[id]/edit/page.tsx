@@ -99,15 +99,21 @@ export default function EditTrialLessonPage() {
     confirmed_teacher: "",
   })
 
-  // 加载试听课程数据
+  // 并行加载试听课程、字典、教师数据
   useEffect(() => {
-    const fetchLesson = async () => {
-      try {
-        setIsLoading(true)
-        const data = await TrialLessonsService.getTrialLessonById(lessonId)
-        setLesson(data)
+    let cancelled = false
+    const loadAll = async () => {
+      const [lessonResult, dictResult, teacherResult] = await Promise.allSettled([
+        TrialLessonsService.getTrialLessonById(lessonId),
+        DictionaryService.getAllDictionaries(),
+        TeachersService.getClassInTeachers(),
+      ])
 
-        // 设置表单数据
+      if (cancelled) return
+
+      if (lessonResult.status === 'fulfilled') {
+        const data = lessonResult.value
+        setLesson(data)
         setFormData({
           child_name: data.child_name || "",
           status: data.status || "pending",
@@ -129,67 +135,47 @@ export default function EditTrialLessonPage() {
           matched_teacher: data.matched_teacher || "",
           confirmed_teacher: data.confirmed_teacher || "",
         })
-      } catch (error: any) {
+      } else {
         toast({
           variant: "destructive",
           title: "加载失败",
-          description: error.message || "无法加载试听课程数据",
+          description: "无法加载试听课程数据",
         })
-      } finally {
-        setIsLoading(false)
       }
-    }
+      setIsLoading(false)
 
-    fetchLesson()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lessonId])
-
-  // 加载字典数据
-  useEffect(() => {
-    const loadDictionaries = async () => {
-      try {
-        setIsLoadingDict(true)
-        const dicts = await DictionaryService.getAllDictionaries()
-
+      if (dictResult.status === 'fulfilled') {
+        const dicts = dictResult.value
         setDictOptions({
           grades: dicts.grade || [],
           subjects: dicts.subject || [],
           regions: dicts.province || [],
         })
-      } catch {
+      } else {
         toast({
           variant: "destructive",
           title: "加载字典失败",
           description: "无法加载试听课程字典",
         })
-      } finally {
-        setIsLoadingDict(false)
       }
-    }
+      setIsLoadingDict(false)
 
-    loadDictionaries()
-  }, [])
-
-  // 加载教师数据
-  useEffect(() => {
-    const loadTeachers = async () => {
-      try {
-        setIsLoadingTeachers(true)
-        const data = await TeachersService.getClassInTeachers()
-        setTeachers(data || [])
-      } catch (error: any) {
+      if (teacherResult.status === 'fulfilled') {
+        setTeachers(teacherResult.value || [])
+      } else {
         toast({
           variant: "destructive",
           title: "加载老师失败",
-          description: error.message || "无法加载 ClassIn 老师目录",
+          description: "无法加载 ClassIn 老师目录",
         })
-      } finally {
-        setIsLoadingTeachers(false)
       }
+      setIsLoadingTeachers(false)
     }
 
-    loadTeachers()
-  }, [])
+    loadAll()
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lessonId])
 
   const handleInputChange = (field: string, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
