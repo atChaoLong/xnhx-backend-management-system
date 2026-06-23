@@ -283,13 +283,16 @@ export default function NewLeadPage() {
                       <Label htmlFor="channel_platform">
                         渠道平台 <span className="text-destructive">*</span>
                       </Label>
-                      <Input
-                        id="channel_platform"
-                        value={formData.channel_platform}
-                        onChange={(e) => handleInputChange("channel_platform", e.target.value)}
-                        placeholder="例如：小红书、抖音、微信"
-                        required
-                      />
+                      <Select value={formData.channel_platform} onValueChange={(value) => handleInputChange("channel_platform", value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="选择渠道平台" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="抖音">抖音</SelectItem>
+                          <SelectItem value="小红书">小红书</SelectItem>
+                          <SelectItem value="其他">其他</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="space-y-2">
