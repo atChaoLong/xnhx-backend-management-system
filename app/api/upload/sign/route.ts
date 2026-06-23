@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
 import { v4 as uuidv4 } from 'uuid'
 import { createLogger } from '@/lib/logger'
 import { authenticateUser, AuthStatus } from '@/lib/middleware'
 import { ACTIONS, hasPermission, RESOURCES, type Action, type Resource, type Role } from '@/lib/permissions'
 import { summarizeError } from '@/lib/safe-error'
-import { createSignedUploadUrlWithEnsure, isBucketProvisionError } from '@/lib/server-storage'
+import { createOssSignedUploadUrl } from '@/lib/server-oss'
 
 const logger = createLogger('API:UploadSign')
 
@@ -341,41 +340,38 @@ export async function POST(request: NextRequest) {
     }
 
     const storageFileName = makeStorageFileName(fileName, contentTypeInput, bucket)
-    const { data, error } = await createSignedUploadUrlWithEnsure({
-      bucketName,
-      filePath: storageFileName,
-    })
 
-    if (error || !data) {
-      const bucketProvisionError = error ? isBucketProvisionError(error) : false
-
-      logger.error('Signed upload URL error', {
+    let ossResult: { signedUrl: string; key: string; url: string }
+    try {
+      ossResult = await createOssSignedUploadUrl({
+        bucketName,
+        filePath: storageFileName,
+        contentType,
+      })
+    } catch (ossError) {
+      logger.error('OSS signed upload URL error', {
         bucketName,
         fileSize,
         contentType,
         extension: getFileExtension(fileName) || null,
-        ...summarizeError(error || new Error('missing signed upload data')),
+        ...summarizeError(ossError),
       })
       return NextResponse.json({
-        error: bucketProvisionError ? '存储目录初始化失败，请稍后重试' : '上传失败',
-        code: bucketProvisionError ? 'UPLOAD_BUCKET_CREATE_FAILED' : 'UPLOAD_SIGN_FAILED',
+        error: '上传失败',
+        code: 'UPLOAD_SIGN_FAILED',
       }, { status: 500 })
     }
 
-    const { data: urlData } = supabaseAdmin.storage
-      .from(bucketName)
-      .getPublicUrl(data.path)
-
-    logger.info('Signed upload URL created', {
+    logger.info('OSS signed upload URL created', {
       bucketName,
       fileSize,
     })
 
     return NextResponse.json({
-      signedUrl: data.signedUrl,
-      token: data.token,
-      path: data.path,
-      url: urlData.publicUrl,
+      signedUrl: ossResult.signedUrl,
+      token: 'oss',
+      path: ossResult.key,
+      url: ossResult.url,
       contentType,
     })
   } catch (error: unknown) {

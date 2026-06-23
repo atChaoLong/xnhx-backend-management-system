@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
 import { summarizeError } from '@/lib/safe-error'
 import { v4 as uuidv4 } from 'uuid'
-import { isBucketProvisionError, uploadToPublicBucketWithEnsure } from '@/lib/server-storage'
+import { uploadToOss } from '@/lib/server-oss'
 
 export const runtime = 'nodejs'
 
@@ -267,37 +267,31 @@ export async function POST(request: NextRequest) {
     const fileName = `${candidate.id}/${fileType}/${makeStorageFileName(file.name)}`
     const uploadContentType = file.type || getContentTypeFromExtension(extension) || 'application/octet-stream'
 
-    const { data, error } = await uploadToPublicBucketWithEnsure({
-      bucketName,
-      filePath: fileName,
-      fileBuffer,
-      contentType: uploadContentType,
-    })
-
-    if (error) {
-      const bucketProvisionError = isBucketProvisionError(error)
-
+    let ossResult: { key: string; url: string }
+    try {
+      ossResult = await uploadToOss({
+        bucketName,
+        filePath: fileName,
+        fileBuffer,
+        contentType: uploadContentType,
+      })
+    } catch (ossError) {
       logger.error('教师表单文件上传失败', {
         bucket_name: bucketName,
         file_summary: summarizeUploadFile(file, fileType, candidateIdValue),
-        ...summarizeError(error),
+        ...summarizeError(ossError),
       })
       return NextResponse.json({
-        error: bucketProvisionError ? '存储目录初始化失败，请稍后重试' : '上传失败',
-        code: bucketProvisionError ? 'TEACHER_FORM_UPLOAD_BUCKET_CREATE_FAILED' : 'TEACHER_FORM_UPLOAD_STORAGE_ERROR',
+        error: '上传失败',
+        code: 'TEACHER_FORM_UPLOAD_STORAGE_ERROR',
       }, { status: 500 })
     }
-
-    // 8. 获取公共URL
-    const { data: urlData } = supabaseAdmin.storage
-      .from(bucketName)
-      .getPublicUrl(data.path)
 
     // 9. 返回结果
     return NextResponse.json({
       success: true,
-      url: urlData.publicUrl,
-      path: data.path
+      url: ossResult.url,
+      path: ossResult.key
     }, { status: 201 })
 
   } catch (error) {

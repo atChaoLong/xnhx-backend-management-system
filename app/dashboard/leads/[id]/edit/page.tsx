@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Loader2 } from "lucide-react"
+import { Loader2, ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { LeadsService, Lead } from "@/lib/services/leads"
 import { DictionaryService } from "@/lib/services/dictionary"
@@ -24,6 +24,13 @@ import { UserProfilesService, UserProfile } from "@/lib/services/userProfiles"
 import { CHAT_SCREENSHOT_ACCEPT, uploadChatScreenshot, validateChatScreenshotFile } from "@/lib/services/upload"
 import { useToast } from "@/hooks/use-toast"
 import { summarizeError } from "@/lib/safe-error"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 export default function EditLeadPage() {
   const router = useRouter()
@@ -39,6 +46,9 @@ export default function EditLeadPage() {
   const [chatScreenshotFiles, setChatScreenshotFiles] = useState<File[]>([])
   const [chatScreenshotPreviews, setChatScreenshotPreviews] = useState<string[]>([])
   const [isUploadingFile, setIsUploadingFile] = useState(false)
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
+  const [previewImages, setPreviewImages] = useState<string[]>([])
+  const [previewImageIndex, setPreviewImageIndex] = useState(0)
 
   const leadId = params.id as string
 
@@ -208,7 +218,7 @@ export default function EditLeadPage() {
 
       setChatScreenshotFiles(prev => [...prev, ...files])
 
-      // 上传所有文件到 Supabase Storage
+      // 上传所有文件到 OSS
       try {
         setIsUploadingFile(true)
         const uploadPromises = files.map(file => uploadChatScreenshot(file))
@@ -236,6 +246,20 @@ export default function EditLeadPage() {
   const handleRemoveScreenshot = (index: number) => {
     setChatScreenshotPreviews(prev => prev.filter((_, i) => i !== index))
     setChatScreenshotFiles(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const openImagePreview = (images: string[], index = 0) => {
+    setPreviewImages(images)
+    setPreviewImageIndex(index)
+    setImagePreviewOpen(true)
+  }
+
+  const showPreviousPreviewImage = () => {
+    setPreviewImageIndex(index => Math.max(index - 1, 0))
+  }
+
+  const showNextPreviewImage = () => {
+    setPreviewImageIndex(index => Math.min(index + 1, previewImages.length - 1))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -563,7 +587,8 @@ export default function EditLeadPage() {
                           <img
                             src={preview}
                             alt={`聊天截图预览 ${index + 1}`}
-                            className="w-full h-auto border rounded"
+                            className="w-full h-auto border rounded cursor-zoom-in"
+                            onClick={() => openImagePreview(chatScreenshotPreviews, index)}
                           />
                           <button
                             type="button"
@@ -598,6 +623,49 @@ export default function EditLeadPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 图片预览对话框 */}
+      <Dialog open={imagePreviewOpen} onOpenChange={setImagePreviewOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>聊天截图</DialogTitle>
+            <DialogDescription>
+              {previewImages.length > 0 ? `${previewImageIndex + 1} / ${previewImages.length}` : "无图片"}
+            </DialogDescription>
+          </DialogHeader>
+          {previewImages.length > 0 && (
+            <div className="space-y-4">
+              <div className="max-h-[70vh] overflow-auto rounded border bg-muted/30">
+                <img
+                  src={previewImages[previewImageIndex]}
+                  alt={`聊天截图 ${previewImageIndex + 1}`}
+                  className="mx-auto max-h-[70vh] w-auto max-w-full object-contain"
+                />
+              </div>
+              {previewImages.length > 1 && (
+                <div className="flex justify-between">
+                  <Button
+                    variant="outline"
+                    onClick={showPreviousPreviewImage}
+                    disabled={previewImageIndex === 0}
+                  >
+                    <ChevronLeft className="mr-2 h-4 w-4" />
+                    上一张
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={showNextPreviewImage}
+                    disabled={previewImageIndex >= previewImages.length - 1}
+                  >
+                    下一张
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft, Loader2, ChevronLeft, ChevronRight } from "lucide-react"
 import { LeadsService, NewLead } from "@/lib/services/leads"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { UserProfilesService, UserProfile } from "@/lib/services/userProfiles"
@@ -25,6 +25,13 @@ import { useToast } from "@/hooks/use-toast"
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser"
 import { summarizeError } from "@/lib/safe-error"
 import Link from "next/link"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 export default function NewLeadPage() {
   const router = useRouter()
@@ -37,6 +44,9 @@ export default function NewLeadPage() {
   const [chatScreenshotFiles, setChatScreenshotFiles] = useState<File[]>([])
   const [chatScreenshotPreviews, setChatScreenshotPreviews] = useState<string[]>([])
   const [isUploadingFile, setIsUploadingFile] = useState(false)
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
+  const [previewImages, setPreviewImages] = useState<string[]>([])
+  const [previewImageIndex, setPreviewImageIndex] = useState(0)
 
   // 字典数据
   const [dictOptions, setDictOptions] = useState<{
@@ -172,6 +182,20 @@ export default function NewLeadPage() {
   const handleRemoveScreenshot = (index: number) => {
     setChatScreenshotPreviews(prev => prev.filter((_, i) => i !== index))
     setChatScreenshotFiles(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const openImagePreview = (images: string[], index = 0) => {
+    setPreviewImages(images)
+    setPreviewImageIndex(index)
+    setImagePreviewOpen(true)
+  }
+
+  const showPreviousPreviewImage = () => {
+    setPreviewImageIndex(index => Math.max(index - 1, 0))
+  }
+
+  const showNextPreviewImage = () => {
+    setPreviewImageIndex(index => Math.min(index + 1, previewImages.length - 1))
   }
 
   
@@ -441,7 +465,8 @@ export default function NewLeadPage() {
                             <img
                               src={preview}
                               alt={`聊天截图预览 ${index + 1}`}
-                              className="w-full h-auto border rounded"
+                              className="w-full h-auto border rounded cursor-zoom-in"
+                              onClick={() => openImagePreview(chatScreenshotPreviews, index)}
                             />
                             <button
                               type="button"
@@ -478,6 +503,49 @@ export default function NewLeadPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 图片预览对话框 */}
+      <Dialog open={imagePreviewOpen} onOpenChange={setImagePreviewOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>聊天截图</DialogTitle>
+            <DialogDescription>
+              {previewImages.length > 0 ? `${previewImageIndex + 1} / ${previewImages.length}` : "无图片"}
+            </DialogDescription>
+          </DialogHeader>
+          {previewImages.length > 0 && (
+            <div className="space-y-4">
+              <div className="max-h-[70vh] overflow-auto rounded border bg-muted/30">
+                <img
+                  src={previewImages[previewImageIndex]}
+                  alt={`聊天截图 ${previewImageIndex + 1}`}
+                  className="mx-auto max-h-[70vh] w-auto max-w-full object-contain"
+                />
+              </div>
+              {previewImages.length > 1 && (
+                <div className="flex justify-between">
+                  <Button
+                    variant="outline"
+                    onClick={showPreviousPreviewImage}
+                    disabled={previewImageIndex === 0}
+                  >
+                    <ChevronLeft className="mr-2 h-4 w-4" />
+                    上一张
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={showNextPreviewImage}
+                    disabled={previewImageIndex >= previewImages.length - 1}
+                  >
+                    下一张
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

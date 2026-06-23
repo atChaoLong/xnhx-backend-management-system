@@ -4,7 +4,6 @@
 
 import { api } from '@/lib/fetch'
 import { getClientSafeErrorMessage } from '@/lib/safe-error'
-import { supabase } from '@/lib/supabase'
 
 const MB = 1024 * 1024
 const IMAGE_EXTENSIONS = new Set([
@@ -94,14 +93,6 @@ const UPLOAD_SAFE_ERROR_MESSAGES: readonly string[] = [
   '存储目录初始化失败，请稍后重试',
   '上传失败',
 ]
-
-type SignedUploadResponse = {
-  signedUrl: string
-  token: string
-  path: string
-  url: string
-  contentType?: string
-}
 
 function getFileExtension(fileName: string): string {
   const cleanName = fileName.split('?')[0].split('#')[0]
@@ -231,19 +222,6 @@ function getUploadResponseErrorMessage(data: unknown): string {
     : UPLOAD_DEFAULT_ERROR_MESSAGE
 }
 
-function isSignedUploadResponse(data: unknown): data is SignedUploadResponse {
-  return (
-    typeof data === 'object' &&
-    data !== null &&
-    typeof (data as SignedUploadResponse).token === 'string' &&
-    typeof (data as SignedUploadResponse).path === 'string' &&
-    typeof (data as SignedUploadResponse).url === 'string' &&
-    Boolean((data as SignedUploadResponse).token) &&
-    Boolean((data as SignedUploadResponse).path) &&
-    Boolean((data as SignedUploadResponse).url)
-  )
-}
-
 function runWithUploadTimeout<T>(
   operation: (signal: AbortSignal) => Promise<T>
 ): Promise<T> {
@@ -261,47 +239,34 @@ function runWithUploadTimeout<T>(
   })
 }
 
-async function uploadWithSignedUrl(file: File, bucket: string, signal: AbortSignal): Promise<string> {
-  const signResponse = await api.post('/api/upload/sign', {
-    bucket,
-    fileName: file.name,
-    fileSize: file.size,
-    contentType: file.type || '',
-  }, {
+async function uploadViaServer(file: File, bucket: string, signal: AbortSignal): Promise<string> {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('bucket', bucket)
+
+  const response = await api.post('/api/upload', formData, {
     signal,
   })
 
-  const responseData = await signResponse.json().catch(() => null)
+  const responseData = await response.json().catch(() => null)
 
-  if (!signResponse.ok) {
+  if (!response.ok) {
     const error = new Error(getUploadResponseErrorMessage(responseData))
-    Object.assign(error, { status: signResponse.status })
+    Object.assign(error, { status: response.status })
     throw error
   }
 
-  if (!isSignedUploadResponse(responseData)) {
+  if (!responseData || typeof responseData.url !== 'string' || !responseData.url) {
     throw new Error('上传失败，未返回文件链接')
-  }
-
-  const uploadResult = await supabase.storage
-    .from(bucket)
-    .uploadToSignedUrl(responseData.path, responseData.token, file, {
-      cacheControl: '3600',
-      contentType: responseData.contentType || file.type || 'application/octet-stream',
-      upsert: false,
-    })
-
-  if (uploadResult.error) {
-    throw new Error(UPLOAD_DEFAULT_ERROR_MESSAGE)
   }
 
   return responseData.url
 }
 
 /**
- * 上传文件到 Supabase Storage
+ * 上传文件到 OSS
  * @param file 要上传的文件
- * @param bucket 存储桶名称
+ * @param bucket 存储桶名称（对应 OSS 子目录）
  * @returns 公开的 URL
  */
 export async function uploadFile(file: File, bucket: string): Promise<string> {
@@ -309,7 +274,7 @@ export async function uploadFile(file: File, bucket: string): Promise<string> {
 
   for (let attempt = 1; attempt <= UPLOAD_REQUEST_MAX_ATTEMPTS; attempt += 1) {
     try {
-      return await runWithUploadTimeout(signal => uploadWithSignedUrl(file, bucket, signal))
+      return await runWithUploadTimeout(signal => uploadViaServer(file, bucket, signal))
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         lastErrorMessage = '上传超时，请检查网络后重试'

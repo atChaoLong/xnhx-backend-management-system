@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
-import { supabaseAdmin } from "@/lib/supabase"
 import { v4 as uuidv4 } from "uuid"
 import { createLogger } from "@/lib/logger"
 import { authenticateUser, AuthStatus } from "@/lib/middleware"
 import { ACTIONS, hasPermission, RESOURCES, type Action, type Resource, type Role } from "@/lib/permissions"
 import { summarizeError } from "@/lib/safe-error"
-import { isBucketProvisionError, uploadToPublicBucketWithEnsure } from '@/lib/server-storage'
+import { uploadToOss } from '@/lib/server-oss'
 
 const logger = createLogger('API:Upload')
 
@@ -417,38 +416,31 @@ export async function POST(request: NextRequest) {
     const storageFileName = makeStorageFileName(file, bucket)
     const contentType = getContentType(file)
 
-    const { data, error } = await uploadToPublicBucketWithEnsure({
-      bucketName,
-      filePath: storageFileName,
-      fileBuffer,
-      contentType,
-    })
-
-    if (error) {
-      const bucketProvisionError = isBucketProvisionError(error)
-
-      logger.error('Upload error', {
+    let ossResult: { key: string; url: string }
+    try {
+      ossResult = await uploadToOss({
+        bucketName,
+        filePath: storageFileName,
+        fileBuffer,
+        contentType,
+      })
+    } catch (ossError) {
+      logger.error('OSS upload error', {
         bucketName,
         file: summarizeUploadFile(file, bucketName),
-        ...summarizeError(error),
+        ...summarizeError(ossError),
       })
       return NextResponse.json({
-        error: bucketProvisionError ? '存储目录初始化失败，请稍后重试' : '上传失败',
-        code: bucketProvisionError ? 'UPLOAD_BUCKET_CREATE_FAILED' : 'UPLOAD_STORAGE_ERROR',
+        error: '上传失败',
+        code: 'UPLOAD_STORAGE_ERROR',
       }, { status: 500 })
     }
 
-    // Get public URL
-    // Use admin client to get public URL
-    const { data: urlData } = supabaseAdmin.storage
-      .from(bucketName)
-      .getPublicUrl(data.path)
-
-    logger.info('File uploaded successfully', {
+    logger.info('File uploaded to OSS successfully', {
       bucketName,
     })
 
-    return NextResponse.json({ url: urlData.publicUrl, path: data.path })
+    return NextResponse.json({ url: ossResult.url, path: ossResult.key })
   } catch (error: unknown) {
     logger.error('Upload exception', summarizeError(error))
     return NextResponse.json({
