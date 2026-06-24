@@ -644,7 +644,6 @@ export async function POST(request: NextRequest) {
     })
 
     if (profile?.role === 'sales' || profile?.role === 'head_teacher') {
-      scopedLeadData.operator_id = profile.id
       scopedLeadData.grab_user_id = profile.id
       scopedLeadData.grab_wechat = profile.name || null
     } else if (profile?.role === 'operator') {

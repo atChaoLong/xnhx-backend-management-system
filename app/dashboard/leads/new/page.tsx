@@ -78,9 +78,9 @@ export default function NewLeadPage() {
     parent_wechat: "",
   })
 
-  // 设置默认运营人员为当前用户
+  // 设置默认运营人员为当前用户（仅运营角色）
   useEffect(() => {
-    if (currentUser && !formData.operator_id) {
+    if (currentUser && !formData.operator_id && currentUser.role === 'operator') {
       setFormData(prev => ({ ...prev, operator_id: currentUser.id }))
     }
   }, [currentUser])
