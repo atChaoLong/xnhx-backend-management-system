@@ -20,6 +20,7 @@ export function summarizeError(error: unknown) {
 
   return {
     name: error instanceof Error ? error.name : normalizeString(errorRecord.name),
+    message,
     code: normalizeString(errorRecord.code),
     status,
     has_message: Boolean(message),

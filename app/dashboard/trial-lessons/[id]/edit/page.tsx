@@ -686,15 +686,18 @@ export default function EditTrialLessonPage() {
                 <div className="space-y-2">
                   <Label htmlFor="confirmed_teacher">确认老师（教务）</Label>
                   <Select
-                    value={formData.confirmed_teacher}
-                    onValueChange={(value) => handleInputChange("confirmed_teacher", value)}
+                    value={formData.confirmed_teacher ? teachers.find(t => t.teacher_name === formData.confirmed_teacher)?.id || "" : ""}
+                    onValueChange={(value) => {
+                      const teacher = teachers.find(t => t.id === value)
+                      handleInputChange("confirmed_teacher", teacher?.teacher_name || "")
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="请选择确认老师（需已绑定ClassIn）" />
                     </SelectTrigger>
                     <SelectContent>
                       {teachers.map((teacher) => (
-                        <SelectItem key={teacher.id} value={teacher.teacher_name}>
+                        <SelectItem key={teacher.id} value={teacher.id}>
                           <div className="flex flex-col">
                             <span>{teacher.teacher_name}</span>
                             {teacher.teacher_subject && (

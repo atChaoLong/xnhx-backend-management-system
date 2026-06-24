@@ -105,7 +105,7 @@ export async function getFormalStudents(from: number = 0, to: number = 19): Prom
  * 获取所有学生（不带分页，用于兼容旧代码）
  */
 export async function getAllStudents(): Promise<Student[]> {
-  const response = await api.get("/api/students")
+  const response = await api.get("/api/students?from=0&to=9999")
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: '获取学生列表失败' }))
