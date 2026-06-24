@@ -498,7 +498,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const insertData = {
+    const insertData: Record<string, any> = {
       child_name: body.child_name.trim(),
       status: body.status || 'pending',
       lead_id: leadId,
@@ -520,6 +520,8 @@ export async function POST(request: NextRequest) {
       matched_teacher: body.matched_teacher?.trim() || null,
       confirmed_teacher: body.confirmed_teacher?.trim() || null,
       class_link: body.class_link?.trim() || null,
+      classin_student_uid: null,
+      classin_student_registered_at: null,
     }
 
     if (insertData.matched_teacher) {
@@ -559,10 +561,51 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // 环节1：创建 ClassIn 学生账号（在插入试听课程之前）
+    let classinStudentUid: string | null = null
+    let classinStudentRegisteredAt: string | null = null
+    try {
+      const classinStudent = await ensureClassInStudentAccount({
+        telephone: insertData.phone,
+        nickname: insertData.child_name,
+      })
+
+      if (!classinStudent.uid) {
+        logger.error('创建试听课程失败 - ClassIn 学生账号创建失败', {
+          error_summary: summarizeError(classinStudent.error),
+        })
+        return NextResponse.json(
+          { error: '创建 ClassIn 学生账号失败，试听课程未创建' },
+          { status: 400 }
+        )
+      }
+
+      classinStudentUid = String(classinStudent.uid)
+      classinStudentRegisteredAt = new Date().toISOString()
+
+      logger.info('创建试听课程时已创建 ClassIn 学生账号', {
+        has_classin_student_uid: true,
+        source: classinStudent.source,
+      })
+    } catch (classinError: unknown) {
+      logger.error('创建试听课程失败 - ClassIn 学生账号创建异常', {
+        error_summary: summarizeError(classinError),
+      })
+      return NextResponse.json(
+        { error: '创建 ClassIn 学生账号失败，试听课程未创建' },
+        { status: 400 }
+      )
+    }
+
+    // 将 ClassIn 学生信息加入插入数据
+    insertData.classin_student_uid = classinStudentUid
+    insertData.classin_student_registered_at = classinStudentRegisteredAt
+
     logger.debug('创建试听课程 - 准备插入的数据', {
       insert_summary: summarizeTrialLessonPayload(insertData),
     })
 
+    // 环节2：插入试听课程
     const { data, error } = await supabaseServer
       .from('trial_lessons')
       .insert(insertData)
@@ -575,8 +618,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: message }, { status })
     }
 
-    let responseData = data
-
+    // 环节3：回写线索转化状态
     if (leadId) {
       const { error: updateLeadError } = await supabaseServer
         .from('leads')
@@ -589,76 +631,25 @@ export async function POST(request: NextRequest) {
         .eq('id', leadId)
 
       if (updateLeadError) {
-        logger.warn('试听创建后回写线索转化状态失败', {
+        logger.error('试听创建后回写线索转化状态失败，回滚试听课程', {
           id: data.id,
           lead_id: leadId,
           error_summary: summarizeError(updateLeadError),
         })
+
+        await supabaseServer
+          .from('trial_lessons')
+          .delete()
+          .eq('id', data.id)
+
+        return NextResponse.json(
+          { error: '回写线索转化状态失败，试听课程未创建' },
+          { status: 500 }
+        )
       }
     }
 
-    try {
-      const classinStudent = await ensureClassInStudentAccount({
-        telephone: insertData.phone,
-        nickname: insertData.child_name,
-      })
-
-      const classinUpdate = {
-        classin_student_uid: classinStudent.uid || null,
-        classin_student_registered_at: classinStudent.uid ? new Date().toISOString() : null,
-        classin_student_error: classinStudent.uid
-          ? null
-          : CLASSIN_STUDENT_ERROR_MESSAGE,
-        updated_at: new Date().toISOString(),
-      }
-
-      const { data: updatedLesson, error: updateClassInError } = await supabaseServer
-        .from('trial_lessons')
-        .update(classinUpdate)
-        .eq('id', data.id)
-        .select(TRIAL_LESSON_SELECT_BASE)
-        .single()
-
-      if (updateClassInError) {
-        logger.warn('试听创建后保存 ClassIn 学生绑定结果失败', {
-          id: data.id,
-          error_summary: summarizeError(updateClassInError),
-        })
-      } else if (updatedLesson) {
-        responseData = updatedLesson
-      }
-
-      if (classinStudent.uid) {
-        logger.info('试听创建后已绑定 ClassIn 学生账号', {
-          id: data.id,
-          has_classin_student_uid: true,
-          source: classinStudent.source,
-        })
-      } else {
-        logger.warn('试听创建后创建 ClassIn 学生账号失败', {
-          id: data.id,
-          error_summary: summarizeError(classinStudent.error),
-        })
-      }
-    } catch (classinError: unknown) {
-      logger.warn('试听创建后创建 ClassIn 学生账号异常', {
-        id: data.id,
-        error_summary: summarizeError(classinError),
-      })
-
-      await supabaseServer
-        .from('trial_lessons')
-        .update({
-          classin_student_error: CLASSIN_STUDENT_ERROR_MESSAGE,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', data.id)
-
-      responseData = {
-        ...responseData,
-        classin_student_error: CLASSIN_STUDENT_ERROR_MESSAGE,
-      }
-    }
+    let responseData = data
 
     logger.info('创建试听课程成功', { id: data.id })
     return NextResponse.json({

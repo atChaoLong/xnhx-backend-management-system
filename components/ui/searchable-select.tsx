@@ -119,6 +119,21 @@ export function SearchableSelect({
     setIsOpen(true)
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      if (isOpen) {
+        e.preventDefault()
+        if (filteredOptions.length === 1) {
+          handleSelect(filteredOptions[0])
+        }
+      }
+    }
+    if (e.key === 'Escape') {
+      setIsOpen(false)
+      setSearchTerm("")
+    }
+  }
+
   const handleFocus = () => {
     setIsOpen(true)
     updateDropdownPosition()
@@ -135,6 +150,7 @@ export function SearchableSelect({
           ref={inputRef}
           value={inputValue}
           onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
           onFocus={handleFocus}
           placeholder={placeholder}
           className="pr-8"

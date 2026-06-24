@@ -160,7 +160,7 @@ export class ClassInSDKService {
    */
   private handleError(error: any): Error {
     logger.error('ClassIn SDK 调用失败', summarizeError(error))
-    
+
     const apiError: APIError = error
 
     // 常见错误码处理
@@ -183,7 +183,14 @@ export class ClassInSDKService {
       }
     }
 
-    return error
+    // sendRequest 拒绝的普通对象（无 errno/code 但有 error 字符串）
+    if (typeof error?.error === 'string' && error.error) {
+      return new Error(error.error)
+    }
+
+    // 其他情况
+    if (error instanceof Error) return error
+    return new Error('ClassIn SDK 调用失败：未知错误')
   }
 }
 

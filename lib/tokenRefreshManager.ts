@@ -123,8 +123,10 @@ class TokenRefreshManager {
           const errorText = getResponseErrorText(errorPayload)
           const errorCode = getResponseErrorCode(errorPayload)
 
-          // 凭据已失效，或账号/档案已被服务端判定不可用时，不再重试。
-          if (isRefreshTokenInvalid(errorText, errorCode) || isTerminalAuthFailure(errorCode)) {
+          // 401 表示认证失效，刷新凭据已不可用，不再重试
+          if (response.status === 401 ||
+              isRefreshTokenInvalid(errorText, errorCode) ||
+              isTerminalAuthFailure(errorCode)) {
             logger.warn('刷新凭据已失效或账号不可用', {
               code: errorCode || undefined,
               status: response.status,

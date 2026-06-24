@@ -22,6 +22,19 @@ export default function DashboardLayout({
   // 启动 token 自动刷新
   useTokenRefresh()
 
+  // 监听 token 刷新失败事件，自动跳转登录页
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      sessionStorage.removeItem('currentUser')
+      router.replace('/login')
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        window.location.replace('/login')
+      }
+    }
+    window.addEventListener('auth:expired', handleAuthExpired)
+    return () => window.removeEventListener('auth:expired', handleAuthExpired)
+  }, [router])
+
   useEffect(() => {
     if (!isLoading && !user) {
       router.replace("/login")
