@@ -85,7 +85,7 @@ const navigationGroups: MenuGroup[] = [
   },
   {
     title: "招师管理",
-    roles: ['admin'],
+    roles: ['admin', 'teacher_recruiter'],
     items: [
       { name: "面试管理", href: "/dashboard/teacher-candidates", icon: ClipboardList, permission: { resource: 'teacherCandidates', action: 'view' } },
       { name: "老师约面", href: "/dashboard/teacher-candidates/interview", icon: Calendar, permission: { resource: 'teacherCandidates', action: 'interview' } },
@@ -95,11 +95,11 @@ const navigationGroups: MenuGroup[] = [
   },
   {
     title: "教务管理",
-    roles: ['admin', 'academic_affairs', 'head_teacher', 'hr', 'finance', 'teacher_recruiter'],
+    roles: ['admin', 'academic_affairs', 'head_teacher', 'hr', 'finance'],
     items: [
       { name: "试听课", href: "/dashboard/trial-lessons", icon: BookOpen, permission: { resource: 'trialLessons', action: 'view' } },
       { name: "待试听匹配", href: "/dashboard/academic/pending-trials", icon: ClipboardList, roles: ['admin', 'academic_affairs'], permission: { resource: 'trialLessons', action: 'view' } },
-      { name: "面试管理", href: "/dashboard/teacher-candidates", icon: ClipboardList, roles: ['admin', 'academic_affairs', 'teacher_recruiter'], permission: { resource: 'teacherCandidates', action: 'view' } },
+      { name: "面试管理", href: "/dashboard/teacher-candidates", icon: ClipboardList, roles: ['admin', 'academic_affairs'], permission: { resource: 'teacherCandidates', action: 'view' } },
       { name: "教学复核", href: "/dashboard/teacher-candidates/review", icon: Video, roles: ['admin', 'academic_affairs'], permission: { resource: 'teacherCandidates', action: 'reviewVideo' } },
       { name: "待入库老师", href: "/dashboard/teacher-candidates/pending", icon: ClipboardList, roles: ['admin', 'academic_affairs', 'hr', 'finance'], permission: { resource: 'teacherCandidates', action: 'confirmEntry' } },
       { name: "储备候选人", href: "/dashboard/teacher-candidates/reserve", icon: ClipboardList, roles: ['admin', 'academic_affairs'], permission: { resource: 'teacherCandidates', action: 'view' } },

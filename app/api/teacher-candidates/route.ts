@@ -373,8 +373,8 @@ function attachTeacherCandidatesStatus<T extends Record<string, any>>(candidates
 function applyTeacherCandidateQueueFilter(query: any, queue: string | undefined) {
   if (queue === 'scheduling') {
     return query
-      .or('interview_date.is.null,interview_date.eq.')
-      .or('video_recording_url.is.null,video_recording_url.eq.')
+      .or('interview_date.is.null')
+      .or('video_recording_url.is.null')
       .or('is_hired.is.null,is_hired.eq.false')
   }
 
@@ -387,14 +387,14 @@ function applyTeacherCandidateQueueFilter(query: any, queue: string | undefined)
   if (queue === 'video_upload') {
     return query
       .not('interview_date', 'is', null)
-      .or('video_recording_url.is.null,video_recording_url.eq.')
+      .or('video_recording_url.is.null')
       .or('is_hired.is.null,is_hired.eq.false')
   }
 
   if (queue === 'teaching_review') {
     return query
       .not('video_recording_url', 'is', null)
-      .or('review_result.is.null,review_result.eq.')
+      .or('review_result.is.null')
       .or('is_hired.is.null,is_hired.eq.false')
   }
 
