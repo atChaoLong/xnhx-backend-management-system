@@ -146,7 +146,7 @@ function isRetriableUploadStatus(status: number): boolean {
 }
 
 function isRetriableTeacherFormRequestStatus(status: number): boolean {
-  return status === 408 || status === 429 || status >= 500
+  return status === 408 || status >= 500
 }
 
 function getAllowedMessage(message: string | undefined | null, allowedMessages: readonly string[], fallback: string): string {
@@ -386,7 +386,7 @@ export default function TeacherFormPage() {
     }
 
     verifyCandidateLink()
-  }, [candidateIdFromLink, toast])
+  }, [candidateIdFromLink])
 
   // 处理多选框变化
   const handleMultiSelectChange = (field: string, value: string, checked: boolean) => {

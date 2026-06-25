@@ -127,7 +127,8 @@ export default function EditTeacherCandidatePage() {
         setIsLoading(true)
         const data = await TeacherCandidatesService.getTeacherCandidateById(candidateId)
         setCandidate(data)
-        setTeacherFormUrl(data.qr_code_url || `${window.location.origin}/teacher-form?candidate_id=${data.id}`)
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+        setTeacherFormUrl(`${baseUrl}/teacher-form?candidate_id=${data.id}`)
 
         // 设置表单数据
         setFormData({
@@ -338,14 +339,6 @@ export default function EditTeacherCandidatePage() {
 
     try {
       await navigator.clipboard.writeText(teacherFormUrl)
-
-      if (candidate.qr_code_url !== teacherFormUrl && canEditCandidate) {
-        const updatedCandidate = await TeacherCandidatesService.updateTeacherCandidate({
-          id: candidate.id,
-          qr_code_url: teacherFormUrl,
-        } as any)
-        setCandidate(updatedCandidate)
-      }
 
       toast({
         title: "已复制",
