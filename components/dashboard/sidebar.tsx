@@ -91,6 +91,7 @@ const navigationGroups: MenuGroup[] = [
       { name: "老师约面", href: "/dashboard/teacher-candidates/interview", icon: Calendar, permission: { resource: 'teacherCandidates', action: 'interview' } },
       { name: "初试录像上传", href: "/dashboard/teacher-candidates/upload", icon: Video, permission: { resource: 'teacherCandidates', action: 'uploadVideo' } },
       { name: "储备候选人", href: "/dashboard/teacher-candidates/reserve", icon: ClipboardList, permission: { resource: 'teacherCandidates', action: 'view' } },
+      { name: "信息采集记录", href: "/dashboard/teacher-candidates/submissions", icon: ClipboardList, permission: { resource: 'teacherCandidates', action: 'view' } },
     ]
   },
   {

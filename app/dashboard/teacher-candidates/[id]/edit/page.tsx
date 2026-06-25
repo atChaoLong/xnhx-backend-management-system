@@ -30,6 +30,7 @@ import { BasicInfoTab } from "@/components/dashboard/teacher-candidates/BasicInf
 import { PostInterviewTab } from "@/components/dashboard/teacher-candidates/PostInterviewTab"
 import { ReviewTab } from "@/components/dashboard/teacher-candidates/ReviewTab"
 import { SalaryHiringTab } from "@/components/dashboard/teacher-candidates/SalaryHiringTab"
+import { TeacherDetailsTab } from "@/components/dashboard/teacher-candidates/TeacherDetailsTab"
 
 export default function EditTeacherCandidatePage() {
   const router = useRouter()
@@ -41,6 +42,7 @@ export default function EditTeacherCandidatePage() {
   const [candidate, setCandidate] = useState<TeacherCandidate | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [teacherFormUrl, setTeacherFormUrl] = useState("")
+  const [qrDialogOpen, setQrDialogOpen] = useState(false)
 
   const candidateId = params.id as string
 
@@ -392,6 +394,35 @@ export default function EditTeacherCandidatePage() {
         <Card className="max-w-4xl mx-auto">
           <CardContent className="p-6">
             {isRecruiter && teacherFormUrl && (
+              <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
+                <DialogContent className="sm:max-w-[360px]">
+                  <DialogHeader>
+                    <DialogTitle>老师信息采集二维码</DialogTitle>
+                    <DialogDescription>微信扫一扫，老师可直接打开填写</DialogDescription>
+                  </DialogHeader>
+                  <div className="flex flex-col items-center gap-4 py-4">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(teacherFormUrl)}`}
+                      alt="二维码"
+                      width={240}
+                      height={240}
+                      className="rounded-lg border"
+                    />
+                    <p className="text-xs text-muted-foreground break-all text-center max-w-[280px]">{teacherFormUrl}</p>
+                  </div>
+                  <DialogFooter>
+                    <Button type="button" variant="outline" size="sm" onClick={handleCopyTeacherFormUrl}>
+                      <Copy className="mr-2 h-4 w-4" />
+                      复制链接
+                    </Button>
+                    <Button type="button" size="sm" onClick={() => setQrDialogOpen(false)}>
+                      关闭
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+            {isRecruiter && teacherFormUrl && (
               <div className="mb-6 flex flex-col gap-3 rounded-md border bg-muted/30 p-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex min-w-0 items-start gap-3">
                   <QrCode className="mt-0.5 h-5 w-5 flex-shrink-0 text-muted-foreground" />
@@ -401,6 +432,10 @@ export default function EditTeacherCandidatePage() {
                   </div>
                 </div>
                 <div className="flex flex-shrink-0 gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setQrDialogOpen(true)}>
+                    <QrCode className="mr-2 h-4 w-4" />
+                    二维码
+                  </Button>
                   <Button type="button" variant="outline" size="sm" onClick={handleCopyTeacherFormUrl}>
                     <Copy className="mr-2 h-4 w-4" />
                     复制
@@ -419,13 +454,14 @@ export default function EditTeacherCandidatePage() {
               <Tabs defaultValue="basic" className="w-full">
           <TabsList className={`grid w-full gap-1 bg-gray-100 p-1 rounded-lg`} style={{
                   gridTemplateColumns: `repeat(${
-                    [canViewBasic, canViewPostInterview, canViewReview, canViewSalary].filter(Boolean).length
+                    [canViewBasic, canViewPostInterview, canViewReview, canViewSalary, isRecruiter].filter(Boolean).length
                   }, minmax(0, 1fr))`
                 }}>
                   {canViewBasic && <TabsTrigger value="basic" className="text-xs">基本信息</TabsTrigger>}
                   {canViewPostInterview && <TabsTrigger value="postInterview" className="text-xs">初试结果</TabsTrigger>}
                   {canViewReview && <TabsTrigger value="review" className="text-xs">复核结果</TabsTrigger>}
                   {canViewSalary && <TabsTrigger value="salary" className="text-xs">谈薪入库</TabsTrigger>}
+                  {isRecruiter && <TabsTrigger value="teacherDetails" className="text-xs">信息采集</TabsTrigger>}
                 </TabsList>
 
                 {/* Tab 1: 基本信息 */}
@@ -506,6 +542,13 @@ export default function EditTeacherCandidatePage() {
                         }}
                         onInputChange={handleInputChange}
                       />
+                    </TabsContent>
+                  )}
+
+                  {/* Tab 7: 老师信息采集 */}
+                  {isRecruiter && (
+                    <TabsContent value="teacherDetails" className="mt-6">
+                      <TeacherDetailsTab candidateId={candidateId} />
                     </TabsContent>
                   )}
               </Tabs>

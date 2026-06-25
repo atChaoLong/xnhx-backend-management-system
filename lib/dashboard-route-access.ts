@@ -143,6 +143,12 @@ const routeRules: DashboardRouteRule[] = [
     permissions: [{ resource: RESOURCES.teacherCandidates, action: ACTIONS.view }],
   },
   {
+    path: "/dashboard/teacher-candidates/submissions",
+    label: "信息采集记录",
+    roles: ["admin", "teacher_recruiter"],
+    permissions: [{ resource: RESOURCES.teacherCandidates, action: ACTIONS.view }],
+  },
+  {
     path: "/dashboard/teacher-candidates",
     label: "面试管理",
     roles: ["admin", "teacher_recruiter", "academic_affairs"],

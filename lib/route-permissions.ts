@@ -179,6 +179,9 @@ export const ROUTE_PERMISSIONS = {
     GET: { resource: RESOURCES.teacherCandidates, action: ACTIONS.view },
     PUT: { resource: RESOURCES.teacherCandidates, action: [ACTIONS.evaluate, ACTIONS.confirmEntry] },
   },
+  '/api/teacher-form-submissions': {
+    GET: { resource: RESOURCES.teacherCandidates, action: ACTIONS.view },
+  },
 
   // 老师库
   '/api/teachers': {
