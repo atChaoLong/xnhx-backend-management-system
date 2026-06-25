@@ -61,11 +61,6 @@ const TRIAL_LESSON_SOURCE_SELECT_BASE = `
   classin_student_uid
 `
 
-const TRIAL_LESSON_SOURCE_SELECT_WITH_MANUAL_CONVERSION = `
-  ${TRIAL_LESSON_SOURCE_SELECT_BASE},
-  manual_converted
-`
-
 const FORMAL_ORDER_IMMUTABLE_UPDATE_FIELDS = [
   'student_id',
   'lead_id',
@@ -268,16 +263,7 @@ async function getScopedTrialLessonSource(
     return applyTrialLessonSourceScope(query, profile, accessibleLeadIds, accessibleStudentIds)
   }
 
-  let result: any = await buildQuery(TRIAL_LESSON_SOURCE_SELECT_WITH_MANUAL_CONVERSION).maybeSingle()
-
-  if (result.error && isMissingColumnError(result.error, 'manual_converted')) {
-    logger.warn('试听课 manual_converted 字段不可用，正式订单来源校验使用兼容字段集重试', {
-      trial_lesson_id: trialLessonId,
-      error_summary: summarizeError(result.error),
-    })
-
-    result = await buildQuery(TRIAL_LESSON_SOURCE_SELECT_BASE).maybeSingle()
-  }
+  let result: any = await buildQuery(TRIAL_LESSON_SOURCE_SELECT_BASE).maybeSingle()
 
   return result
 }
@@ -438,8 +424,10 @@ export async function GET(request: NextRequest) {
     const from = parseInt(searchParams.get('from') || '0')
     const to = parseInt(searchParams.get('to') || '19')
     const profile = await getCurrentProfile(request)
-    const accessibleLeadIds = await getAccessibleLeadIds(profile)
-    const headTeacherStudentIds = await getHeadTeacherStudentIds(profile)
+    const [accessibleLeadIds, headTeacherStudentIds] = await Promise.all([
+      getAccessibleLeadIds(profile),
+      getHeadTeacherStudentIds(profile),
+    ])
 
     logger.debug('获取正式订单数据', { id, from, to })
 
@@ -595,8 +583,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (isContinuation) {
-      const accessibleLeadIds = await getAccessibleLeadIds(profile)
-      const headTeacherStudentIds = await getHeadTeacherStudentIds(profile)
+      const [accessibleLeadIds, headTeacherStudentIds] = await Promise.all([
+        getAccessibleLeadIds(profile),
+        getHeadTeacherStudentIds(profile),
+      ])
       let previousOrderQuery = supabaseServer
         .from('formal_orders')
         .select(FORMAL_ORDER_SELECT)
@@ -642,8 +632,10 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const accessibleLeadIds = await getAccessibleLeadIds(profile)
-      const accessibleStudentIds = await getAccessibleStudentIds(profile)
+      const [accessibleLeadIds, accessibleStudentIds] = await Promise.all([
+        getAccessibleLeadIds(profile),
+        getAccessibleStudentIds(profile),
+      ])
       const { data: trialLesson, error: trialError } = await getScopedTrialLessonSource(
         body.trial_lesson_id.trim(),
         profile,
@@ -888,8 +880,10 @@ export async function PUT(request: NextRequest) {
 
     logger.debug('更新正式订单 - 接收到的数据', { id, update_summary: updateSummary })
 
-    const accessibleLeadIds = await getAccessibleLeadIds(profile)
-    const headTeacherStudentIds = await getHeadTeacherStudentIds(profile)
+    const [accessibleLeadIds, headTeacherStudentIds] = await Promise.all([
+      getAccessibleLeadIds(profile),
+      getHeadTeacherStudentIds(profile),
+    ])
     let accessQuery = supabaseServer
       .from('formal_orders')
       .select('id')
@@ -1034,8 +1028,10 @@ export async function DELETE(request: NextRequest) {
 
     logger.debug('删除正式订单', { id })
 
-    const accessibleLeadIds = await getAccessibleLeadIds(profile)
-    const headTeacherStudentIds = await getHeadTeacherStudentIds(profile)
+    const [accessibleLeadIds, headTeacherStudentIds] = await Promise.all([
+      getAccessibleLeadIds(profile),
+      getHeadTeacherStudentIds(profile),
+    ])
     let accessQuery = supabaseServer
       .from('formal_orders')
       .select('id')

@@ -100,29 +100,7 @@ export async function calculateFormalOrderBalanceSummaries(
   const courseIds = Array.from(courseOrderMap.keys())
   const orderStats = new Map<string, { scheduledHours: number; completedHours: number }>()
 
-  if (courseIds.length > 0) {
-    const { data: sessions } = await supabaseServer
-      .from("class_sessions")
-      .select("course_id, status, scheduled_duration_minutes, actual_duration_minutes")
-      .in("course_id", courseIds)
-      .neq("status", "cancelled")
-
-    ;(sessions || []).forEach((session: any) => {
-      const orderId = courseOrderMap.get(session.course_id)
-      if (!orderId) return
-
-      const existing = orderStats.get(orderId) || { scheduledHours: 0, completedHours: 0 }
-      const scheduledHours = toNumber(session.scheduled_duration_minutes) / 60
-      const completedHours = toNumber(session.actual_duration_minutes ?? session.scheduled_duration_minutes) / 60
-
-      existing.scheduledHours += scheduledHours
-      if (session.status === "completed") {
-        existing.completedHours += completedHours
-      }
-      orderStats.set(orderId, existing)
-    })
-  }
-
+  // courses+class_sessions chain runs in parallel with transaction_records query
   let refundQuery = supabaseServer
     .from("transaction_records")
     .select("id, order_id, refund_amount, unit_price")
@@ -133,7 +111,33 @@ export async function calculateFormalOrderBalanceSummaries(
     refundQuery = refundQuery.neq("id", options.excludeTransactionId)
   }
 
-  const { data: refundRecords } = await refundQuery
+  const [sessionsResult, refundResult] = await Promise.all([
+    courseIds.length > 0
+      ? supabaseServer
+          .from("class_sessions")
+          .select("course_id, status, scheduled_duration_minutes, actual_duration_minutes")
+          .in("course_id", courseIds)
+          .neq("status", "cancelled")
+      : Promise.resolve({ data: [] as any[], error: null }),
+    refundQuery,
+  ])
+
+  ;(sessionsResult.data || []).forEach((session: any) => {
+    const orderId = courseOrderMap.get(session.course_id)
+    if (!orderId) return
+
+    const existing = orderStats.get(orderId) || { scheduledHours: 0, completedHours: 0 }
+    const scheduledHours = toNumber(session.scheduled_duration_minutes) / 60
+    const completedHours = toNumber(session.actual_duration_minutes ?? session.scheduled_duration_minutes) / 60
+
+    existing.scheduledHours += scheduledHours
+    if (session.status === "completed") {
+      existing.completedHours += completedHours
+    }
+    orderStats.set(orderId, existing)
+  })
+
+  const refundRecords = refundResult.data
   const refundedByOrder = new Map<string, { amount: number; hours: number; amountWithUnitPrice: number }>()
   ;(refundRecords || []).forEach((record: any) => {
     if (!record.order_id) return

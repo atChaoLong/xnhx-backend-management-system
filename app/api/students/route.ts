@@ -100,21 +100,27 @@ async function buildFormalStudentSummaries(studentIds: string[]): Promise<Map<st
   const summaries = new Map<string, FormalStudentSummary>()
   if (studentIds.length === 0) return summaries
 
-  const { data: orders } = await supabaseServer
-    .from('formal_orders')
-    .select(`
-      id, student_id, subjects, teacher_names, total_hours, payment_amount, hourly_rate, first_class_time, created_at, status,
-      courses!inner (
-        id, order_id, subject, teacher_name, total_hours,
-        class_sessions (
-          course_id, status, scheduled_duration_minutes
+  try {
+    const { data: orders, error } = await supabaseServer
+      .from('formal_orders')
+      .select(`
+        id, student_id, subjects, teacher_names, total_hours, payment_amount, hourly_rate, first_class_time, created_at, status,
+        courses (
+          id, order_id, subject, teacher_name, total_hours,
+          class_sessions (
+            course_id, status, scheduled_duration_minutes
+          )
         )
-      )
-    `)
-    .in('student_id', studentIds)
-    .neq('status', 'cancelled')
+      `)
+      .in('student_id', studentIds)
+      .neq('status', 'cancelled')
 
-  ;(orders || []).forEach((order: any) => {
+    if (error) {
+      logger.warn('查询正式订单汇总失败', { error_summary: summarizeError(error) })
+      return summaries
+    }
+
+    ;(orders || []).forEach((order: any) => {
     const studentId = order.student_id
     const existing = summaries.get(studentId) || {
       formal_order_count: 0,
@@ -167,6 +173,10 @@ async function buildFormalStudentSummaries(studentIds: string[]): Promise<Map<st
   })
 
   return summaries
+  } catch (error) {
+    logger.warn('查询正式订单汇总异常', { error_summary: summarizeError(error) })
+    return summaries
+  }
 }
 
 async function getAccessibleStudentIds(profile: Awaited<ReturnType<typeof getCurrentProfile>>): Promise<string[]> {
@@ -301,10 +311,10 @@ export async function GET(request: NextRequest) {
             .then(({ data: t }) => t)
           : Promise.resolve(null),
         buildFormalStudentSummaries([data.id]),
-        batchCalculateStudentStatus([data]),
+        batchCalculateStudentStatus([data]).catch(() => []),
       ])
 
-      const sr = statusResults[0]
+      const sr = statusResults[0] || { status: 'missing', statusName: '缺状态', newStatus: 'old', newStatusName: '老生', visitStatus: 'not_visited', visitStatusName: '未回访' }
       const studentWithAll = {
         ...data,
         head_teacher_name: teacherData?.name,
@@ -454,11 +464,11 @@ export async function GET(request: NextRequest) {
             })
           : Promise.resolve(new Map<string, string>()),
         buildFormalStudentSummaries(studentIds),
-        batchCalculateStudentStatus(data as any[]),
+        batchCalculateStudentStatus(data as any[]).catch(() => []),
       ])
 
       studentsWithTeachers = data.map((student: any, i: number) => {
-        const sr = statusResults[i]
+        const sr = statusResults[i] || { status: 'missing', statusName: '缺状态', newStatus: 'old', newStatusName: '老生', visitStatus: 'not_visited', visitStatusName: '未回访' }
         const formal_summary = summaries.get(student.id) || createEmptyFormalStudentSummary()
         return {
           ...student,

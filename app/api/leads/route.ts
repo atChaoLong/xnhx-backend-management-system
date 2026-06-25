@@ -212,8 +212,6 @@ function applyLeadScope(
 
   if (profile.role === 'head_teacher') {
     const filters = [
-      `operator_id.eq.${meId}`,
-      `grab_user_id.eq.${meId}`,
       meName ? `created_by.eq.${meName}` : '',
       relatedLeadIds.length > 0 ? `id.in.(${relatedLeadIds.join(',')})` : '',
     ].filter(Boolean)
@@ -225,7 +223,11 @@ function applyLeadScope(
   return query.eq('id', '00000000-0000-0000-0000-000000000000')
 }
 
-function applyLeadWriteScope(query: any, profile: Awaited<ReturnType<typeof getCurrentProfile>>) {
+function applyLeadWriteScope(
+  query: any,
+  profile: Awaited<ReturnType<typeof getCurrentProfile>>,
+  relatedLeadIds: string[] = []
+) {
   if (!profile) return query.eq('id', '00000000-0000-0000-0000-000000000000')
   if (profile.role === 'admin') return query
 
@@ -248,11 +250,13 @@ function applyLeadWriteScope(query: any, profile: Awaited<ReturnType<typeof getC
   }
 
   if (profile.role === 'head_teacher') {
-    return query.or([
-      `operator_id.eq.${meId}`,
-      `grab_user_id.eq.${meId}`,
+    const filters = [
       meName ? `created_by.eq.${meName}` : '',
-    ].filter(Boolean).join(','))
+      relatedLeadIds.length > 0 ? `id.in.(${relatedLeadIds.join(',')})` : '',
+    ].filter(Boolean)
+
+    if (filters.length === 0) return query.eq('id', '00000000-0000-0000-0000-000000000000')
+    return query.or(filters.join(','))
   }
 
   return query.eq('id', '00000000-0000-0000-0000-000000000000')
@@ -727,13 +731,14 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: '未登录或用户档案不存在' }, { status: 401 })
     }
     const currentUser = profile.name || '未知用户'
+    const relatedLeadIds = await getHeadTeacherFormalLeadIds(profile)
 
     let existingLeadQuery = supabaseServer
       .from('leads')
       .select('id, channel_platform, customer_social_id')
       .eq('id', leadData.id)
 
-    existingLeadQuery = applyLeadWriteScope(existingLeadQuery, profile)
+    existingLeadQuery = applyLeadWriteScope(existingLeadQuery, profile, relatedLeadIds)
 
     const existingLeadResult = await existingLeadQuery.single()
     let existingLead: any = existingLeadResult.data
@@ -745,7 +750,7 @@ export async function PUT(request: NextRequest) {
         .from('leads')
         .select('id')
         .eq('id', leadData.id)
-      fallbackExistingLeadQuery = applyLeadWriteScope(fallbackExistingLeadQuery, profile)
+      fallbackExistingLeadQuery = applyLeadWriteScope(fallbackExistingLeadQuery, profile, relatedLeadIds)
 
       const fallbackExistingLeadResult = await fallbackExistingLeadQuery.single()
       existingLead = fallbackExistingLeadResult.data

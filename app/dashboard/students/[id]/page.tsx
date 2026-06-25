@@ -828,7 +828,16 @@ export default function StudentDetailPage() {
                 onClick={() => router.push(`/dashboard/trial-lessons/new?student_id=${student.id}`)}
               >
                 <BookOpen className="mr-2 h-4 w-4" />
-                新试听
+                创建新试听
+              </Button>
+            )}
+            {canCreateFormalOrder && (
+              <Button
+                variant="outline"
+                onClick={() => router.push(`/dashboard/formal-orders/new?studentId=${student.id}`)}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                新建正式订单
               </Button>
             )}
             {canAccessVisitRecords && (
@@ -837,7 +846,7 @@ export default function StudentDetailPage() {
                 onClick={() => setActiveTab('visits')}
               >
                 <MessageCircle className="mr-2 h-4 w-4" />
-                回访/跟进
+                创建跟进记录
               </Button>
             )}
             {latestOrder && (

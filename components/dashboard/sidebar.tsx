@@ -76,6 +76,14 @@ const navigationGroups: MenuGroup[] = [
     ]
   },
   {
+    title: "回访管理",
+    roles: ['admin', 'head_teacher'],
+    items: [
+      { name: "回访记录", href: "/dashboard/feedback", icon: MessageCircle, permission: { resource: 'students', action: 'visit' } },
+      { name: "正式生管理", href: "/dashboard/feedback/students", icon: School, permission: { resource: 'students', action: 'view' } },
+    ]
+  },
+  {
     title: "招师管理",
     roles: ['admin'],
     items: [

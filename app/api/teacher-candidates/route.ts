@@ -462,25 +462,11 @@ export async function GET(request: NextRequest) {
     if (id) {
       const result = await supabaseServer
         .from('teacher_candidates')
-        .select(TEACHER_CANDIDATE_SELECT)
+        .select(TEACHER_CANDIDATE_FALLBACK_SELECT)
         .eq('id', id)
         .single()
-      let data = result.data as Record<string, any> | null
-      let error = result.error
-
-      if (error && isMissingTeacherCandidateColumnError(error)) {
-        logger.warn('老师面试详情字段与线上库结构不一致，回退到基础字段查询', {
-          id,
-          error_summary: summarizeError(error),
-        })
-        const fallbackResult = await supabaseServer
-          .from('teacher_candidates')
-          .select(TEACHER_CANDIDATE_FALLBACK_SELECT)
-          .eq('id', id)
-          .single()
-        data = fallbackResult.data as Record<string, any> | null
-        error = fallbackResult.error
-      }
+      const data = result.data as Record<string, any> | null
+      const error = result.error
 
       if (error) {
         logger.error('获取老师面试失败', { id, error_summary: summarizeError(error) })
@@ -530,23 +516,11 @@ export async function GET(request: NextRequest) {
     }
 
     // 分页查询数据，按面试日期降序排序
-    let listQuery = buildTeacherCandidateListQuery(TEACHER_CANDIDATE_SELECT, name, queue)
+    let listQuery = buildTeacherCandidateListQuery(TEACHER_CANDIDATE_FALLBACK_SELECT, name, queue)
 
     const listResult = await listQuery.range(from, to)
     let data = listResult.data as Record<string, any>[] | null
     let error = listResult.error
-
-    if (error && isMissingTeacherCandidateColumnError(error)) {
-      logger.warn('老师面试列表字段与线上库结构不一致，回退到基础字段查询', {
-        has_name_filter: Boolean(name),
-        queue,
-        error_summary: summarizeError(error),
-      })
-      listQuery = buildTeacherCandidateListQuery(TEACHER_CANDIDATE_FALLBACK_SELECT, name, queue)
-      const fallbackResult = await listQuery.range(from, to)
-      data = fallbackResult.data as Record<string, any>[] | null
-      error = fallbackResult.error
-    }
 
     if (error) {
       logger.error('获取老师面试列表失败', {

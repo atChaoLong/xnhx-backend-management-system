@@ -75,6 +75,7 @@ function isQualityReportStorageUnavailable(error: unknown): boolean {
     code === "42P01" ||
     code === "42703" ||
     code === "PGRST204" ||
+    code === "PGRST205" ||
     (text.includes("quality_reports") && (
       text.includes("does not exist") ||
       text.includes("could not find") ||

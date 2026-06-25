@@ -21,6 +21,18 @@ const TEACHER_PROFILE_SELECT = [
   'total_hours',
 ].join(', ')
 
+const TEACHER_PROFILE_FALLBACK_SELECT = [
+  'id',
+  'name',
+  'classin_uid',
+  'subjects',
+  'grade_levels',
+  'available_times',
+  'student_regions',
+  'student_levels',
+  'status',
+].join(', ')
+
 type TeacherProfile = {
   id: string
   name: string | null
@@ -60,10 +72,19 @@ export async function GET(request: NextRequest) {
     const profiles: TeacherProfile[] = []
 
     if (classinUids.length > 0) {
-      const { data: uidProfiles, error: uidProfileError } = await supabaseServer
+      let { data: uidProfiles, error: uidProfileError } = await supabaseServer
         .from('teachers')
         .select(TEACHER_PROFILE_SELECT)
         .in('classin_uid', classinUids)
+
+      if (uidProfileError) {
+        const fallbackResult = await supabaseServer
+          .from('teachers')
+          .select(TEACHER_PROFILE_FALLBACK_SELECT)
+          .in('classin_uid', classinUids)
+        uidProfiles = fallbackResult.data
+        uidProfileError = fallbackResult.error
+      }
 
       if (uidProfileError) {
         logger.warn('按 ClassIn UID 获取老师画像失败', { error_summary: summarizeError(uidProfileError) })
@@ -73,10 +94,19 @@ export async function GET(request: NextRequest) {
     }
 
     if (teacherNames.length > 0) {
-      const { data: nameProfiles, error: nameProfileError } = await supabaseServer
+      let { data: nameProfiles, error: nameProfileError } = await supabaseServer
         .from('teachers')
         .select(TEACHER_PROFILE_SELECT)
         .in('name', teacherNames)
+
+      if (nameProfileError) {
+        const fallbackResult = await supabaseServer
+          .from('teachers')
+          .select(TEACHER_PROFILE_FALLBACK_SELECT)
+          .in('name', teacherNames)
+        nameProfiles = fallbackResult.data
+        nameProfileError = fallbackResult.error
+      }
 
       if (nameProfileError) {
         logger.warn('按姓名获取老师画像失败', { error_summary: summarizeError(nameProfileError) })

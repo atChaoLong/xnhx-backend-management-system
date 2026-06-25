@@ -54,10 +54,6 @@ const TRIAL_LESSON_SELECT_BASE = `
   lead:leads(report_number)
 `
 
-const TRIAL_LESSON_SELECT_WITH_MANUAL_CONVERSION = `
-  ${TRIAL_LESSON_SELECT_BASE},
-  manual_converted
-`
 
 function hasNonEmptyString(value: unknown): boolean {
   return typeof value === 'string' && value.trim().length > 0
@@ -180,8 +176,10 @@ export async function GET(request: NextRequest) {
     const from = parseInt(searchParams.get('from') || '0')
     const to = parseInt(searchParams.get('to') || '19')
     const profile = await getCurrentProfile(request)
-    const accessibleLeadIds = await getAccessibleLeadIds(profile)
-    const accessibleStudentIds = await getAccessibleStudentIds(profile)
+    const [accessibleLeadIds, accessibleStudentIds] = await Promise.all([
+      getAccessibleLeadIds(profile),
+      getAccessibleStudentIds(profile),
+    ])
 
     logger.debug('获取试听课程数据', { id, from, to })
 
@@ -189,29 +187,12 @@ export async function GET(request: NextRequest) {
     if (id) {
       let detailQuery = supabaseServer
         .from('trial_lessons')
-        .select(TRIAL_LESSON_SELECT_WITH_MANUAL_CONVERSION)
+        .select(TRIAL_LESSON_SELECT_BASE)
         .eq('id', id)
 
       detailQuery = applyTrialScope(detailQuery, profile, accessibleLeadIds, accessibleStudentIds)
 
-      let detailResult: any = await detailQuery.single()
-
-      if (detailResult.error && isMissingColumnError(detailResult.error, 'manual_converted')) {
-        logger.warn('试听课 manual_converted 字段不可用，使用兼容字段集重试', {
-          id,
-          error_summary: summarizeError(detailResult.error),
-        })
-
-        let fallbackDetailQuery = supabaseServer
-          .from('trial_lessons')
-          .select(TRIAL_LESSON_SELECT_BASE)
-          .eq('id', id)
-
-        fallbackDetailQuery = applyTrialScope(fallbackDetailQuery, profile, accessibleLeadIds, accessibleStudentIds)
-        detailResult = await fallbackDetailQuery.single()
-      }
-
-      const { data, error } = detailResult
+      const { data, error } = await detailQuery.single()
 
       if (error) {
         logger.error('获取试听课程失败', { id, error_summary: summarizeError(error) })
@@ -241,11 +222,11 @@ export async function GET(request: NextRequest) {
 
     let listQuery = supabaseServer
       .from('trial_lessons')
-      .select(TRIAL_LESSON_SELECT_WITH_MANUAL_CONVERSION)
+      .select(TRIAL_LESSON_SELECT_BASE)
 
     listQuery = applyTrialScope(listQuery, profile, accessibleLeadIds, accessibleStudentIds)
 
-    const [countResult, initialListResult]: any[] = await Promise.all([
+    const [countResult, listResult]: any[] = await Promise.all([
       countQuery,
       listQuery
         .order('trial_time', { ascending: false })
@@ -254,28 +235,11 @@ export async function GET(request: NextRequest) {
     ])
 
     const { count: totalCount, error: countError } = countResult
-    let listResult: any = initialListResult
 
     if (countError) {
       logger.warn('统计试听课程数量失败', {
         error_summary: summarizeError(countError),
       })
-    }
-
-    if (listResult.error && isMissingColumnError(listResult.error, 'manual_converted')) {
-      logger.warn('试听课 manual_converted 字段不可用，列表使用兼容字段集重试', {
-        error_summary: summarizeError(listResult.error),
-      })
-
-      let fallbackListQuery = supabaseServer
-        .from('trial_lessons')
-        .select(TRIAL_LESSON_SELECT_BASE)
-
-      fallbackListQuery = applyTrialScope(fallbackListQuery, profile, accessibleLeadIds, accessibleStudentIds)
-      listResult = await fallbackListQuery
-        .order('trial_time', { ascending: false })
-        .order('created_at', { ascending: false })
-        .range(from, to)
     }
 
     const { data, error } = listResult
@@ -689,8 +653,10 @@ export async function PUT(request: NextRequest) {
 
     logger.debug('更新试听课程 - 接收到的数据', { id, update_summary: updateSummary })
 
-    const accessibleLeadIds = await getAccessibleLeadIds(profile)
-    const accessibleStudentIds = await getAccessibleStudentIds(profile)
+    const [accessibleLeadIds, accessibleStudentIds] = await Promise.all([
+      getAccessibleLeadIds(profile),
+      getAccessibleStudentIds(profile),
+    ])
     let accessQuery = supabaseServer
       .from('trial_lessons')
       .select('id, confirmed_teacher, lead_id, student_id')
@@ -966,8 +932,10 @@ export async function DELETE(request: NextRequest) {
 
     logger.debug('删除试听课程', { id })
 
-    const accessibleLeadIds = await getAccessibleLeadIds(profile)
-    const accessibleStudentIds = await getAccessibleStudentIds(profile)
+    const [accessibleLeadIds, accessibleStudentIds] = await Promise.all([
+      getAccessibleLeadIds(profile),
+      getAccessibleStudentIds(profile),
+    ])
     let accessQuery = supabaseServer
       .from('trial_lessons')
       .select('id')

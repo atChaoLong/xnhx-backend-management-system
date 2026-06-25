@@ -77,8 +77,14 @@ const routeRules: DashboardRouteRule[] = [
   {
     path: "/dashboard/feedback",
     label: "回访管理",
-    roles: ["head_teacher"],
+    roles: ["admin", "head_teacher"],
     permissions: [{ resource: RESOURCES.students, action: ACTIONS.visit }],
+  },
+  {
+    path: "/dashboard/feedback/students",
+    label: "正式生管理",
+    roles: ["admin", "head_teacher"],
+    permissions: [{ resource: RESOURCES.students, action: ACTIONS.view }],
   },
 
   {

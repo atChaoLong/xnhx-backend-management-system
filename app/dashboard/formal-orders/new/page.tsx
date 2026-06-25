@@ -227,6 +227,10 @@ export default function NewFormalOrderPage() {
           setSourceError('只有试听完成或待反馈的试听课程可以转正式订单')
         }
 
+        if (trialLesson.is_converted_calculated ?? trialLesson.is_converted) {
+          setSourceError('该试听课程已转正式订单，不能重复转化')
+        }
+
         if (!trialLesson.lead_id && !trialLesson.student_id) {
           setSourceError('该试听课程缺少关联线索或正式生，不能转正式订单')
         }

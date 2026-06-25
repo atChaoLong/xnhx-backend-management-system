@@ -79,7 +79,11 @@ function isMissingLeadColumnError(error: unknown) {
     (message.includes('channel_platform') || message.includes('customer_social_id'))
 }
 
-function canAccessLead(lead: any, profile: Awaited<ReturnType<typeof getCurrentProfile>>) {
+function canAccessLead(
+  lead: any,
+  profile: Awaited<ReturnType<typeof getCurrentProfile>>,
+  relatedLeadIds: string[] = []
+) {
   if (!profile) return false
   if (profile.role === 'admin') return true
   const meName = profile.name || ''
@@ -95,7 +99,8 @@ function canAccessLead(lead: any, profile: Awaited<ReturnType<typeof getCurrentP
   }
 
   if (profile.role === 'head_teacher') {
-    return lead.operator_id === profile.id || lead.grab_user_id === profile.id || lead.created_by === meName
+    if (isLeadCreatedByProfile(lead, profile)) return true
+    return relatedLeadIds.includes(lead.id)
   }
 
   return false
@@ -119,6 +124,22 @@ export async function GET(
 
     logger.debug('获取线索详情', { leadId: id })
     const profile = await getCurrentProfile(request)
+
+    let relatedLeadIds: string[] = []
+    if (profile?.role === 'head_teacher') {
+      const { data: students } = await supabaseServer
+        .from('students')
+        .select('id')
+        .eq('head_teacher_id', profile.id)
+      const studentIds = (students || []).map((s: any) => s.id).filter(Boolean)
+      if (studentIds.length > 0) {
+        const { data: orders } = await supabaseServer
+          .from('formal_orders')
+          .select('lead_id')
+          .in('student_id', studentIds)
+        relatedLeadIds = Array.from(new Set((orders || []).map((o: any) => o.lead_id).filter(Boolean)))
+      }
+    }
 
     let data: any = null
     let error: any = null
@@ -160,7 +181,7 @@ export async function GET(
       )
     }
 
-    if (!canAccessLead(data, profile)) {
+    if (!canAccessLead(data, profile, relatedLeadIds)) {
       return NextResponse.json({ error: '无权访问该线索' }, { status: 403 })
     }
 

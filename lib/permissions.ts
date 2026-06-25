@@ -72,7 +72,7 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
   admin: {
     leads: ['view', 'create', 'edit', 'delete'], // 移除 feedback - 管理员不直接反馈线索
     trialLessons: ['view', 'edit', 'delete', 'addLink'], // 移除 create, convert - 管理员不创建试听
-    students: ['view', 'create', 'edit', 'delete'], // 保留学生管理
+    students: ['view', 'create', 'edit', 'delete', 'visit'], // 保留学生管理，含回访
     formalOrders: ['view', 'create', 'edit', 'delete'], // 保留订单管理
     classSessions: ['view', 'create', 'edit', 'delete'], // 课节管理
     courses: ['view', 'create', 'edit', 'delete'], // 课程管理

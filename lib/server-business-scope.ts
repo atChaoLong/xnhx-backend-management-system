@@ -126,8 +126,10 @@ export async function getAccessibleFormalOrderIds(profile: Profile): Promise<Sco
   if (profile.role === 'admin' || profile.role === 'academic_affairs' || profile.role === 'finance') return null
 
   const meName = profile.name || ''
-  const leadIds = await getAccessibleLeadIds(profile)
-  const headTeacherStudentIds = await getHeadTeacherStudentIds(profile)
+  const [leadIds, headTeacherStudentIds] = await Promise.all([
+    getAccessibleLeadIds(profile),
+    getHeadTeacherStudentIds(profile),
+  ])
   const filters = [
     meName ? `consultant_teacher.ilike.%${meName}%` : '',
     leadIds.length > 0 ? `lead_id.in.(${leadIds.join(',')})` : '',
@@ -158,8 +160,10 @@ export async function getAccessibleTrialLessonIds(profile: Profile): Promise<Sco
   }
 
   const meName = profile.name || ''
-  const leadIds = await getAccessibleLeadIds(profile)
-  const studentIds = await getAccessibleStudentIds(profile)
+  const [leadIds, studentIds] = await Promise.all([
+    getAccessibleLeadIds(profile),
+    getAccessibleStudentIds(profile),
+  ])
   const filters = [
     meName ? `assigned_consultant.ilike.%${meName}%` : '',
     leadIds.length > 0 ? `lead_id.in.(${leadIds.join(',')})` : '',
@@ -198,10 +202,11 @@ export async function getAccessibleCourseIds(profile: Profile): Promise<ScopedId
     return uniqueIds(data || [])
   }
 
-  const orderIds = await getAccessibleFormalOrderIds(profile)
+  const [orderIds, headTeacherStudentIds] = await Promise.all([
+    getAccessibleFormalOrderIds(profile),
+    getHeadTeacherStudentIds(profile),
+  ])
   if (orderIds === null) return null
-
-  const headTeacherStudentIds = await getHeadTeacherStudentIds(profile)
   const filters = [
     orderIds.length > 0 ? `order_id.in.(${orderIds.join(',')})` : '',
     headTeacherStudentIds.length > 0 ? `student_id.in.(${headTeacherStudentIds.join(',')})` : '',

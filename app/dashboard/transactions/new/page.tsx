@@ -32,6 +32,7 @@ export default function NewTransactionPage() {
 
   // 列表数据
   const [students, setStudents] = useState<any[]>([])
+  const [maxRefundAmount, setMaxRefundAmount] = useState<number | null>(null)
 
   const [formData, setFormData] = useState({
     student_id: "",
@@ -58,61 +59,76 @@ export default function NewTransactionPage() {
   // 加载列表数据和预填数据
   useEffect(() => {
     const loadData = async () => {
-      const studentsData = await StudentsService.getAllStudents()
-      setStudents(studentsData)
-
-      // 从URL参数预填数据
       const studentId = searchParams.get('student_id')
       const orderId = searchParams.get('order_id')
 
-      if (studentId || orderId) {
-        setIsLoadingPrefill(true)
-        try {
-          let prefillData: any = {}
+      // 并行加载：学生列表 + 预填数据
+      const studentsPromise = StudentsService.getAllStudents()
 
-          // 获取学生信息
-          if (studentId) {
-            const student = await StudentsService.getStudentById(studentId)
-            prefillData.student_id = student.id
-            prefillData.student_name = student.student_name
-            if ((student as any).head_teacher?.name || student.head_teacher_name) {
-              prefillData.class_teacher = (student as any).head_teacher?.name || student.head_teacher_name
-            }
+      if (!studentId && !orderId) {
+        const studentsData = await studentsPromise
+        setStudents(studentsData)
+        return
+      }
 
-            try {
-              const detailResponse = await api.get(`/api/students/detail?id=${encodeURIComponent(studentId)}`)
-              if (detailResponse.ok) {
-                const detailResult = await detailResponse.json()
-                const orderSummary = (detailResult.data?.formalOrderSummaries || []).find((summary: any) => summary.order_id === orderId)
-                if (orderSummary) {
-                  prefillData.remaining_duration = Number(orderSummary.remaining_hours || 0).toFixed(1)
-                }
-              }
-            } catch (error) {
-              console.error('加载正式生剩余课时失败:', summarizeError(error))
-            }
+      setIsLoadingPrefill(true)
+      try {
+        let prefillData: any = {}
+
+        // 并行发起所有独立请求（学生列表不阻塞预填，后台加载）
+        const studentPromise = studentId ? StudentsService.getStudentById(studentId) : Promise.resolve(null)
+        const detailPromise = studentId ? api.get(`/api/students/detail?id=${encodeURIComponent(studentId)}`) : Promise.resolve(null)
+        const orderPromise = orderId ? FormalOrdersService.getFormalOrderById(orderId) : Promise.resolve(null)
+
+        // 学生列表后台加载，不阻塞预填
+        studentsPromise.then((data) => setStudents(data)).catch(() => {})
+
+        const [student, detailResponse, order] = await Promise.all([
+          studentPromise,
+          detailPromise,
+          orderPromise,
+        ])
+
+        // 处理学生信息
+        if (student) {
+          prefillData.student_id = student.id
+          prefillData.student_name = student.student_name
+          if ((student as any).head_teacher?.name || student.head_teacher_name) {
+            prefillData.class_teacher = (student as any).head_teacher?.name || student.head_teacher_name
           }
-
-          // 获取订单信息
-          if (orderId) {
-            const order = await FormalOrdersService.getFormalOrderById(orderId)
-            prefillData.order_id = order.id
-            prefillData.order_type = order.order_type
-            prefillData.original_consultant = order.consultant_teacher
-            prefillData.teacher_name = order.teacher_names?.[0] || ''
-            prefillData.unit_price = order.total_hours > 0 ? (order.payment_amount / order.total_hours).toFixed(2) : ''
-            prefillData.course_name = order.order_notes || ''
-          }
-
-          // 预设退费类型
-          prefillData.transaction_type = "退费"
-
-          setFormData(prev => ({ ...prev, ...prefillData }))
-        } catch (error) {
-          console.error('预填数据失败:', summarizeError(error))
-        } finally {
-          setIsLoadingPrefill(false)
         }
+
+        // 处理学生详情（获取剩余课时和金额）
+        if (detailResponse && detailResponse.ok) {
+          const detailResult = await detailResponse.json()
+          const orderSummary = (detailResult.data?.formalOrderSummaries || []).find((summary: any) => summary.order_id === orderId)
+          if (orderSummary) {
+            prefillData.remaining_duration = Number(orderSummary.remaining_hours || 0).toFixed(1)
+            const remainingAmount = Number(orderSummary.remaining_amount ?? 0)
+            setMaxRefundAmount(remainingAmount)
+            // 自动填充退费金额为剩余金额
+            prefillData.refund_amount = remainingAmount.toFixed(2)
+          }
+        }
+
+        // 处理订单信息
+        if (order) {
+          prefillData.order_id = order.id
+          prefillData.order_type = order.order_type
+          prefillData.original_consultant = order.consultant_teacher
+          prefillData.teacher_name = order.teacher_names?.[0] || ''
+          prefillData.unit_price = order.total_hours > 0 ? (order.payment_amount / order.total_hours).toFixed(2) : ''
+          prefillData.course_name = order.order_notes || ''
+        }
+
+        // 预设退费类型
+        prefillData.transaction_type = "退费"
+
+        setFormData(prev => ({ ...prev, ...prefillData }))
+      } catch (error) {
+        console.error('预填数据失败:', summarizeError(error))
+      } finally {
+        setIsLoadingPrefill(false)
       }
     }
     loadData()
@@ -149,6 +165,16 @@ export default function NewTransactionPage() {
         variant: "destructive",
         title: "验证失败",
         description: "请输入异动类型",
+      })
+      return
+    }
+
+    const refundAmountNum = formData.refund_amount ? parseFloat(formData.refund_amount) : null
+    if (refundAmountNum !== null && maxRefundAmount !== null && refundAmountNum > maxRefundAmount + 0.01) {
+      toast({
+        variant: "destructive",
+        title: "验证失败",
+        description: `可申请退费金额不能超过剩余金额 ¥${maxRefundAmount.toFixed(2)}`,
       })
       return
     }
@@ -383,11 +409,19 @@ export default function NewTransactionPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="refund_amount">退费金额</Label>
+                    <Label htmlFor="refund_amount">
+                      退费金额
+                      {maxRefundAmount !== null && (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          (可申请退费 ≤ ¥{maxRefundAmount.toFixed(2)})
+                        </span>
+                      )}
+                    </Label>
                     <Input
                       id="refund_amount"
                       type="number"
                       step="0.01"
+                      max={maxRefundAmount !== null ? maxRefundAmount.toFixed(2) : undefined}
                       placeholder="请输入退费金额"
                       value={formData.refund_amount}
                       onChange={(e) => handleInputChange("refund_amount", e.target.value)}

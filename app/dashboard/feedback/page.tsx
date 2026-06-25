@@ -439,6 +439,11 @@ export default function FeedbackPage() {
           <CardHeader className="flex flex-row items-center justify-between gap-4">
             <CardTitle>回访记录</CardTitle>
             <div className="flex items-center gap-2">
+              <Link href="/dashboard/feedback/students">
+                <Button variant="outline" size="sm">
+                  正式生管理
+                </Button>
+              </Link>
               <Button variant="outline" size="sm" onClick={() => fetchVisitRecords(currentPage, pageSize)} disabled={isLoadingRecords}>
                 <RefreshCw className={isLoadingRecords ? "mr-2 h-4 w-4 animate-spin" : "mr-2 h-4 w-4"} />
                 刷新

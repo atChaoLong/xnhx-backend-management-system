@@ -812,32 +812,13 @@ export default function StudentsPage() {
                                 分配班主任
                               </Button>
                             )}
-                            {isFormalStudentView && student.formal_summary?.latest_order_id && (
+                            {isFormalStudentView && (
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => router.push(`/dashboard/formal-orders/new?previousOrderId=${student.formal_summary?.latest_order_id}&studentId=${student.id}&mode=renew`)}
+                                onClick={() => router.push(`/dashboard/students/${student.id}`)}
                               >
-                                续费
-                              </Button>
-                            )}
-                            {isFormalStudentView && student.formal_summary?.latest_order_id && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => router.push(`/dashboard/formal-orders/new?previousOrderId=${student.formal_summary?.latest_order_id}&studentId=${student.id}&mode=extend`)}
-                              >
-                                扩科
-                              </Button>
-                            )}
-                            {isFormalStudentView && student.formal_summary?.latest_order_id && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => router.push(`/dashboard/transactions/new?student_id=${student.id}&order_id=${student.formal_summary?.latest_order_id}`)}
-                              >
-                                <DollarSign className="mr-2 h-4 w-4" />
-                                退费
+                                详情管理
                               </Button>
                             )}
                             <DropdownMenu>

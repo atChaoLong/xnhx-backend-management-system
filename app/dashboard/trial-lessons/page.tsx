@@ -391,6 +391,15 @@ export default function TrialLessonsPage() {
       return
     }
 
+    if (getConversionFlag(lesson)) {
+      toast({
+        variant: "destructive",
+        title: "无法转正",
+        description: "该试听课程已转正式订单，不能重复转化",
+      })
+      return
+    }
+
     setIsConverting(lesson.id)
     // 跳转到正式订单创建页面
     router.push(`/dashboard/formal-orders/new?trialLessonId=${lesson.id}`)
@@ -699,8 +708,8 @@ export default function TrialLessonsPage() {
                               </Button>
                             )}
 
-                            {/* 转正按钮 - 销售操作，仅在试听完并反馈后显示 */}
-                            {(lesson.lesson_status === 'waiting_feedback' || lesson.lesson_status === 'completed') && trialLessonsPerm.convert() && (
+                            {/* 转正按钮 - 销售操作，仅在试听完并反馈后且未转正时显示 */}
+                            {(lesson.lesson_status === 'waiting_feedback' || lesson.lesson_status === 'completed') && !getConversionFlag(lesson) && trialLessonsPerm.convert() && (
                               <Button
                                 variant="default"
                                 size="sm"
