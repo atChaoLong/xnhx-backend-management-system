@@ -112,7 +112,7 @@ async function findCallbackSessionId(
     const { data: course, error: courseError } = await supabaseServer
       .from('courses')
       .select('id')
-      .eq('classin_course_id', courseId)
+      .eq('classin_course_id', String(courseId))
       .maybeSingle();
 
     if (courseError || !course?.id) {
@@ -432,7 +432,7 @@ async function handleLessonSummary(data: ClassInCallbackData): Promise<void> {
     const { data: classroomClassin, error: classroomError } = await supabaseServer
       .from('classroom_classin')
       .select('class_id')
-      .eq('class_id', classId)
+      .eq('class_id', String(classId))
       .maybeSingle();
 
     if (classroomError || !classroomClassin) {
@@ -448,7 +448,7 @@ async function handleLessonSummary(data: ClassInCallbackData): Promise<void> {
     const { data: session, error: sessionError } = await supabaseServer
       .from('class_sessions')
       .select('id, course_id, scheduled_duration_minutes, teacher_id, teacher_name')
-      .eq('classroom_id', classId)
+      .eq('classroom_id', String(classId))
       .single();
 
     if (sessionError || !session) {
@@ -665,10 +665,11 @@ async function handleEnd(data: ClassInCallbackData): Promise<void> {
     }
 
     // 1. 通过 CourseID 查找对应的 course 记录
+    // classin_course_id 是 bigint 类型，Supabase 返回字符串，查询时用字符串匹配
     const { data: course, error: courseError } = await supabaseServer
       .from('courses')
       .select('id')
-      .eq('classin_course_id', courseId)
+      .eq('classin_course_id', String(courseId))
       .maybeSingle();
 
     if (courseError || !course) {

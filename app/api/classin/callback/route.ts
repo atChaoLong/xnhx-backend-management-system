@@ -68,7 +68,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CallbackR
     // 验证时间戳合理性（防止重放攻击）
     const currentTime = Math.floor(Date.now() / 1000);
     const timeDiff = Math.abs(currentTime - TimeStamp);
-    if (timeDiff > 300) { // 5分钟内的请求认为是有效的
+    if (timeDiff > 1200) { // 20分钟内的请求认为是有效的（ClassIn 消息队列串行推送，积压时时间戳可能较旧）
       logger.warn('ClassIn 回调时间戳差异过大', {
         sid: SID,
         cmd: Cmd,
