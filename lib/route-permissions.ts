@@ -278,6 +278,9 @@ export const ROUTE_PERMISSIONS = {
   },
 
   // ClassIn 本地镜像与 SDK 操作
+  '/api/classin/events': {
+    GET: { resource: RESOURCES.teachers, action: ACTIONS.notes },
+  },
   '/api/classin/login': {
     POST: { resource: RESOURCES.teachers, action: ACTIONS.notes },
   },
