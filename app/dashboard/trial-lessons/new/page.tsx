@@ -742,7 +742,7 @@ export default function NewTrialLessonPage() {
                       name: [
                         teacher.teacher_name,
                         teacher.teacher_subject,
-                        "已绑定ClassIn",
+                        teacher.classin_uid ? "已绑定ClassIn" : "未绑定ClassIn",
                       ].filter(Boolean).join(" - "),
                     }))}
                     loading={isLoadingTeachers}

@@ -25,7 +25,6 @@ export default function NewTeacherCandidatePage() {
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
   const [selectedGradeGroups, setSelectedGradeGroups] = useState<string[]>([])
 
-  const today = new Date().toISOString().slice(0,10)
   const [formData, setFormData] = useState({
     // 基本信息
     name: "",
@@ -36,7 +35,7 @@ export default function NewTeacherCandidatePage() {
     grade_level: "",
 
     // 约面信息
-    interview_date: today,
+    interview_date: "",
     interview_time: "",
     interview_link: "",
     interviewer_name: "",

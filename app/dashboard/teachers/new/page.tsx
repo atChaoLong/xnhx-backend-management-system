@@ -45,7 +45,7 @@ export default function NewTeacherPage() {
   const [formData, setFormData] = useState({
     // 基本信息
     name: "",
-    teacher_level: "ungraded",
+    teacher_level: "B",
     status: "active",
     gender: "",
     wechat: "",
@@ -357,7 +357,7 @@ export default function NewTeacherPage() {
 
       const payload: NewTeacher = {
         name: formData.name.trim(),
-        teacher_level: formData.teacher_level === "ungraded" ? null : formData.teacher_level,
+        teacher_level: formData.teacher_level,
         status: formData.status || "active",
         gender: formData.gender,
         wechat: formData.wechat.trim(),
@@ -497,11 +497,14 @@ export default function NewTeacherPage() {
                       onChange={(e) => handleInputChange("teacher_level", e.target.value)}
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                     >
-                      <option value="ungraded">未定级</option>
-                      <option value="junior">初级教师</option>
-                      <option value="intermediate">中级教师</option>
-                      <option value="senior">高级教师</option>
-                      <option value="expert">专家教师</option>
+                      <option value="B">B</option>
+                      <option value="A">A</option>
+                      <option value="S2">S2</option>
+                      <option value="S1.5">S1.5</option>
+                      <option value="S1">S1</option>
+                      <option value="S0">S0</option>
+                      <option value="VIP">VIP</option>
+                      <option value="SVIP">SVIP</option>
                     </select>
                   </div>
 

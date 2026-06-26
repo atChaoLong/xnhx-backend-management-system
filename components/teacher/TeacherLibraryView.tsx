@@ -44,11 +44,14 @@ interface TeacherLibraryViewProps {
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
 
 const TEACHER_LEVEL_LABELS: Record<string, string> = {
-  ungraded: "未定级",
-  junior: "初级教师",
-  intermediate: "中级教师",
-  senior: "高级教师",
-  expert: "专家教师",
+  B: "B",
+  A: "A",
+  S2: "S2",
+  "S1.5": "S1.5",
+  S1: "S1",
+  S0: "S0",
+  VIP: "VIP",
+  SVIP: "SVIP",
 }
 
 const TEACHER_STATUS_LABELS: Record<string, string> = {

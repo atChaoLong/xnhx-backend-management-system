@@ -13,6 +13,15 @@ import { summarizeError } from "@/lib/safe-error"
 const logger = createLogger("API:TeacherEntries:Confirm")
 const TEACHER_ENTRY_SELECT = "id,teacher_code,name,teacher_level,status,mobile,classin_phone,classin_initial_password,candidate_id,used_classin,classin_uid,created_at,updated_at"
 
+function isMissingColumnError(error: unknown) {
+  const err = typeof error === 'object' && error !== null ? error as Record<string, any> : {}
+  const code = String(err.code || '')
+  const message = `${err.message || ''} ${err.details || ''} ${err.hint || ''}`.toLowerCase()
+  return code === '42703' || code === 'PGRST204' ||
+    (message.includes('column') && message.includes('does not exist')) ||
+    message.includes('could not find') || message.includes('schema cache')
+}
+
 export async function POST(request: NextRequest) {
   return checkPermission(request, RESOURCES.teacherCandidates, ACTIONS.confirmEntry, async () => {
     try {
@@ -90,6 +99,7 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (teacherError) {
+        logger.error("写入老师表失败", { error_summary: summarizeError(teacherError) })
         const { message, status } = handleDatabaseError(teacherError)
         return NextResponse.json({ error: message }, { status })
       }
@@ -104,10 +114,10 @@ export async function POST(request: NextRequest) {
         hired_notes: mergedNotes,
         recruitment_step: "final_entry",
         recruitment_status: "in_teacher_pool",
-        salary_confirmed_at: now,
-        salary_confirmed_by_id: profile?.id || null,
         updated_at: now,
       }
+      // salary_confirmed_at / salary_confirmed_by_id may not exist in all environments
+      // Only set them if the columns are present (detected via first update attempt)
       if (effectiveName && effectiveName !== candidate.name) {
         updatePayload.name = effectiveName
       }
@@ -121,12 +131,29 @@ export async function POST(request: NextRequest) {
         updatePayload.approved_hourly_rate = approved_hourly_rate
       }
 
-      const { error: updateCandidateError } = await supabaseServer
+      let { error: updateCandidateError } = await supabaseServer
         .from("teacher_candidates")
         .update(updatePayload)
         .eq("id", candidate_id)
 
+      if (updateCandidateError && isMissingColumnError(updateCandidateError)) {
+        logger.warn("teacher_candidates 缺少部分字段，尝试不含新字段的更新", {
+          error_summary: summarizeError(updateCandidateError),
+        })
+        const safePayload = { ...updatePayload }
+        delete safePayload.recruitment_step
+        delete safePayload.recruitment_status
+        delete safePayload.salary_confirmed_at
+        delete safePayload.salary_confirmed_by_id
+        const retryResult = await supabaseServer
+          .from("teacher_candidates")
+          .update(safePayload)
+          .eq("id", candidate_id)
+        updateCandidateError = retryResult.error
+      }
+
       if (updateCandidateError) {
+        logger.error("更新候选人入库状态失败", { error_summary: summarizeError(updateCandidateError) })
         const { message, status } = handleDatabaseError(updateCandidateError)
         return NextResponse.json({ error: message }, { status })
       }

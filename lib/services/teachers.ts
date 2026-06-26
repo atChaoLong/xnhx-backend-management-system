@@ -44,7 +44,7 @@ export interface ClassInTeacherOption {
   id: string
   teacher_name: string
   teacher_subject?: string
-  classin_uid: number
+  classin_uid?: number
   subjects?: string[]
   grade_levels?: string[]
   available_times?: string[]

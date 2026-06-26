@@ -299,6 +299,9 @@ export async function PUT(request: NextRequest) {
 
     const currentStep = useLegacyFlowColumns && hasCompletedReview && targetStep === 'final_entry'
       ? 'salary_negotiation'
+      : hasInterviewVideo && targetStep === 'teaching_review' &&
+      (useLegacyFlowColumns || storedCurrentStep === 'scheduling' || storedCurrentStep === 'interview_video')
+      ? 'interview_video'
       : hasInterviewVideo &&
       (targetStep === 'salary_negotiation' || targetStep === 'rejected') &&
       (storedCurrentStep === 'scheduling' || storedCurrentStep === 'interview_video')
@@ -377,18 +380,35 @@ export async function PUT(request: NextRequest) {
         error_summary: summarizeError(error),
       })
 
-      const fallbackUpdateResult = await supabaseServer
-        .from('teacher_candidates')
-        .update(fallbackPayload)
-        .eq('id', id)
-        .select(FLOW_FALLBACK_SELECT)
-        .single()
-      data = synthesizeFlowData(
-        fallbackUpdateResult.data as Record<string, any> | null,
-        targetStep,
-        expectedStatus
-      )
-      error = fallbackUpdateResult.error
+      if (Object.keys(fallbackPayload).length === 0) {
+        // No legacy fields to update (e.g. interview_video step only sets
+        // recruitment_step/recruitment_status which don't exist in the DB).
+        // Skip the update and just fetch current data to synthesize the response.
+        const fetchResult = await supabaseServer
+          .from('teacher_candidates')
+          .select(FLOW_FALLBACK_SELECT)
+          .eq('id', id)
+          .single()
+        data = synthesizeFlowData(
+          fetchResult.data as Record<string, any> | null,
+          targetStep,
+          expectedStatus
+        )
+        error = fetchResult.error
+      } else {
+        const fallbackUpdateResult = await supabaseServer
+          .from('teacher_candidates')
+          .update(fallbackPayload)
+          .eq('id', id)
+          .select(FLOW_FALLBACK_SELECT)
+          .single()
+        data = synthesizeFlowData(
+          fallbackUpdateResult.data as Record<string, any> | null,
+          targetStep,
+          expectedStatus
+        )
+        error = fallbackUpdateResult.error
+      }
     }
 
     if (error) {
