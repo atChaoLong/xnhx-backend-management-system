@@ -737,9 +737,9 @@ export default function LeadsPage() {
                               </Button>
                             )}
                             {/* 销售反馈按钮 - 只在未反馈时显示 */}
-                            {/* 显示条件：有反馈权限 + 派给自己 + 未反馈（add_status为空） */}
+                            {/* 显示条件：有反馈权限 + 可编辑该线索 + 未反馈（add_status为空） */}
                             {leadsPerm.feedback() &&
-                              isLeadAssignedToCurrentUser(lead) &&
+                              canWriteLead(lead) &&
                               isLeadAwaitingFeedback(lead) && (
                               <Button
                                 variant="outline"

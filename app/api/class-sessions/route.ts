@@ -553,9 +553,9 @@ export async function PUT(request: NextRequest) {
               classInSync.attempted = true
               const sdk = getClassInSDKService()
               await sdk.updateClassroom({
-                courseId: course.classin_course_id,
-                classId: classroomClassin.class_id,
-                activityId: classroomClassin.activity_id || classroomClassin.class_id,
+                courseId: Number(course.classin_course_id),
+                classId: Number(classroomClassin.class_id),
+                activityId: Number(classroomClassin.activity_id || classroomClassin.class_id),
                 name: classroomClassin.name || accessSession.session_name || course.course_name,
                 beginTime,
                 endTime,
@@ -585,13 +585,14 @@ export async function PUT(request: NextRequest) {
                 classroomId: classroomClassin.class_id,
               })
             } catch (classInError) {
+              const actualError = classInError instanceof Error ? classInError.message : '同步 ClassIn 课节时间失败'
               logger.error('同步 ClassIn 课节时间失败', {
                 id,
                 classroomId: classroomClassin.class_id,
                 error_summary: summarizeError(classInError),
               })
               return NextResponse.json(
-                { error: '同步 ClassIn 课节时间失败，请稍后重试' },
+                { error: `同步 ClassIn 课节时间失败：${actualError}` },
                 { status: 502 }
               )
             }
@@ -696,9 +697,9 @@ export async function DELETE(request: NextRequest) {
         if (classroomClassin?.activity_id) {
           const sdk = getClassInSDKService()
           await sdk.deleteClassroom({
-            courseId: relatedCourse.classin_course_id,
-            classId: session.classroom_id,
-            activityId: classroomClassin.activity_id,
+            courseId: Number(relatedCourse.classin_course_id),
+            classId: Number(session.classroom_id),
+            activityId: Number(classroomClassin.activity_id),
           })
 
           logger.info('删除 ClassIn 课堂成功', {

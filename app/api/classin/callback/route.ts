@@ -56,12 +56,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<CallbackR
     // 验证必要字段
     if (!SID || !Cmd || !SafeKey || !TimeStamp) {
       logger.warn('ClassIn 回调缺少必要字段', summarizeCallbackBody(body));
+      // 仍然返回 errno:1 避免 ClassIn 无限重试
       return NextResponse.json<CallbackResponse>({
         error_info: {
-          errno: 0,
-          error: "缺少必要字段"
+          errno: 1,
+          error: "程序正常执行"
         }
-      }, { status: 400 });
+      }, { status: 200 });
     }
 
     // 验证时间戳合理性（防止重放攻击）
@@ -85,12 +86,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<CallbackR
         has_safe_key: true,
       });
 
+      // 返回 errno:1 + HTTP 200，避免 ClassIn 无限重试阻塞后续消息
       return NextResponse.json<CallbackResponse>({
         error_info: {
-          errno: 0,
-          error: "认证失败"
+          errno: 1,
+          error: "程序正常执行"
         }
-      }, { status: 401 });
+      }, { status: 200 });
     }
 
     logger.debug('ClassIn 回调 SafeKey 验证通过', { sid: SID, cmd: Cmd });
@@ -112,13 +114,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<CallbackR
   } catch (error: unknown) {
     logger.error('处理 ClassIn 回调时出错', summarizeError(error));
 
-    // 即使出错也要返回格式化的响应，避免 ClassIn 重试
+    // 即使出错也要返回 errno:1 + HTTP 200，避免 ClassIn 无限重试阻塞后续消息
     return NextResponse.json<CallbackResponse>({
       error_info: {
-        errno: 0,
-        error: "服务器内部错误"
+        errno: 1,
+        error: "程序正常执行"
       }
-    }, { status: 500 });
+    }, { status: 200 });
   }
 }
 

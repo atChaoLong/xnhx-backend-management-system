@@ -104,7 +104,7 @@ const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
 
   // 销售顾问：线索跟进、学生管理、订单录入
   sales: {
-    leads: ['view', 'create', 'feedback', 'convert', 'assign'], // 可录入自己的线索，并可抢单/反馈/转试听
+    leads: ['view', 'create', 'edit', 'feedback', 'convert', 'assign'], // 可录入自己的线索，并可编辑/抢单/反馈/转试听
     trialLessons: ['view', 'create', 'edit', 'confirmTime', 'convert'],
     students: ['view', 'create', 'edit'],
     formalOrders: ['view', 'create'], // 可从试听转正式，正式订单列表不允许普通角色随意修改

@@ -1380,7 +1380,7 @@ export default function BatchSchedulePage() {
                   <p className="text-sm mt-2">请选择订单，系统将自动生成排课列表</p>
                 </div>
               ) : (
-                <ScrollableTable>
+                <ScrollableTable flex={false} maxHeight="60vh">
                   <Table className="border-0">
                     <TableHeader>
                       <TableRow>

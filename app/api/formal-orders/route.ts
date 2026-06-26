@@ -188,11 +188,23 @@ async function getHeadTeacherStudentIds(profile: Awaited<ReturnType<typeof getCu
   return (data || []).map((student: any) => student.id).filter(Boolean)
 }
 
+async function getScopedStudentIds(profile: Awaited<ReturnType<typeof getCurrentProfile>>): Promise<string[]> {
+  if (!profile) return []
+  if (profile.role === 'admin' || profile.role === 'academic_affairs' || profile.role === 'finance') return []
+
+  const [headTeacherIds, businessScopeIds] = await Promise.all([
+    getHeadTeacherStudentIds(profile),
+    getAccessibleStudentIds(profile),
+  ])
+
+  return Array.from(new Set([...headTeacherIds, ...(businessScopeIds || [])]))
+}
+
 function applyOrderScope(
   query: any,
   profile: Awaited<ReturnType<typeof getCurrentProfile>>,
   leadIds: string[],
-  headTeacherStudentIds: string[]
+  accessibleStudentIds: string[]
 ) {
   if (!profile) return query.eq('id', '00000000-0000-0000-0000-000000000000')
   if (profile.role === 'admin' || profile.role === 'academic_affairs' || profile.role === 'finance') return query
@@ -203,6 +215,7 @@ function applyOrderScope(
     const filters = [
       meName ? `consultant_teacher.ilike.%${meName}%` : '',
       leadIds.length > 0 ? `lead_id.in.(${leadIds.join(',')})` : '',
+      accessibleStudentIds.length > 0 ? `student_id.in.(${accessibleStudentIds.join(',')})` : '',
     ].filter(Boolean)
 
     if (filters.length === 0) return query.eq('id', '00000000-0000-0000-0000-000000000000')
@@ -213,7 +226,7 @@ function applyOrderScope(
     const filters = [
       meName ? `consultant_teacher.ilike.%${meName}%` : '',
       leadIds.length > 0 ? `lead_id.in.(${leadIds.join(',')})` : '',
-      headTeacherStudentIds.length > 0 ? `student_id.in.(${headTeacherStudentIds.join(',')})` : '',
+      accessibleStudentIds.length > 0 ? `student_id.in.(${accessibleStudentIds.join(',')})` : '',
     ].filter(Boolean)
 
     if (filters.length === 0) return query.eq('id', '00000000-0000-0000-0000-000000000000')
@@ -424,9 +437,9 @@ export async function GET(request: NextRequest) {
     const from = parseInt(searchParams.get('from') || '0')
     const to = parseInt(searchParams.get('to') || '19')
     const profile = await getCurrentProfile(request)
-    const [accessibleLeadIds, headTeacherStudentIds] = await Promise.all([
+    const [accessibleLeadIds, scopedStudentIds] = await Promise.all([
       getAccessibleLeadIds(profile),
-      getHeadTeacherStudentIds(profile),
+      getScopedStudentIds(profile),
     ])
 
     logger.debug('获取正式订单数据', { id, from, to })
@@ -438,7 +451,7 @@ export async function GET(request: NextRequest) {
         .select(FORMAL_ORDER_SELECT)
         .eq('id', id)
 
-      detailQuery = applyOrderScope(detailQuery, profile, accessibleLeadIds, headTeacherStudentIds)
+      detailQuery = applyOrderScope(detailQuery, profile, accessibleLeadIds, scopedStudentIds)
 
       const { data: order, error } = await detailQuery
         .single()
@@ -475,7 +488,7 @@ export async function GET(request: NextRequest) {
     let countQuery = supabaseServer
       .from('formal_orders')
       .select('id', { count: 'exact', head: true })
-    countQuery = applyOrderScope(countQuery, profile, accessibleLeadIds, headTeacherStudentIds)
+    countQuery = applyOrderScope(countQuery, profile, accessibleLeadIds, scopedStudentIds)
     const { count: totalCount } = await countQuery
 
     // 分页查询数据，按首次课时间降序排序
@@ -483,7 +496,7 @@ export async function GET(request: NextRequest) {
       .from('formal_orders')
       .select(FORMAL_ORDER_SELECT)
 
-    listQuery = applyOrderScope(listQuery, profile, accessibleLeadIds, headTeacherStudentIds)
+    listQuery = applyOrderScope(listQuery, profile, accessibleLeadIds, scopedStudentIds)
 
     const { data: orders, error } = await listQuery
       .order('first_class_time', { ascending: false })
@@ -583,16 +596,16 @@ export async function POST(request: NextRequest) {
     }
 
     if (isContinuation) {
-      const [accessibleLeadIds, headTeacherStudentIds] = await Promise.all([
+      const [accessibleLeadIds, scopedStudentIds] = await Promise.all([
         getAccessibleLeadIds(profile),
-        getHeadTeacherStudentIds(profile),
+        getScopedStudentIds(profile),
       ])
       let previousOrderQuery = supabaseServer
         .from('formal_orders')
         .select(FORMAL_ORDER_SELECT)
         .eq('id', body.previous_order_id.trim())
 
-      previousOrderQuery = applyOrderScope(previousOrderQuery, profile, accessibleLeadIds, headTeacherStudentIds)
+      previousOrderQuery = applyOrderScope(previousOrderQuery, profile, accessibleLeadIds, scopedStudentIds)
 
       const { data, error } = await previousOrderQuery.maybeSingle()
 
@@ -880,16 +893,16 @@ export async function PUT(request: NextRequest) {
 
     logger.debug('更新正式订单 - 接收到的数据', { id, update_summary: updateSummary })
 
-    const [accessibleLeadIds, headTeacherStudentIds] = await Promise.all([
+    const [accessibleLeadIds, scopedStudentIds] = await Promise.all([
       getAccessibleLeadIds(profile),
-      getHeadTeacherStudentIds(profile),
+      getScopedStudentIds(profile),
     ])
     let accessQuery = supabaseServer
       .from('formal_orders')
       .select('id')
       .eq('id', id)
 
-    accessQuery = applyOrderScope(accessQuery, profile, accessibleLeadIds, headTeacherStudentIds)
+    accessQuery = applyOrderScope(accessQuery, profile, accessibleLeadIds, scopedStudentIds)
 
     const { data: accessibleOrder, error: accessError } = await accessQuery.maybeSingle()
 
@@ -1028,16 +1041,16 @@ export async function DELETE(request: NextRequest) {
 
     logger.debug('删除正式订单', { id })
 
-    const [accessibleLeadIds, headTeacherStudentIds] = await Promise.all([
+    const [accessibleLeadIds, scopedStudentIds] = await Promise.all([
       getAccessibleLeadIds(profile),
-      getHeadTeacherStudentIds(profile),
+      getScopedStudentIds(profile),
     ])
     let accessQuery = supabaseServer
       .from('formal_orders')
       .select('id')
       .eq('id', id)
 
-    accessQuery = applyOrderScope(accessQuery, profile, accessibleLeadIds, headTeacherStudentIds)
+    accessQuery = applyOrderScope(accessQuery, profile, accessibleLeadIds, scopedStudentIds)
 
     const { data: accessibleOrder, error: accessError } = await accessQuery.maybeSingle()
 

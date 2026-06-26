@@ -715,8 +715,10 @@ export async function POST(request: NextRequest) {
           .select(TEACHER_CLASSIN_UID_FIELDS)
           .eq("name", raw.teacherName)
           .eq("is_del", 0)
-          .single()
-        if (tErr || !teacherClassin?.uid) throw new Error(`第 ${rowNumber} 条教师未绑定 ClassIn`)
+          .order("uid", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        if (tErr || !teacherClassin?.uid) throw new Error(`第 ${rowNumber} 条教师 ${raw.teacherName} 未绑定 ClassIn`)
         const teacherUid = toClassInId(teacherClassin.uid, "老师 ClassIn UID")
         if (!courseId) throw new Error("ClassIn 课程 ID 为空，无法创建课堂")
 
@@ -896,8 +898,10 @@ export async function POST(request: NextRequest) {
           endTime: normalizedEndTime,
         })
       } catch (e) {
+        const actualError = e instanceof Error ? e.message : (typeof e === 'string' ? e : '创建课堂失败')
         logger.warn("批量创建失败条目", {
           error_summary: summarizeError(e),
+          actualError,
           item: scheduleItemLogSummary(raw, rowNumber),
         })
         errors.push({
@@ -905,8 +909,13 @@ export async function POST(request: NextRequest) {
           date: raw?.date,
           startTime: raw?.startTime,
           endTime: raw?.endTime,
-          error: "创建课堂失败，请检查排课信息或稍后重试",
+          error: actualError,
         })
+      }
+
+      // 避免 ClassIn API 限流，每次创建课堂之间加 300ms 延迟
+      if (success + skipped + errors.length < scheduleItems.length) {
+        await new Promise(resolve => setTimeout(resolve, 300))
       }
     }
 
