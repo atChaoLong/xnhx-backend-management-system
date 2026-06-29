@@ -35,7 +35,7 @@ export default function NewTeacherCandidatePage() {
     grade_level: "",
 
     // 约面信息
-    interview_date: "",
+    interview_date: new Date().toISOString().split('T')[0],
     interview_time: "",
     interview_link: "",
     interviewer_name: "",
@@ -327,6 +327,7 @@ export default function NewTeacherCandidatePage() {
                     <Input
                       id="interview_datetime"
                       type="datetime-local"
+                      min={new Date().toISOString().slice(0, 16)}
                       value={`${formData.interview_date}T${formData.interview_time || ''}`}
                       onChange={(e) => {
                         const [date, time] = e.target.value.split('T')

@@ -34,7 +34,7 @@ export default function SchedulingForm({
 
   const [formData, setFormData] = useState({
     wechat_id: candidate.wechat_id || "",
-    interview_date: candidate.interview_date || "",
+    interview_date: candidate.interview_date || new Date().toISOString().split('T')[0],
     interview_time: candidate.interview_time || "",
     interview_officer: candidate.interview_officer || "",
     interview_link: candidate.interview_link || "",

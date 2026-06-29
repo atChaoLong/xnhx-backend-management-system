@@ -677,7 +677,7 @@ export async function PUT(request: NextRequest) {
         .eq('student_id', id)
 
       if (formalOrderCount && formalOrderCount > 0) {
-        const lockedFields = ['student_name', 'student_code', 'grade_code', 'region', 'school', 'parent_phone']
+        const lockedFields = ['student_name', 'student_code', 'grade_code', 'region', 'school', 'parent_phone', 'head_teacher_id']
         const attemptedFields = lockedFields.filter(field => updateData[field] !== undefined)
         if (attemptedFields.length > 0) {
           return NextResponse.json(
