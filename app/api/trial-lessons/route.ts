@@ -7,6 +7,8 @@ import { getCurrentProfile } from "@/lib/server-data-scope"
 import { getAccessibleStudentIds, hasScopedIdAccess } from "@/lib/server-business-scope"
 import { ensureClassInStudentAccount } from "@/lib/server-classin-students"
 import { ensureClassInTeacherAccountByName, findAvailableTrialTeacherByName } from "@/lib/server-classin-teachers"
+import { getClassInSDKService } from "@/lib/services/classin-sdk/service"
+import { ensureChinaTimezone } from "@/lib/utils/timezone"
 import { redactTrialLessonSensitiveFields, redactTrialLessonsSensitiveFields } from "@/lib/server-formal-order-redaction"
 import { getErrorMessage, summarizeError } from "@/lib/safe-error"
 import {
@@ -659,7 +661,7 @@ export async function PUT(request: NextRequest) {
     ])
     let accessQuery = supabaseServer
       .from('trial_lessons')
-      .select('id, confirmed_teacher, lead_id, student_id')
+      .select('id, confirmed_teacher, lead_id, student_id, classin_course_id, classin_class_id, classin_activity_id, trial_time, trial_duration')
       .eq('id', id)
 
     accessQuery = applyTrialScope(accessQuery, profile, accessibleLeadIds, accessibleStudentIds)
@@ -783,6 +785,9 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    let newClassInTeacherUid: number | undefined
+    let confirmedTeacherChanged = false
+
     if (updatePayload.confirmed_teacher !== undefined) {
       const confirmedTeacher = String(updatePayload.confirmed_teacher || '').trim()
 
@@ -790,6 +795,7 @@ export async function PUT(request: NextRequest) {
         const previousTeacher = String(accessibleLesson.confirmed_teacher || '').trim()
 
         if (confirmedTeacher !== previousTeacher) {
+          confirmedTeacherChanged = true
           const classinTeacher = await ensureClassInTeacherAccountByName(confirmedTeacher)
 
           if (!classinTeacher.uid) {
@@ -803,6 +809,8 @@ export async function PUT(request: NextRequest) {
               { status: 400 }
             )
           }
+
+          newClassInTeacherUid = classinTeacher.uid
 
           logger.info('确认试听老师已绑定 ClassIn', {
             id,
@@ -834,6 +842,68 @@ export async function PUT(request: NextRequest) {
       logger.error('更新试听课程失败', { id, error_summary: summarizeError(error) })
       const { message, status } = handleDatabaseError(error)
       return NextResponse.json({ error: message }, { status })
+    }
+
+    // 同步更新 ClassIn 课堂老师（如果确认老师变更且已有 ClassIn 课堂）
+    if (confirmedTeacherChanged && newClassInTeacherUid && data?.classin_class_id && data?.classin_course_id) {
+      try {
+        const sdk = getClassInSDKService()
+        await sdk.updateClassroom({
+          courseId: data.classin_course_id,
+          classId: data.classin_class_id,
+          activityId: data.classin_activity_id || data.classin_class_id,
+          teacherUid: newClassInTeacherUid,
+          teacherName: data.confirmed_teacher || undefined,
+        })
+        logger.info('同步更新 ClassIn 课堂老师成功', {
+          id,
+          class_id: data.classin_class_id,
+          new_teacher_uid: newClassInTeacherUid,
+        })
+      } catch (classinError: unknown) {
+        logger.warn('同步更新 ClassIn 课堂老师失败（非致命）', {
+          id,
+          class_id: data.classin_class_id,
+          new_teacher_uid: newClassInTeacherUid,
+          error_summary: summarizeError(classinError),
+        })
+      }
+    }
+
+    // 同步更新 ClassIn 课堂时间（如果试听时间变更且已有 ClassIn 课堂）
+    const trialTimeChanged = updatePayload.trial_time !== undefined &&
+      String(updatePayload.trial_time || '') !== String(accessibleLesson.trial_time || '')
+    const trialDurationChanged = updatePayload.trial_duration !== undefined &&
+      Number(updatePayload.trial_duration) !== Number(accessibleLesson.trial_duration)
+
+    if ((trialTimeChanged || trialDurationChanged) && data?.classin_class_id && data?.classin_course_id && data?.trial_time) {
+      try {
+        const sdk = getClassInSDKService()
+        const trialTimeISO = ensureChinaTimezone(data.trial_time)
+        const trialTime = new Date(trialTimeISO)
+        const durationMinutes = Number(data.trial_duration) || 60
+        const durationMs = (durationMinutes / 60) * 60 * 60 * 1000
+        const endTime = new Date(trialTime.getTime() + durationMs)
+
+        await sdk.updateClassroom({
+          courseId: data.classin_course_id,
+          classId: data.classin_class_id,
+          activityId: data.classin_activity_id || data.classin_class_id,
+          beginTime: trialTime,
+          endTime: endTime,
+        })
+        logger.info('同步更新 ClassIn 课堂时间成功', {
+          id,
+          class_id: data.classin_class_id,
+          new_trial_time: data.trial_time,
+        })
+      } catch (classinTimeError: unknown) {
+        logger.warn('同步更新 ClassIn 课堂时间失败（非致命）', {
+          id,
+          class_id: data.classin_class_id,
+          error_summary: summarizeError(classinTimeError),
+        })
+      }
     }
 
     let responseData = data

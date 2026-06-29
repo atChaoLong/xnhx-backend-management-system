@@ -164,6 +164,7 @@ export default function SchedulingForm({
                   <Input
                     id="interview_datetime"
                     type="datetime-local"
+                    min={new Date().toISOString().slice(0, 16)}
                     value={
                       formData.interview_date && formData.interview_time
                         ? `${formData.interview_date}T${formData.interview_time}`

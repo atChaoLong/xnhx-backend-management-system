@@ -33,10 +33,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: '用户角色未配置，请联系管理员' }, { status: 403 })
   }
 
-  if (authResult.role !== ROLES.sales || !hasPermission(authResult.role, RESOURCES.leads, ACTIONS.assign)) {
+  if ((authResult.role !== ROLES.sales && authResult.role !== ROLES.admin) || !hasPermission(authResult.role, RESOURCES.leads, ACTIONS.assign)) {
     return NextResponse.json({
       error: '权限不足',
-      message: '公共线索池仅销售可访问',
+      message: '公共线索池仅销售和超级管理员可访问',
     }, { status: 403 })
   }
 

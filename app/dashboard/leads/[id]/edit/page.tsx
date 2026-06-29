@@ -31,11 +31,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { usePermission } from "@/lib/hooks/usePermission"
 
 export default function EditLeadPage() {
   const router = useRouter()
   const params = useParams()
   const { toast } = useToast()
+  const { user } = usePermission()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingDict, setIsLoadingDict] = useState(true)
@@ -158,7 +160,7 @@ export default function EditLeadPage() {
         // 设置表单数据（使用新的字段名）
         setFormData({
           report_number: data.report_number || "",
-          entry_date: data.entry_date?.split("T")[0] || new Date().toISOString().split("T")[0],
+          entry_date: data.entry_date ? data.entry_date.split("T")[0] : "",
           xhs_source: data.xhs_source || "",
           channel_platform: data.channel_platform || "",
           customer_social_id: data.customer_social_id || "",
@@ -279,8 +281,8 @@ export default function EditLeadPage() {
         add_status: formData.add_status || undefined,
         region_ip: formData.region_ip,
         parent_wechat: formData.parent_wechat,
-        grab_wechat: formData.grab_wechat,
-        grab_user_id: formData.grab_user_id,
+        grab_wechat: formData.grab_wechat || user?.name || "",
+        grab_user_id: formData.grab_user_id || user?.id || "",
         chat_screenshots: chatScreenshotPreviews.length > 0 ? chatScreenshotPreviews.join(',') : undefined,
         subject_codes: selectedSubjects,
       }
@@ -365,14 +367,16 @@ export default function EditLeadPage() {
                       type="date"
                       value={formData.entry_date}
                       onChange={(e) => handleInputChange("entry_date", e.target.value)}
+                      disabled={Boolean(lead?.entry_date)}
+                      className={lead?.entry_date ? "bg-muted" : ""}
                       required
                     />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="xhs_source">小红书账号来源</Label>
-                    <Select value={formData.xhs_source} onValueChange={(value) => handleInputChange("xhs_source", value)}>
-                      <SelectTrigger>
+                    <Select value={formData.xhs_source} onValueChange={(value) => handleInputChange("xhs_source", value)} disabled={Boolean(lead?.xhs_source)}>
+                      <SelectTrigger className={lead?.xhs_source ? "bg-muted" : ""}>
                         <SelectValue placeholder="选择小红书账号来源" />
                       </SelectTrigger>
                       <SelectContent>
@@ -387,8 +391,8 @@ export default function EditLeadPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="channel_platform">渠道平台</Label>
-                    <Select value={formData.channel_platform} onValueChange={(value) => handleInputChange("channel_platform", value)}>
-                      <SelectTrigger>
+                    <Select value={formData.channel_platform} onValueChange={(value) => handleInputChange("channel_platform", value)} disabled={Boolean(lead?.channel_platform)}>
+                      <SelectTrigger className={lead?.channel_platform ? "bg-muted" : ""}>
                         <SelectValue placeholder="选择渠道平台" />
                       </SelectTrigger>
                       <SelectContent>
@@ -405,14 +409,16 @@ export default function EditLeadPage() {
                       id="customer_social_id"
                       value={formData.customer_social_id}
                       onChange={(e) => handleInputChange("customer_social_id", e.target.value)}
+                      disabled={Boolean(lead?.customer_social_id)}
+                      className={lead?.customer_social_id ? "bg-muted" : ""}
                       placeholder="请输入客户在该平台的账号 ID"
                     />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="add_method_code">添加方式</Label>
-                    <Select value={formData.add_method_code} onValueChange={(value) => handleInputChange("add_method_code", value)}>
-                      <SelectTrigger>
+                    <Select value={formData.add_method_code} onValueChange={(value) => handleInputChange("add_method_code", value)} disabled={Boolean(lead?.add_method_code)}>
+                      <SelectTrigger className={lead?.add_method_code ? "bg-muted" : ""}>
                         <SelectValue placeholder="选择添加方式" />
                       </SelectTrigger>
                       <SelectContent>
@@ -427,8 +433,8 @@ export default function EditLeadPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="operator_id">运营人员</Label>
-                    <Select value={formData.operator_id} onValueChange={(value) => handleInputChange("operator_id", value)}>
-                      <SelectTrigger>
+                    <Select value={formData.operator_id} onValueChange={(value) => handleInputChange("operator_id", value)} disabled={Boolean(lead?.operator_id)}>
+                      <SelectTrigger className={lead?.operator_id ? "bg-muted" : ""}>
                         <SelectValue placeholder="选择运营人员" />
                       </SelectTrigger>
                       <SelectContent>
@@ -535,28 +541,12 @@ export default function EditLeadPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="grab_wechat">抢单微信</Label>
-                    <Select
-                      value={formData.grab_user_id}
-                      onValueChange={(value) => {
-                        const selected = sales.find(s => s.id === value)
-                        setFormData(prev => ({
-                          ...prev,
-                          grab_user_id: value,
-                          grab_wechat: selected ? (selected.name || selected.email) : "",
-                        }))
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="选择销售顾问" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sales.map((salesPerson) => (
-                          <SelectItem key={salesPerson.id} value={salesPerson.id}>
-                            {salesPerson.name || salesPerson.email}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Input
+                      id="grab_wechat"
+                      value={formData.grab_wechat || user?.name || ""}
+                      readOnly
+                      className="bg-muted"
+                    />
                   </div>
                 </div>
               </div>

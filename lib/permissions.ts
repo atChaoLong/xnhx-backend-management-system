@@ -70,7 +70,7 @@ export type Action = typeof ACTIONS[keyof typeof ACTIONS]
 const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
   // 超级管理员：只保留管理和查看权限，不参与日常业务操作
   admin: {
-    leads: ['view', 'create', 'edit', 'delete'], // 移除 feedback - 管理员不直接反馈线索
+    leads: ['view', 'create', 'edit', 'delete', 'assign'], // 管理员可查看公共线索池
     trialLessons: ['view', 'edit', 'delete', 'addLink'], // 移除 create, convert - 管理员不创建试听
     students: ['view', 'create', 'edit', 'delete', 'visit'], // 保留学生管理，含回访
     formalOrders: ['view', 'create', 'edit', 'delete'], // 保留订单管理

@@ -14,10 +14,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Loader2 } from "lucide-react"
+import { Loader2, Lock } from "lucide-react"
 import { StudentsService, Student } from "@/lib/services/students"
 import { DictionaryService } from "@/lib/services/dictionary"
 import { useToast } from "@/hooks/use-toast"
+import { usePermission } from "@/lib/hooks/usePermission"
 import Link from "next/link"
 import { summarizeError } from "@/lib/safe-error"
 
@@ -25,10 +26,12 @@ export default function EditStudentPage() {
   const router = useRouter()
   const params = useParams()
   const { toast } = useToast()
+  const { user } = usePermission()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingDict, setIsLoadingDict] = useState(true)
   const [student, setStudent] = useState<Student | null>(null)
+  const [hasFormalOrder, setHasFormalOrder] = useState(false)
 
   const studentId = params.id as string
 
@@ -92,6 +95,14 @@ export default function EditStudentPage() {
           head_teacher_id: data.head_teacher_id || "",
           status: data.status || "active",
         })
+
+        // 检查是否有正式订单
+        try {
+          const detail: any = await fetch(`/api/students/detail?studentId=${studentId}`).then(r => r.json())
+          setHasFormalOrder((detail?.stats?.formalOrdersCount || 0) > 0)
+        } catch {
+          setHasFormalOrder(false)
+        }
       } catch (error: any) {
         toast({
           variant: "destructive",
@@ -158,6 +169,8 @@ export default function EditStudentPage() {
     }
   }
 
+  const isLocked = hasFormalOrder && (user?.role === 'head_teacher' || user?.role === 'sales')
+
   if (isLoading || isLoadingDict) {
     return (
       <div className="flex flex-col h-full">
@@ -193,6 +206,15 @@ export default function EditStudentPage() {
         description="修改学生信息"
       />
 
+      {isLocked && (
+        <div className="mx-6 mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div className="flex items-center gap-2">
+            <Lock className="h-4 w-4" />
+            <span>该学生已有正式订单，基本信息不可修改</span>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 overflow-auto p-6">
         <Card className="max-w-2xl mx-auto">
           <CardContent className="p-6">
@@ -211,6 +233,7 @@ export default function EditStudentPage() {
                     value={formData.student_name}
                     onChange={(e) => handleInputChange("student_name", e.target.value)}
                     required
+                    disabled={isLocked}
                   />
                 </div>
 
@@ -221,13 +244,14 @@ export default function EditStudentPage() {
                     placeholder="请输入学号"
                     value={formData.student_code}
                     onChange={(e) => handleInputChange("student_code", e.target.value)}
+                    disabled={isLocked}
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="grade_code">年级</Label>
-                    <Select value={formData.grade_code} onValueChange={(value) => handleInputChange("grade_code", value)}>
+                    <Select value={formData.grade_code} onValueChange={(value) => handleInputChange("grade_code", value)} disabled={isLocked}>
                       <SelectTrigger>
                         <SelectValue placeholder="选择年级" />
                       </SelectTrigger>
@@ -243,7 +267,7 @@ export default function EditStudentPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="region">地域</Label>
-                    <Select value={formData.region} onValueChange={(value) => handleInputChange("region", value)}>
+                    <Select value={formData.region} onValueChange={(value) => handleInputChange("region", value)} disabled={isLocked}>
                       <SelectTrigger>
                         <SelectValue placeholder="选择地域" />
                       </SelectTrigger>
@@ -265,6 +289,7 @@ export default function EditStudentPage() {
                     placeholder="请输入学校名称"
                     value={formData.school}
                     onChange={(e) => handleInputChange("school", e.target.value)}
+                    disabled={isLocked}
                   />
                 </div>
 
@@ -275,6 +300,7 @@ export default function EditStudentPage() {
                     placeholder="请输入家长电话"
                     value={formData.parent_phone}
                     onChange={(e) => handleInputChange("parent_phone", e.target.value)}
+                    disabled={isLocked}
                   />
                 </div>
 

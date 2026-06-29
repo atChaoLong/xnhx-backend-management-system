@@ -31,6 +31,7 @@ export function InterviewInfoTab({ formData, onInputChange }: InterviewInfoTabPr
               id="interview_date"
               type="date"
               value={formData.interview_date}
+              min={new Date().toISOString().split('T')[0]}
               onChange={(e) => onInputChange("interview_date", e.target.value)}
             />
           </div>

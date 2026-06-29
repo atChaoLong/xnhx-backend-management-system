@@ -283,6 +283,7 @@ export default function StudentDetailPage() {
     classSessions: classSessionsPerm,
   } = usePermission()
   const canViewClassInSecrets = user?.role === 'admin' || user?.role === 'academic_affairs'
+  const canViewStudentPhone = user?.role === 'admin'
   const canCreateTrialLesson = trialLessonsPerm.create()
   const canCreateFormalOrder = formalOrdersPerm.create()
   const canCreateTransaction = transactionsPerm.create()
@@ -1001,7 +1002,7 @@ export default function StudentDetailPage() {
                       </div>
                     </div>
                   )}
-                  {student.parent_phone && (
+                  {canViewStudentPhone && student.parent_phone && (
                     <div className="flex items-start gap-3">
                       <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
                       <div>
@@ -1238,11 +1239,11 @@ export default function StudentDetailPage() {
                                 <div className="flex gap-2">
                                   {canCreateSession && (
                                     <Button
-                                      variant="outline"
+                                      variant="default"
                                       size="sm"
                                       onClick={() => openBatchScheduleDialog(course)}
                                     >
-                                      批量排课
+                                      开课
                                     </Button>
                                   )}
                                   <Button

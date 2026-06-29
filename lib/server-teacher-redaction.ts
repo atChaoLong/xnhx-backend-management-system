@@ -6,6 +6,10 @@ export function canViewTeacherClassInSecrets(profile: CurrentProfile | null): bo
   return profile?.role === "admin" || profile?.role === "academic_affairs"
 }
 
+export function canViewTeacherPhone(profile: CurrentProfile | null): boolean {
+  return profile?.role !== "head_teacher"
+}
+
 export function canViewTeacherInternalContact(profile: CurrentProfile | null): boolean {
   return profile?.role === "admin" ||
     profile?.role === "academic_affairs" ||
@@ -22,6 +26,11 @@ export function redactTeacherSensitiveFields<T extends TeacherLike>(teacher: T, 
     redactedTeacher.classin_phone = null
     redactedTeacher.classin_uid = null
     redactedTeacher.classin_initial_password = null
+  }
+
+  if (!canViewTeacherPhone(profile)) {
+    redactedTeacher.mobile = null
+    redactedTeacher.classin_phone = null
   }
 
   if (!canViewTeacherInternalContact(profile)) {

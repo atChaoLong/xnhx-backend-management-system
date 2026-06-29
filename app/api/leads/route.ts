@@ -380,16 +380,14 @@ async function generateLeadReportNumber(channelCode?: string) {
 }
 
 async function findDuplicateLead(
-  channelPlatform?: string | null,
   customerSocialId?: string | null,
   excludeId?: string
 ) {
-  if (!channelPlatform || !customerSocialId) return null
+  if (!customerSocialId) return null
 
   let query = supabaseServer
     .from('leads')
     .select('id, report_number, operator_id, created_by')
-    .eq('channel_platform', channelPlatform)
     .eq('customer_social_id', customerSocialId)
     .limit(1)
 
@@ -414,7 +412,6 @@ async function findDuplicateLead(
 
   if (error) {
     logger.warn('查询重复线索失败', {
-      hasChannelPlatform: Boolean(channelPlatform),
       hasCustomerSocialId: Boolean(customerSocialId),
       excludeId,
       ...summarizeError(error),
@@ -636,7 +633,6 @@ export async function POST(request: NextRequest) {
     delete scopedLeadData.collision_operator
 
     const duplicateLead = await findDuplicateLead(
-      scopedLeadData.channel_platform,
       scopedLeadData.customer_social_id
     )
 
@@ -784,7 +780,7 @@ export async function PUT(request: NextRequest) {
     updatableLeadData.channel_platform = channelPlatform
     updatableLeadData.customer_social_id = customerSocialId
 
-    const duplicateLead = await findDuplicateLead(channelPlatform, customerSocialId, id)
+    const duplicateLead = await findDuplicateLead(customerSocialId, id)
 
     logger.info('更新线索', {
       leadId: leadData.id,

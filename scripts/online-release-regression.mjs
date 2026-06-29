@@ -357,7 +357,7 @@ function expectedFor(account, path) {
 
   if (path === '/api/quality-reports') return 200
   if (path === '/api/leads') return staffExceptAcademic.includes(role) ? 200 : 403
-  if (path === '/api/public-leads') return role === 'sales' ? 200 : 403
+  if (path === '/api/public-leads') return (role === 'sales' || role === 'admin') ? 200 : 403
   if (path === '/api/teacher-candidates') return teacherFlowRoles.includes(role) ? 200 : 403
   if (path === '/api/teacher-candidates/recruitment-flow') return teacherFlowRoles.includes(role) ? 200 : 403
   if (path === '/api/users') return role === 'admin' ? 200 : 403

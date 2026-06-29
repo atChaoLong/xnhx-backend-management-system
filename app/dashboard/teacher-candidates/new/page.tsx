@@ -317,6 +317,7 @@ export default function NewTeacherCandidatePage() {
                       id="interview_date"
                       type="date"
                       value={formData.interview_date}
+                      min={new Date().toISOString().split('T')[0]}
                       onChange={(e) => handleInputChange("interview_date", e.target.value)}
                       className="h-9 text-sm flex-1"
                     />

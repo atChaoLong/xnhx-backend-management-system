@@ -77,7 +77,10 @@ const TEACHER_CANDIDATE_SELECT = `
   video_reviewed_at,
   reviewed_by_id,
   salary_confirmed_at,
-  salary_confirmed_by_id
+  salary_confirmed_by_id,
+  grab_user_id,
+  grab_user_name,
+  grabbed_at
 `
 
 const TEACHER_CANDIDATE_FALLBACK_SELECT = `
@@ -131,7 +134,10 @@ const TEACHER_CANDIDATE_FALLBACK_SELECT = `
   hired_notes,
   qr_code_url,
   current_rate,
-  approved_hourly_rate
+  approved_hourly_rate,
+  grab_user_id,
+  grab_user_name,
+  grabbed_at
 `
 
 function isMissingTeacherCandidateColumnError(error: unknown) {

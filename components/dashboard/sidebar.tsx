@@ -30,6 +30,7 @@ import {
   TestTube,
   ClipboardList,
   AlertTriangle,
+  ScrollText,
 } from "lucide-react"
 import { useState } from "react"
 import { usePermission } from "@/lib/hooks/usePermission"
@@ -98,19 +99,18 @@ const navigationGroups: MenuGroup[] = [
     title: "教务管理",
     roles: ['admin', 'academic_affairs', 'head_teacher', 'hr', 'finance'],
     items: [
-      { name: "试听课", href: "/dashboard/trial-lessons", icon: BookOpen, permission: { resource: 'trialLessons', action: 'view' } },
-      { name: "待试听匹配", href: "/dashboard/academic/pending-trials", icon: ClipboardList, roles: ['admin', 'academic_affairs'], permission: { resource: 'trialLessons', action: 'view' } },
-      { name: "面试管理", href: "/dashboard/teacher-candidates", icon: ClipboardList, roles: ['admin', 'academic_affairs'], permission: { resource: 'teacherCandidates', action: 'view' } },
-      { name: "教学复核", href: "/dashboard/teacher-candidates/review", icon: Video, roles: ['admin', 'academic_affairs'], permission: { resource: 'teacherCandidates', action: 'reviewVideo' } },
+      { name: "试听课", href: "/dashboard/trial-lessons", icon: BookOpen, roles: ['admin', 'head_teacher', 'hr', 'finance'], permission: { resource: 'trialLessons', action: 'view' } },
+      { name: "待试听匹配", href: "/dashboard/academic/pending-trials", icon: ClipboardList, roles: ['admin'], permission: { resource: 'trialLessons', action: 'view' } },
+      { name: "面试管理", href: "/dashboard/teacher-candidates", icon: ClipboardList, roles: ['admin'], permission: { resource: 'teacherCandidates', action: 'view' } },
+      { name: "教学复核", href: "/dashboard/teacher-candidates/review", icon: Video, roles: ['admin'], permission: { resource: 'teacherCandidates', action: 'reviewVideo' } },
       { name: "待入库老师", href: "/dashboard/teacher-candidates/pending", icon: ClipboardList, roles: ['admin', 'academic_affairs', 'hr', 'finance'], permission: { resource: 'teacherCandidates', action: 'confirmEntry' } },
       { name: "储备候选人", href: "/dashboard/teacher-candidates/reserve", icon: ClipboardList, roles: ['admin', 'academic_affairs'], permission: { resource: 'teacherCandidates', action: 'view' } },
       { name: "老师库存管理", href: "/dashboard/teachers", icon: GraduationCap, permission: { resource: 'teachers', action: 'view' } },
       { name: "老师库（教学版）", href: "/dashboard/teachers/teaching", icon: GraduationCap, roles: ['admin', 'academic_affairs'], permission: { resource: 'teachers', action: 'view' } },
       { name: "新入库异常", href: "/dashboard/teachers/exceptions", icon: AlertTriangle, roles: ['admin', 'academic_affairs'], permission: { resource: 'teachers', action: 'view' } },
-      { name: "学生管理", href: "/dashboard/students", icon: Users, permission: { resource: 'students', action: 'view' } },
       { name: "学生库（教务版）", href: "/dashboard/academic/students", icon: School, roles: ['admin', 'academic_affairs'], permission: { resource: 'students', action: 'view' } },
-      { name: "正式生管理", href: "/dashboard/formal-students", icon: School, permission: { resource: 'students', action: 'view' } },
-      { name: "排课管理", href: "/dashboard/schedule/batch", icon: Calendar, permission: { resource: 'classSessions', action: 'create' } },
+      { name: "正式生管理", href: "/dashboard/formal-students", icon: School, roles: ['admin', 'head_teacher', 'hr', 'finance'], permission: { resource: 'students', action: 'view' } },
+      { name: "排课管理", href: "/dashboard/schedule/batch", icon: Calendar, roles: ['admin', 'head_teacher', 'hr', 'finance'], permission: { resource: 'classSessions', action: 'create' } },
       { name: "课堂管理", href: "/dashboard/classroom", icon: Video, permission: { resource: 'classSessions', action: 'view' } },
       { name: "课程日历", href: "/dashboard/calendar", icon: Calendar, permission: { resource: 'classSessions', action: 'view' } },
     ]
@@ -137,6 +137,7 @@ const navigationGroups: MenuGroup[] = [
       { name: "字典", href: "/dashboard/dictionaries", icon: List },
       { name: "用户管理", href: "/dashboard/accounts", icon: Shield },
       { name: "角色管理", href: "/dashboard/roles", icon: UserPlus },
+      { name: "抢单记录日志", href: "/dashboard/grab-logs", icon: ScrollText },
     ]
   },
   // {

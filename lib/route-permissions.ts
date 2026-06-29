@@ -29,6 +29,9 @@ export const ROUTE_PERMISSIONS = {
   '/api/leads/release': {
     POST: { resource: RESOURCES.leads, action: ACTIONS.assign },
   },
+  '/api/lead-grab-logs': {
+    GET: { resource: RESOURCES.users, action: ACTIONS.delete },
+  },
   '/api/leads/[id]': {
     GET: { resource: RESOURCES.leads, action: ACTIONS.view },
     DELETE: { resource: RESOURCES.leads, action: ACTIONS.delete },
@@ -278,9 +281,6 @@ export const ROUTE_PERMISSIONS = {
   },
 
   // ClassIn 本地镜像与 SDK 操作
-  '/api/classin/events': {
-    GET: { resource: RESOURCES.teachers, action: ACTIONS.notes },
-  },
   '/api/classin/login': {
     POST: { resource: RESOURCES.teachers, action: ACTIONS.notes },
   },

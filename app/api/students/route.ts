@@ -669,6 +669,25 @@ export async function PUT(request: NextRequest) {
     const access = await assertStudentAccess(profile, id)
     if (access.ok === false) return access.response
 
+    // #19: 班主任/销售在学生有正式订单后不可修改基本信息
+    if (profile.role === 'head_teacher' || profile.role === 'sales') {
+      const { count: formalOrderCount } = await supabaseServer
+        .from('formal_orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('student_id', id)
+
+      if (formalOrderCount && formalOrderCount > 0) {
+        const lockedFields = ['student_name', 'student_code', 'grade_code', 'region', 'school', 'parent_phone']
+        const attemptedFields = lockedFields.filter(field => updateData[field] !== undefined)
+        if (attemptedFields.length > 0) {
+          return NextResponse.json(
+            { error: '该学生已有正式订单，基本信息不可修改' },
+            { status: 403 }
+          )
+        }
+      }
+    }
+
     logger.debug('更新学生 - 接收到的数据', { id, update_summary: updateSummary })
 
     // 后端验证：学生姓名必填

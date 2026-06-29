@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { format } from "date-fns"
-import { AlertTriangle, CheckCircle, Loader2, RefreshCw, Sparkles } from "lucide-react"
+import { AlertTriangle, CheckCircle, Loader2, RefreshCw, Sparkles, Filter } from "lucide-react"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -12,7 +12,6 @@ import { ScrollableTable } from "@/components/ui/scrollable-table"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
 import { usePermission } from "@/lib/hooks/usePermission"
-import { api } from "@/lib/fetch"
 import { DictionaryService, type DictionaryItem } from "@/lib/services/dictionary"
 import { TeachersService, type ClassInTeacherOption } from "@/lib/services/teachers"
 import { TrialLessonsService, type TrialLesson } from "@/lib/services/trialLessons"
@@ -182,7 +181,6 @@ export default function PendingTrialsPage() {
   const { role, isLoading: isPermissionLoading, trialLessons: trialLessonsPerm } = usePermission()
   const canMatchTeacher = !isPermissionLoading && (role === "admin" || trialLessonsPerm.matchTeacher())
   const canConfirmTeacher = !isPermissionLoading && (role === "admin" || trialLessonsPerm.confirmTeacher())
-  const canOpenClass = !isPermissionLoading && (role === "admin" || trialLessonsPerm.addLink())
   const [lessons, setLessons] = useState<TrialLesson[]>([])
   const [teachers, setTeachers] = useState<ClassInTeacherOption[]>([])
   const [dictOptions, setDictOptions] = useState<DictionaryOptions>({
@@ -195,12 +193,23 @@ export default function PendingTrialsPage() {
   const [isLoadingTeachers, setIsLoadingTeachers] = useState(false)
   const [isLoadingDict, setIsLoadingDict] = useState(false)
   const [matchingLessonId, setMatchingLessonId] = useState<string | null>(null)
-  const [openingLessonId, setOpeningLessonId] = useState<string | null>(null)
   const [selectedLessonIds, setSelectedLessonIds] = useState<Set<string>>(new Set())
   const [isBatchMatching, setIsBatchMatching] = useState(false)
   const [totalCount, setTotalCount] = useState(0)
+  const [dateFilter, setDateFilter] = useState<string>("")
 
-  const pendingLessons = useMemo(() => lessons.filter(isPendingMatchLesson), [lessons])
+  const pendingLessons = useMemo(() => {
+    let filtered = lessons.filter(isPendingMatchLesson)
+    if (dateFilter) {
+      const filterDate = dateFilter
+      filtered = filtered.filter((lesson) => {
+        if (!lesson.trial_time) return false
+        const lessonDate = new Date(lesson.trial_time).toISOString().split('T')[0]
+        return lessonDate === filterDate
+      })
+    }
+    return filtered
+  }, [lessons, dateFilter])
   const selectedPendingLessons = useMemo(
     () => pendingLessons.filter((lesson) => selectedLessonIds.has(lesson.id)),
     [pendingLessons, selectedLessonIds]
@@ -420,78 +429,6 @@ export default function PendingTrialsPage() {
     }
   }
 
-  const handleMatchConfirmAndOpenClass = async (lesson: TrialLesson) => {
-    const selectedTeacherId = selectedTeacherIds[lesson.id]
-    const selectedTeacher = teachers.find((teacher) => teacher.id === selectedTeacherId)
-
-    if (!selectedTeacher) {
-      toast({
-        variant: "destructive",
-        title: "请选择老师",
-        description: "需要先选择一个可用的 ClassIn 老师",
-      })
-      return
-    }
-
-    if (!lesson.trial_time) {
-      toast({
-        variant: "destructive",
-        title: "无法开课",
-        description: "请先补充试听时间",
-      })
-      return
-    }
-
-    if (!lesson.phone) {
-      toast({
-        variant: "destructive",
-        title: "无法开课",
-        description: "请先补充学生手机号",
-      })
-      return
-    }
-
-    try {
-      setOpeningLessonId(lesson.id)
-      await TrialLessonsService.updateTrialLesson({
-        id: lesson.id,
-        matched_teacher: selectedTeacher.teacher_name,
-        confirmed_teacher: selectedTeacher.teacher_name,
-      })
-
-      const resp = await api.post("/api/trial-lessons/open-class", { trialLessonId: lesson.id })
-      const result = await resp.json()
-
-      if (!resp.ok || !result.success) {
-        throw new Error(result.error || "开课失败")
-      }
-
-      toast({
-        title: "已匹配并开课",
-        description: result.data?.shareUrl ? `ClassIn 链接已生成：${result.data.shareUrl}` : `已确认老师：${selectedTeacher.teacher_name}`,
-      })
-      setSelectedTeacherIds((prev) => {
-        const next = { ...prev }
-        delete next[lesson.id]
-        return next
-      })
-      setSelectedLessonIds((prev) => {
-        const next = new Set(prev)
-        next.delete(lesson.id)
-        return next
-      })
-      await loadLessons()
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "开课失败",
-        description: error.message || "无法创建 ClassIn 课堂",
-      })
-    } finally {
-      setOpeningLessonId(null)
-    }
-  }
-
   const handleBatchMatch = async () => {
     if (selectedPendingLessons.length === 0) {
       toast({
@@ -637,6 +574,27 @@ export default function PendingTrialsPage() {
           </Button>
         </div>
 
+        <div className="flex items-center gap-3 rounded-md border px-4 py-3">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <label className="text-sm text-muted-foreground whitespace-nowrap">按试听时间筛选</label>
+          <input
+            type="date"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="h-9 rounded-md border px-3 text-sm"
+          />
+          {dateFilter && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDateFilter("")}
+              className="h-7 px-2 text-xs"
+            >
+              清除
+            </Button>
+          )}
+        </div>
+
         <div className="flex flex-col gap-3 rounded-md border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-muted-foreground">
             已选择 {selectedPendingLessons.length} 条，可提交 {selectedReadyCount} 条，推荐已填 {recommendedReadyCount} 条
@@ -776,7 +734,7 @@ export default function PendingTrialsPage() {
                               size="sm"
                               variant="outline"
                               onClick={() => handleMatchTeacher(lesson)}
-                              disabled={isBatchMatching || matchingLessonId === lesson.id || openingLessonId === lesson.id || !selectedTeacherIds[lesson.id]}
+                              disabled={isBatchMatching || matchingLessonId === lesson.id || !selectedTeacherIds[lesson.id]}
                             >
                               {matchingLessonId === lesson.id ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -787,22 +745,6 @@ export default function PendingTrialsPage() {
                                 </>
                               )}
                             </Button>
-                            {canConfirmTeacher && canOpenClass && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleMatchConfirmAndOpenClass(lesson)}
-                                disabled={isBatchMatching || openingLessonId === lesson.id || matchingLessonId === lesson.id || !selectedTeacherIds[lesson.id]}
-                              >
-                                {openingLessonId === lesson.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <>
-                                    <CheckCircle className="mr-1 h-4 w-4" />
-                                    匹配并开课
-                                  </>
-                                )}
-                              </Button>
-                            )}
                           </div>
                         </TableCell>
                       </TableRow>

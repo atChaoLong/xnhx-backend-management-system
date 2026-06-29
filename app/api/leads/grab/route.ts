@@ -97,6 +97,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: message }, { status })
     }
 
+    // 记录抢单日志
+    const { error: logError } = await supabaseServer
+      .from('lead_grab_logs')
+      .insert({
+        lead_id: id,
+        report_number: data?.report_number || null,
+        sales_user_id: profile.id,
+        sales_user_name: profile.name || '未知用户',
+        grab_wechat: profile.name || null,
+      })
+
+    if (logError) {
+      logger.warn('记录抢单日志失败', {
+        leadId: id,
+        userId: profile.id,
+        ...summarizeError(logError),
+      })
+    }
+
     logger.info('抢单成功', { leadId: id, userId: profile.id })
     return NextResponse.json({ data })
   } catch (error) {

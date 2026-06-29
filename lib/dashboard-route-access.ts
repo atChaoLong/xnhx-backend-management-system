@@ -53,7 +53,7 @@ const routeRules: DashboardRouteRule[] = [
   {
     path: "/dashboard/public-leads",
     label: "公共线索池",
-    roles: ["sales"],
+    roles: ["sales", "admin"],
     permissions: [{ resource: RESOURCES.leads, action: ACTIONS.assign }],
   },
   {
@@ -96,7 +96,7 @@ const routeRules: DashboardRouteRule[] = [
   {
     path: "/dashboard/trial-lessons",
     label: "试听课",
-    roles: [...orderRoles, ...academicRoles],
+    roles: ["admin", "sales", "head_teacher", "hr", "finance"],
     permissions: [{ resource: RESOURCES.trialLessons, action: ACTIONS.view }],
   },
   {
@@ -127,7 +127,7 @@ const routeRules: DashboardRouteRule[] = [
   {
     path: "/dashboard/teacher-candidates/review",
     label: "教学复核",
-    roles: academicCoreRoles,
+    roles: ["admin"],
     permissions: [{ resource: RESOURCES.teacherCandidates, action: ACTIONS.reviewVideo }],
   },
   {
@@ -151,7 +151,7 @@ const routeRules: DashboardRouteRule[] = [
   {
     path: "/dashboard/teacher-candidates",
     label: "面试管理",
-    roles: ["admin", "teacher_recruiter", "academic_affairs"],
+    roles: ["admin", "teacher_recruiter"],
     permissions: [{ resource: RESOURCES.teacherCandidates, action: ACTIONS.view }],
   },
 
@@ -189,7 +189,7 @@ const routeRules: DashboardRouteRule[] = [
   {
     path: "/dashboard/academic/pending-trials",
     label: "待试听匹配",
-    roles: academicCoreRoles,
+    roles: ["admin"],
     permissions: [{ resource: RESOURCES.trialLessons, action: ACTIONS.view }],
   },
   {
@@ -207,19 +207,19 @@ const routeRules: DashboardRouteRule[] = [
   {
     path: "/dashboard/students",
     label: "学生管理",
-    roles: academicRoles,
+    roles: ["admin"],
     permissions: [{ resource: RESOURCES.students, action: ACTIONS.view }],
   },
   {
     path: "/dashboard/formal-students",
     label: "正式生管理",
-    roles: academicRoles,
+    roles: ["admin", "head_teacher", "hr", "finance"],
     permissions: [{ resource: RESOURCES.students, action: ACTIONS.view }],
   },
   {
     path: "/dashboard/schedule/batch",
     label: "批量排课",
-    roles: academicRoles,
+    roles: ["admin", "head_teacher", "hr", "finance"],
     permissions: [{ resource: RESOURCES.classSessions, action: ACTIONS.create }],
   },
   {
@@ -258,6 +258,11 @@ const routeRules: DashboardRouteRule[] = [
     label: "课后服务质检",
     roles: qualityRoles,
     permissions: [{ resource: RESOURCES.students, action: ACTIONS.view }],
+  },
+  {
+    path: "/dashboard/grab-logs",
+    label: "抢单记录日志",
+    roles: systemRoles,
   },
   {
     path: "/dashboard/todos",

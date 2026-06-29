@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Edit, Loader2, RefreshCw, CalendarClock } from "lucide-react"
+import { Edit, Loader2, RefreshCw, CalendarClock, Target } from "lucide-react"
 import { Header } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ScrollableTable } from "@/components/ui/scrollable-table"
 import {
@@ -18,6 +19,7 @@ import {
   PaginationInfo,
 } from "@/components/ui/pagination"
 import { TeacherCandidatesService, type TeacherCandidate } from "@/lib/services/teacherCandidates"
+import { api } from "@/lib/fetch"
 import { usePagination } from "@/lib/hooks/usePagination"
 import { usePermission } from "@/lib/hooks/usePermission"
 import { useToast } from "@/hooks/use-toast"
@@ -30,10 +32,12 @@ export default function TeacherCandidateInterviewPage() {
   const [selectedCandidate, setSelectedCandidate] = useState<TeacherCandidate | null>(null)
   const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  const [isGrabbing, setIsGrabbing] = useState<string | null>(null)
   const { toast } = useToast()
-  const { teacherCandidates } = usePermission()
+  const { user, teacherCandidates } = usePermission()
 
   const canScheduleInterview = teacherCandidates.interview()
+  const canGrab = user?.role === 'teacher_recruiter' || user?.role === 'admin'
 
   const {
     currentPage,
@@ -79,6 +83,29 @@ export default function TeacherCandidateInterviewPage() {
   useEffect(() => {
     fetchCandidates(1, pageSize)
   }, [canScheduleInterview])
+
+  const handleGrab = async (candidate: TeacherCandidate) => {
+    try {
+      setIsGrabbing(candidate.id)
+      const response = await api.post("/api/teacher-candidates/grab", { id: candidate.id })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "抢单失败" }))
+        throw new Error(error.error || "抢单失败")
+      }
+
+      toast({ title: "抢单成功", description: "该候选人已分配给你" })
+      fetchCandidates(currentPage, pageSize)
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "抢单失败",
+        description: error.message || "无法抢单",
+      })
+    } finally {
+      setIsGrabbing(null)
+    }
+  }
 
   if (!canScheduleInterview) {
     return (
@@ -146,6 +173,7 @@ export default function TeacherCandidateInterviewPage() {
                     <TableHead>科目</TableHead>
                     <TableHead>年级</TableHead>
                     <TableHead>简历</TableHead>
+                    <TableHead>抢单状态</TableHead>
                     <TableHead>创建时间</TableHead>
                     <TableHead className="text-right">操作</TableHead>
                   </TableRow>
@@ -153,7 +181,7 @@ export default function TeacherCandidateInterviewPage() {
                 <TableBody>
                   {candidates.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                         暂无待约面候选人
                       </TableCell>
                     </TableRow>
@@ -175,9 +203,36 @@ export default function TeacherCandidateInterviewPage() {
                             "-"
                           )}
                         </TableCell>
+                        <TableCell>
+                          {candidate.grab_user_name ? (
+                            <Badge className="bg-orange-500">已抢单: {candidate.grab_user_name}</Badge>
+                          ) : (
+                            <Badge variant="outline">待抢单</Badge>
+                          )}
+                        </TableCell>
                         <TableCell>{candidate.created_at ? new Date(candidate.created_at).toLocaleDateString() : "-"}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            {canGrab && !candidate.grab_user_id && (
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={() => handleGrab(candidate)}
+                                disabled={isGrabbing === candidate.id}
+                              >
+                                {isGrabbing === candidate.id ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    抢单中...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Target className="mr-2 h-4 w-4" />
+                                    抢单
+                                  </>
+                                )}
+                              </Button>
+                            )}
                             <Button size="sm" onClick={() => setSelectedCandidate(candidate)}>
                               <CalendarClock className="mr-2 h-4 w-4" />
                               约面

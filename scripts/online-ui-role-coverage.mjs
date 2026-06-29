@@ -103,9 +103,9 @@ const allAccounts = [
     password: process.env.XNHX_ADMIN_PASSWORD,
     passwordEnv: 'XNHX_ADMIN_PASSWORD',
     expectedRole: 'admin',
-    allowedRoutes: ['/dashboard', '/dashboard/leads', '/dashboard/trial-lessons', '/dashboard/formal-orders', '/dashboard/students', '/dashboard/schedule/batch', '/dashboard/todos', '/dashboard/accounts'],
-    deniedRoutes: ['/dashboard/public-leads'],
-    hiddenSidebarTexts: ['公共线索池'],
+    allowedRoutes: ['/dashboard', '/dashboard/leads', '/dashboard/public-leads', '/dashboard/trial-lessons', '/dashboard/formal-orders', '/dashboard/students', '/dashboard/schedule/batch', '/dashboard/todos', '/dashboard/accounts'],
+    deniedRoutes: [],
+    hiddenSidebarTexts: [],
     forbiddenActionTexts: [],
   },
 ]

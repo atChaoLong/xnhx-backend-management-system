@@ -142,10 +142,11 @@ export default function StudentsPage() {
   const pageDescription = teacherId ? `查看该老师所带的所有学生` : isAcademicStudentsPage ? "按教务口径查看正式生订单、课时、退费与回访入口" : isFormalStudentView ? "集中查看正式生订单、剩余课时、退费与回访入口" : "管理和查看所有学生信息"
   const canCreateStudent = !isFormalStudentView && (user?.role === 'admin' || user?.role === 'academic_affairs')
   const canAssignHeadTeacher = user?.role === 'admin' || user?.role === 'academic_affairs'
-  const canEditStudent = !isFormalStudentView && (user?.role === 'admin' || user?.role === 'academic_affairs')
+  const canEditStudent = user?.role === 'admin' || user?.role === 'academic_affairs' || (isFormalStudentView && user?.role === 'head_teacher')
   const canDeleteStudent = user?.role === 'admin'
   const canUpdateStatus = user?.role === 'admin' || user?.role === 'academic_affairs' || user?.role === 'head_teacher'
   const canViewClassInSecrets = user?.role === 'admin' || user?.role === 'academic_affairs'
+  const canViewStudentPhone = user?.role === 'admin'
   const [students, setStudents] = useState<Student[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
@@ -733,7 +734,7 @@ export default function StudentsPage() {
                         <TableCell className="sticky left-[180px] z-20 bg-background group-hover:bg-muted/50 w-[140px] min-w-[140px]">
                           {student.student_code || "-"}
                         </TableCell>
-                        <TableCell>{student.parent_phone || "-"}</TableCell>
+                        <TableCell>{canViewStudentPhone ? (student.parent_phone || "-") : "-"}</TableCell>
                         {!isFormalStudentView && canViewClassInSecrets && <TableCell>{student.classin_initial_password || "-"}</TableCell>}
                         {!isFormalStudentView && canViewClassInSecrets && <TableCell>{student.classin_uid ?? "-"}</TableCell>}
                         <TableCell>
@@ -792,7 +793,7 @@ export default function StudentsPage() {
                         )}
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            {!isFormalStudentView && !student.classin_uid && canEditStudent && (
+                            {!student.classin_uid && canEditStudent && (
                               <Button
                                 variant="default"
                                 size="sm"

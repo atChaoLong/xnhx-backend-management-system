@@ -107,6 +107,11 @@ export interface TeacherCandidate {
   candidate_status?: 'waiting_contact' | 'contacted' | 'interviewing' | 'pending_review' | 'pending_entry' | 'review_rejected' | 'can_trial_lesson' | 'trial_review_pending' | 'can_formal' | 'pause_scheduling' | 'disabled'
   interview_status?: string
   interview_status_name?: string
+
+  // 抢单
+  grab_user_id?: string
+  grab_user_name?: string
+  grabbed_at?: string
 }
 
 /**

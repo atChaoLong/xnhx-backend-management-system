@@ -22,6 +22,7 @@ import {
 } from "@/lib/services/upload"
 import { toChinaTimeISO, fromISOToDatetimeLocal } from "@/lib/utils/timezone"
 import { useDictionary } from "@/lib/hooks/useDictionary"
+import { usePermission } from "@/lib/hooks/usePermission"
 import Link from "next/link"
 import {
   Select,
@@ -35,6 +36,7 @@ export default function EditTrialLessonPage() {
   const router = useRouter()
   const params = useParams()
   const { toast } = useToast()
+  const { role } = usePermission()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingDict, setIsLoadingDict] = useState(true)
@@ -679,7 +681,8 @@ export default function EditTrialLessonPage() {
                 </div>
               </div>
 
-              {/* 教务信息 */}
+              {/* 教务信息 - 销售角色不显示 */}
+              {role !== "sales" && (
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">教务信息</h3>
 
@@ -715,6 +718,7 @@ export default function EditTrialLessonPage() {
                   </p>
                 </div>
               </div>
+              )}
 
               {/* 操作按钮 */}
               <div className="flex justify-end gap-4 pt-4 border-t">

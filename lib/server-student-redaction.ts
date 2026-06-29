@@ -6,14 +6,25 @@ export function canViewStudentClassInSecrets(profile: CurrentProfile | null): bo
   return profile?.role === "admin" || profile?.role === "academic_affairs"
 }
 
-export function redactStudentClassInSecrets<T extends StudentLike>(student: T, profile: CurrentProfile | null): T {
-  if (!student || canViewStudentClassInSecrets(profile)) return student
+export function canViewStudentPhone(profile: CurrentProfile | null): boolean {
+  return profile?.role === "admin"
+}
 
-  return {
-    ...student,
-    classin_initial_password: null,
-    classin_uid: null,
+export function redactStudentClassInSecrets<T extends StudentLike>(student: T, profile: CurrentProfile | null): T {
+  if (!student) return student
+
+  const redacted: StudentLike = { ...student }
+
+  if (!canViewStudentClassInSecrets(profile)) {
+    redacted.classin_initial_password = null
+    redacted.classin_uid = null
   }
+
+  if (!canViewStudentPhone(profile)) {
+    redacted.parent_phone = null
+  }
+
+  return redacted as T
 }
 
 export function redactStudentsClassInSecrets<T extends StudentLike>(students: T[], profile: CurrentProfile | null): T[] {
