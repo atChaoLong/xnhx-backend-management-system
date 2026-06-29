@@ -599,7 +599,9 @@ export default function StudentDetailPage() {
     }
   }
 
-  const openBatchScheduleDialog = (course?: Course) => {
+  const [isOpeningClass, setIsOpeningClass] = useState(false)
+
+  const openBatchScheduleDialog = async (course?: Course) => {
     if (!canCreateSession) {
       toast({
         variant: "destructive",
@@ -610,7 +612,43 @@ export default function StudentDetailPage() {
     }
 
     const firstCourse = course || detail?.courses?.[0]
-    setScheduleCourseId(firstCourse?.id || '')
+    if (!firstCourse) {
+      toast({
+        variant: "destructive",
+        title: "无法开课",
+        description: "该学生暂无课程",
+      })
+      return
+    }
+
+    // 如果课程尚未关联 ClassIn，先调用开课 API 创建
+    if (!firstCourse.classin_course_id) {
+      try {
+        setIsOpeningClass(true)
+        const response = await api.post('/api/courses/open-class', { courseId: firstCourse.id })
+        const result = await response.json().catch(() => ({}))
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || '开课失败')
+        }
+        toast({
+          title: "ClassIn 课程已创建",
+          description: result.data?.alreadyExists ? "课程已关联 ClassIn" : `已创建 ClassIn 课程：${result.data?.courseName || ''}`,
+        })
+        // 刷新学生详情以获取更新后的 classin_course_id
+        await fetchStudentDetail(detail!.student.id)
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "开课失败",
+          description: error.message || "无法创建 ClassIn 课程",
+        })
+        return
+      } finally {
+        setIsOpeningClass(false)
+      }
+    }
+
+    setScheduleCourseId(firstCourse.id)
     setScheduleRows([createBatchScheduleRow()])
     setScheduleConflictMode('skip')
     setScheduleDialogOpen(true)
@@ -1242,8 +1280,16 @@ export default function StudentDetailPage() {
                                       variant="default"
                                       size="sm"
                                       onClick={() => openBatchScheduleDialog(course)}
+                                      disabled={isOpeningClass}
                                     >
-                                      开课
+                                      {isOpeningClass ? (
+                                        <>
+                                          <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                                          开课中...
+                                        </>
+                                      ) : (
+                                        "开课"
+                                      )}
                                     </Button>
                                   )}
                                   <Button
@@ -1755,14 +1801,14 @@ export default function StudentDetailPage() {
 
       {/* 批量排课对话框 */}
       <Dialog open={canCreateSession && scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>批量排课</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl">批量排课</DialogTitle>
+            <DialogDescription className="text-base">
               为学生 <span className="font-semibold">{student.student_name}</span> 批量创建 ClassIn 课堂和本地课节
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-5 py-4">
+          <div className="space-y-5 py-4 overflow-y-auto flex-1 px-1">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="schedule-course">课程 *</Label>
@@ -1821,7 +1867,7 @@ export default function StudentDetailPage() {
 
               <div className="space-y-3">
                 {scheduleRows.map((row, index) => (
-                  <div key={row.id} className="grid gap-3 rounded-md border p-3 md:grid-cols-[1fr_1fr_1fr_auto]">
+                  <div key={row.id} className="grid gap-4 rounded-lg border p-4 md:grid-cols-[1.2fr_1fr_1fr_auto]">
                     <div className="space-y-2">
                       <Label htmlFor={`schedule-date-${row.id}`}>第 {index + 1} 节日期</Label>
                       <Input
