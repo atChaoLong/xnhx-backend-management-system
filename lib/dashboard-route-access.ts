@@ -207,7 +207,7 @@ const routeRules: DashboardRouteRule[] = [
   {
     path: "/dashboard/students",
     label: "学生管理",
-    roles: ["admin"],
+    roles: ["admin", "head_teacher", "sales", "finance"],
     permissions: [{ resource: RESOURCES.students, action: ACTIONS.view }],
   },
   {

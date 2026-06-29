@@ -638,6 +638,7 @@ export default function NewFormalOrderPage() {
                       onChange={(id, name) => handleStudentSelect(id)}
                       options={students.map((s) => ({ id: s.id, name: s.student_name }))}
                       loading={students.length === 0}
+                      disabled={isExistingStudentEntry}
                     />
                     <p className="text-xs text-muted-foreground">可选择已有学生，或直接在下方手动录入信息</p>
                     {isExistingStudentEntry && formData.student_id ? (
@@ -675,7 +676,7 @@ export default function NewFormalOrderPage() {
                             placeholder="请输入学生姓名"
                             value={formData.student_name}
                             onChange={(e) => handleInputChange("student_name", e.target.value)}
-                            disabled={isTrialConversionEntry}
+                            disabled={isTrialConversionEntry || isExistingStudentEntry}
                           />
                         </div>
 
@@ -783,6 +784,7 @@ export default function NewFormalOrderPage() {
                       onChange={(e) => handleInputChange("consultant_teacher", e.target.value)}
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                       required
+                      disabled={isExistingStudentEntry}
                     >
                       <option value="">请选择销售或班主任</option>
                       {consultants.map((c) => (

@@ -18,6 +18,7 @@ interface SearchableSelectProps {
   loading?: boolean
   searchable?: boolean
   displayKey?: string // 使用哪个字段作为显示文本
+  disabled?: boolean
 }
 
 export function SearchableSelect({
@@ -31,6 +32,7 @@ export function SearchableSelect({
   loading = false,
   searchable = true,
   displayKey = "name",
+  disabled = false,
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
@@ -135,6 +137,7 @@ export function SearchableSelect({
   }
 
   const handleFocus = () => {
+    if (disabled) return
     setIsOpen(true)
     updateDropdownPosition()
   }
@@ -154,6 +157,8 @@ export function SearchableSelect({
           onFocus={handleFocus}
           placeholder={placeholder}
           className="pr-8"
+          disabled={disabled}
+          readOnly={disabled}
         />
         {loading && (
           <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
