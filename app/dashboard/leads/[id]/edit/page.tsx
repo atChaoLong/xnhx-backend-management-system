@@ -281,8 +281,8 @@ export default function EditLeadPage() {
         add_status: formData.add_status || undefined,
         region_ip: formData.region_ip,
         parent_wechat: formData.parent_wechat,
-        grab_wechat: formData.grab_wechat || user?.name || "",
-        grab_user_id: formData.grab_user_id || user?.id || "",
+        grab_wechat: formData.grab_wechat || (user?.role === 'sales' ? user?.name : "") || "",
+        grab_user_id: formData.grab_user_id || (user?.role === 'sales' ? user?.id : "") || "",
         chat_screenshots: chatScreenshotPreviews.length > 0 ? chatScreenshotPreviews.join(',') : undefined,
         subject_codes: selectedSubjects,
       }
@@ -541,12 +541,37 @@ export default function EditLeadPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="grab_wechat">抢单微信</Label>
-                    <Input
-                      id="grab_wechat"
-                      value={formData.grab_wechat || user?.name || ""}
-                      readOnly
-                      className="bg-muted"
-                    />
+                    {user?.role === 'sales' ? (
+                      <Input
+                        id="grab_wechat"
+                        value={formData.grab_wechat || user?.name || ""}
+                        readOnly
+                        className="bg-muted"
+                      />
+                    ) : (
+                      <Select
+                        value={formData.grab_user_id || ""}
+                        onValueChange={(value) => {
+                          const selectedSales = sales.find(s => s.id === value)
+                          setFormData({
+                            ...formData,
+                            grab_user_id: value,
+                            grab_wechat: selectedSales?.name || "",
+                          })
+                        }}
+                      >
+                        <SelectTrigger id="grab_wechat">
+                          <SelectValue placeholder="请选择销售" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sales.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {s.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                 </div>
               </div>

@@ -113,13 +113,12 @@ export async function PUT(request: NextRequest) {
       classId,
       activityId: activityId, // 使用数据库中的 activity_id
       name: body.className,
-      beginTime: body.beginTime ? parseInt(body.beginTime) : undefined,
+      startTime: body.beginTime ? parseInt(body.beginTime) : undefined,
       endTime: body.endTime ? parseInt(body.endTime) : undefined,
       teacherUid: body.teacherUid,
-      teacherName: body.teacherName,
-      record: body.record,
-      live: body.live,
-      replay: body.replay,
+      recordState: body.record,
+      liveState: body.live,
+      openState: body.replay,
     })
 
     // 更新本地数据库记录

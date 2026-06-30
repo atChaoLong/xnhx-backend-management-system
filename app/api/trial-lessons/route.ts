@@ -853,7 +853,6 @@ export async function PUT(request: NextRequest) {
           classId: data.classin_class_id,
           activityId: data.classin_activity_id || data.classin_class_id,
           teacherUid: newClassInTeacherUid,
-          teacherName: data.confirmed_teacher || undefined,
         })
         logger.info('同步更新 ClassIn 课堂老师成功', {
           id,
@@ -889,7 +888,7 @@ export async function PUT(request: NextRequest) {
           courseId: data.classin_course_id,
           classId: data.classin_class_id,
           activityId: data.classin_activity_id || data.classin_class_id,
-          beginTime: trialTime,
+          startTime: trialTime,
           endTime: endTime,
         })
         logger.info('同步更新 ClassIn 课堂时间成功', {

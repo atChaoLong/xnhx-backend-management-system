@@ -557,7 +557,7 @@ export async function PUT(request: NextRequest) {
                 classId: Number(classroomClassin.class_id),
                 activityId: Number(classroomClassin.activity_id || classroomClassin.class_id),
                 name: classroomClassin.name || accessSession.session_name || course.course_name,
-                beginTime,
+                startTime: beginTime,
                 endTime,
               })
 
