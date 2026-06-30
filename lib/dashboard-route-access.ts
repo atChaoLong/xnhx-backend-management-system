@@ -96,7 +96,7 @@ const routeRules: DashboardRouteRule[] = [
   {
     path: "/dashboard/trial-lessons",
     label: "试听课",
-    roles: ["admin", "sales", "head_teacher", "hr", "finance"],
+    roles: ["admin", "sales", "head_teacher", "academic_affairs", "hr", "finance"],
     permissions: [{ resource: RESOURCES.trialLessons, action: ACTIONS.view }],
   },
   {
@@ -127,7 +127,7 @@ const routeRules: DashboardRouteRule[] = [
   {
     path: "/dashboard/teacher-candidates/review",
     label: "教学复核",
-    roles: ["admin"],
+    roles: ["admin", "academic_affairs"],
     permissions: [{ resource: RESOURCES.teacherCandidates, action: ACTIONS.reviewVideo }],
   },
   {
@@ -151,7 +151,7 @@ const routeRules: DashboardRouteRule[] = [
   {
     path: "/dashboard/teacher-candidates",
     label: "面试管理",
-    roles: ["admin", "teacher_recruiter"],
+    roles: ["admin", "teacher_recruiter", "academic_affairs"],
     permissions: [{ resource: RESOURCES.teacherCandidates, action: ACTIONS.view }],
   },
 
@@ -189,7 +189,7 @@ const routeRules: DashboardRouteRule[] = [
   {
     path: "/dashboard/academic/pending-trials",
     label: "待试听匹配",
-    roles: ["admin"],
+    roles: ["admin", "academic_affairs"],
     permissions: [{ resource: RESOURCES.trialLessons, action: ACTIONS.view }],
   },
   {
