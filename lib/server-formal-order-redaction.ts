@@ -4,7 +4,8 @@ type FormalOrderLike = Record<string, any>
 type TrialLessonLike = Record<string, any>
 
 export function canViewPaymentProof(profile: CurrentProfile | null): boolean {
-  return profile?.role === "admin" || profile?.role === "finance" || profile?.role === "academic_affairs"
+  return profile?.role === "admin" || profile?.role === "finance" || profile?.role === "academic_affairs" ||
+    profile?.role === "sales" || profile?.role === "head_teacher" || profile?.role === "teacher"
 }
 
 export function canViewClassInStudentIdentifier(profile: CurrentProfile | null): boolean {
