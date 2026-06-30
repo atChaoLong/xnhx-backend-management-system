@@ -20,7 +20,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination"
 import { Badge } from "@/components/ui/badge"
-import { DictionaryService } from "@/lib/services/dictionary"
+import { useDictionaryContext } from "@/contexts/DictionaryContext"
 import { LeadsService, Lead } from "@/lib/services/leads"
 import { api } from "@/lib/fetch"
 import { usePagination } from "@/lib/hooks/usePagination"
@@ -29,19 +29,21 @@ import { useToast } from "@/hooks/use-toast"
 import { summarizeError } from "@/lib/safe-error"
 
 export default function PublicLeadsPage() {
-  const { user, isLoading: isUserLoading } = usePermission()
+  const { user } = usePermission()
+  const { dicts } = useDictionaryContext()
   const { toast } = useToast()
   const [leads, setLeads] = useState<Lead[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
   const [isGrabbing, setIsGrabbing] = useState<string | null>(null)
-  const [dictMaps, setDictMaps] = useState({
-    grades: new Map<string, string>(),
-    subjects: new Map<string, string>(),
-    addMethods: new Map<string, string>(),
-    regions: new Map<string, string>(),
-    sources: new Map<string, string>(),
-  })
+
+  const dictMaps = {
+    grades: new Map((dicts?.grade || []).map((item: { code: string; label: string }) => [item.code, item.label])),
+    subjects: new Map((dicts?.subject || []).map((item: { code: string; label: string }) => [item.code, item.label])),
+    addMethods: new Map((dicts?.add_method || []).map((item: { code: string; label: string }) => [item.code, item.label])),
+    regions: new Map((dicts?.province || []).map((item: { code: string; label: string }) => [item.code, item.label])),
+    sources: new Map((dicts?.xhs_source || []).map((item: { code: string; label: string }) => [item.code, item.label])),
+  }
 
   const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
   const canAccessPublicPool = user?.role === "sales" || user?.role === "admin"
@@ -88,33 +90,13 @@ export default function PublicLeadsPage() {
   })
 
   useEffect(() => {
-    const loadDictionaries = async () => {
-      try {
-        const dicts = await DictionaryService.getAllDictionaries()
-        setDictMaps({
-          grades: new Map((dicts.grade || []).map(item => [item.code, item.label])),
-          subjects: new Map((dicts.subject || []).map(item => [item.code, item.label])),
-          addMethods: new Map((dicts.add_method || []).map(item => [item.code, item.label])),
-          regions: new Map((dicts.province || []).map(item => [item.code, item.label])),
-          sources: new Map((dicts.xhs_source || []).map(item => [item.code, item.label])),
-        })
-      } catch (error) {
-        console.error("加载字典失败:", summarizeError(error))
-      }
+    if (canAccessPublicPool) {
+      fetchLeads(1, pageSize)
+    } else {
+      setIsLoading(false)
     }
-
-    loadDictionaries()
-  }, [])
-
-  useEffect(() => {
-    if (!isUserLoading) {
-      if (canAccessPublicPool) {
-        fetchLeads(1, pageSize)
-      } else {
-        setIsLoading(false)
-      }
-    }
-  }, [isUserLoading, user?.role])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role])
 
   const handleGrabLead = async (lead: Lead) => {
     if (!canGrabPublicLead) {
@@ -166,7 +148,7 @@ export default function PublicLeadsPage() {
     return <Badge variant="outline">公共池</Badge>
   }
 
-  if (isLoading || isUserLoading) {
+  if (isLoading) {
     return (
       <div className="flex flex-col h-full">
         <Header title="公共线索池" description="查看未分配线索并抢单" />

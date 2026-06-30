@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
 import { getClassInSDKService } from "@/lib/services/classin-sdk/service"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { getAccessibleCourseIds, hasScopedIdAccess } from "@/lib/server-business-scope"
 import { createSafeErrorResponse, summarizeError } from "@/lib/safe-error"
 
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
 
     logger.debug('重新创建课节', { courseId, itemCount: items.length, skipExisting })
 
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const accessibleCourseIds = await getAccessibleCourseIds(profile)
     if (!hasScopedIdAccess(accessibleCourseIds, courseId)) {
       logger.warn('重新创建课节失败 - 无权访问课程', { courseId, profileId: profile?.id })

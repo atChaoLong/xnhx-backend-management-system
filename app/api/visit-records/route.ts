@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { getAccessibleStudentIds, hasScopedIdAccess, restrictByIds } from "@/lib/server-business-scope"
 import { summarizeError } from "@/lib/safe-error"
 import { ACTIONS, RESOURCES, hasPermission, type Role } from "@/lib/permissions"
@@ -421,7 +421,7 @@ export async function GET(request: NextRequest) {
     const followUpFrom = searchParams.get('follow_up_from')
     const followUpTo = searchParams.get('follow_up_to')
     const mode = searchParams.get('mode')
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     logger.debug('获取回访记录', {
       studentId,
@@ -546,7 +546,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const bodySummary = summarizeVisitRecordPayload(body)
 
     logger.debug('创建回访记录 - 接收到的数据', { body_summary: bodySummary })
@@ -653,7 +653,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     const { id, ...updateData } = body
     const updateSummary = summarizeVisitRecordPayload(updateData)
@@ -756,7 +756,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     if (!id) {
       return NextResponse.json(

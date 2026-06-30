@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
 import { summarizeError } from '@/lib/safe-error'
-import { getCurrentProfile } from '@/lib/server-data-scope'
+import { getProfileFromHeaders } from '@/lib/server-profile-from-headers'
 import { attachTodoSla } from '@/lib/todo-sla'
 
 const logger = createLogger('API:Todos:Complete')
@@ -39,7 +39,7 @@ export async function POST(
   try {
     const { id } = await params
 
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     if (!profile) {
       return todoError('未登录', 401)
     }

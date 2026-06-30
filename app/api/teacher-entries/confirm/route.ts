@@ -5,7 +5,7 @@ import { handleDatabaseError } from "@/lib/utils"
 import { checkPermission } from "@/lib/middleware"
 import { ACTIONS, RESOURCES } from "@/lib/permissions"
 import { resolveClassInInitialPassword } from "@/lib/server-classin-password"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { redactTeacherClassInSecrets } from "@/lib/server-teacher-redaction"
 import { resolveTeacherCodeForCandidate } from "@/lib/server-teacher-code"
 import { summarizeError } from "@/lib/safe-error"
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   return checkPermission(request, RESOURCES.teacherCandidates, ACTIONS.confirmEntry, async () => {
     try {
       const body = await request.json()
-      const profile = await getCurrentProfile(request)
+      const profile = await getProfileFromHeaders(request)
       const {
         candidate_id,
         initial_password,

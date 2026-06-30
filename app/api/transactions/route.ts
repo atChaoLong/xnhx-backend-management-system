@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
 import { handleDatabaseError } from "@/lib/utils"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import {
   getAccessibleFormalOrderIds,
   getAccessibleStudentIds,
@@ -109,14 +109,14 @@ function parseWorkflowAction(value: unknown): TransactionWorkflowAction | null {
 }
 
 function canTransactionAction(
-  profile: Awaited<ReturnType<typeof getCurrentProfile>>,
+  profile: Awaited<ReturnType<typeof getProfileFromHeaders>>,
   action: typeof ACTIONS.verifyHours | typeof ACTIONS.payment | typeof ACTIONS.verifyPerformance
 ): boolean {
   return hasPermission(profile?.role as Role | undefined, RESOURCES.transactions, action)
 }
 
 function assertStatusTransition(params: {
-  profile: Awaited<ReturnType<typeof getCurrentProfile>>
+  profile: Awaited<ReturnType<typeof getProfileFromHeaders>>
   currentStatus: unknown
   nextStatus: unknown
 }): NextResponse | null {
@@ -163,7 +163,7 @@ function assertStatusTransition(params: {
 }
 
 function buildWorkflowUpdate(params: {
-  profile: Awaited<ReturnType<typeof getCurrentProfile>>
+  profile: Awaited<ReturnType<typeof getProfileFromHeaders>>
   currentStatus: unknown
   workflowAction: TransactionWorkflowAction
 }): { payload: Record<string, any> } | { response: NextResponse } {
@@ -309,7 +309,7 @@ async function createTransactionWorkflowEvent(params: {
   action: TransactionWorkflowAction | 'submitted' | 'status_change'
   fromStatus?: string | null
   toStatus?: string | null
-  profile: Awaited<ReturnType<typeof getCurrentProfile>>
+  profile: Awaited<ReturnType<typeof getProfileFromHeaders>>
 }) {
   const { transactionId, action, fromStatus, toStatus, profile } = params
   const { error } = await supabaseServer
@@ -384,7 +384,7 @@ function applyTransactionScope(query: any, studentIds: string[] | null, studentN
 
 async function resolveStudentForTransaction(
   body: any,
-  profile: Awaited<ReturnType<typeof getCurrentProfile>>
+  profile: Awaited<ReturnType<typeof getProfileFromHeaders>>
 ): Promise<{ ok: true; studentId: string | null; studentName: string } | { ok: false; response: NextResponse }> {
   const studentIds = await getAccessibleStudentIds(profile)
   const studentNames = await getAccessibleStudentNames(profile)
@@ -495,7 +495,7 @@ async function validateRefundAmount(params: {
 async function validateTransactionOrderAccess(params: {
   orderId: string | null
   studentId: string | null
-  profile: Awaited<ReturnType<typeof getCurrentProfile>>
+  profile: Awaited<ReturnType<typeof getProfileFromHeaders>>
 }): Promise<NextResponse | null> {
   const { orderId, studentId, profile } = params
   if (!orderId) return null
@@ -539,7 +539,7 @@ export async function GET(request: NextRequest) {
     const from = parseInt(searchParams.get('from') || '0')
     const to = parseInt(searchParams.get('to') || '19')
     const studentId = searchParams.get('student_id')
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     logger.debug('获取异动记录数据', { id, from, to, studentId })
 
@@ -678,7 +678,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const bodySummary = summarizeTransactionPayload(body)
 
     logger.debug('创建异动记录 - 接收到的数据', { body_summary: bodySummary })
@@ -806,7 +806,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     const { id, workflow_action: workflowActionInput, ...updateData } = body
     const workflowAction = parseWorkflowAction(workflowActionInput)
@@ -1074,7 +1074,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     if (!id) {
       return NextResponse.json(

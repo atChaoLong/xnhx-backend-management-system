@@ -1,6 +1,7 @@
 /**
- * Next.js中间件 - 自动权限检查
- * 在API请求到达路由处理程序之前拦截并验证权限
+ * Next.js中间件 - 自动权限检查 + 用户档案头注入
+ * 在API请求到达路由处理程序之前拦截并验证权限，
+ * 并将用户档案信息通过 header 传递，避免路由处理器重复查询 DB。
  */
 
 import { NextResponse } from 'next/server'
@@ -10,6 +11,7 @@ import { Action, hasPermission } from '@/lib/permissions'
 import { getRoutePermission, isPublicPath } from '@/lib/route-permissions'
 import { createLogger } from '@/lib/logger'
 import { applyRateLimitHeaders, checkRateLimit, createRateLimitResponse } from '@/lib/rate-limit'
+import { getCachedProfile } from '@/lib/profile-cache'
 
 const logger = createLogger('Middleware:Permission')
 
@@ -149,7 +151,18 @@ export async function middleware(request: NextRequest) {
     )
   }
 
-  // 6. 认证和授权都通过，放行
+  // 6. 认证和授权都通过
+  // 注入用户档案 head 头，避免下游路由处理器重复查询 DB
+  // authenticateUser 已将 profile 写入内存缓存，这里直接读取
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-user-id', authResult.userId!)
+  requestHeaders.set('x-user-role', authResult.role!)
+
+  const cachedProfile = authResult.userId ? getCachedProfile(authResult.userId) : null
+  if (cachedProfile?.name) {
+    requestHeaders.set('x-user-name', encodeURIComponent(cachedProfile.name))
+  }
+
   logger.debug('权限验证通过', {
     path: pathname,
     method: request.method,
@@ -157,7 +170,10 @@ export async function middleware(request: NextRequest) {
     userId: authResult.userId,
   })
 
-  return applyRateLimitHeaders(NextResponse.next(), rateLimitDecision)
+  const response = NextResponse.next({
+    request: { headers: requestHeaders },
+  })
+  return applyRateLimitHeaders(response, rateLimitDecision)
 }
 
 export const config = {

@@ -3,7 +3,7 @@ import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
 import { handleDatabaseError } from "@/lib/utils"
 import { generateTeacherCode } from "@/lib/server-teacher-code"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { redactTeacherClassInSecrets, redactTeachersClassInSecrets } from "@/lib/server-teacher-redaction"
 import { summarizeError } from "@/lib/safe-error"
 
@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get('id')
     const from = parseInt(searchParams.get('from') || '0')
     const to = parseInt(searchParams.get('to') || '19')
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     logger.debug('获取老师数据', { id, from, to })
 
@@ -226,7 +226,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const bodySummary = summarizeTeacherPayload(body)
 
     logger.debug('创建老师 - 接收到的数据', { body_summary: bodySummary })
@@ -334,7 +334,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     const { id, ...updateData } = body
     const updateSummary = summarizeTeacherPayload(updateData)
@@ -422,7 +422,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     if (!id) {
       return NextResponse.json(

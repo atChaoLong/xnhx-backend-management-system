@@ -3,7 +3,7 @@ import { supabaseServer } from "@/lib/supabase"
 import { getClassInSDKService } from "@/lib/services/classin-sdk/service"
 import { createLogger } from "@/lib/logger"
 import { summarizeError } from "@/lib/safe-error"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { getAccessibleCourseIds, hasScopedIdAccess } from "@/lib/server-business-scope"
 
 const logger = createLogger('API:Courses:OpenClass')
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '课程ID不能为空' }, { status: 400 })
     }
 
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     if (!profile) {
       return NextResponse.json({ error: '用户档案未配置，请联系管理员' }, { status: 403 })
     }

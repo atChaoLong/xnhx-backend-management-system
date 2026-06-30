@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
 import { handleDatabaseError } from "@/lib/utils"
-import { getCurrentProfile, isAdmin, type CurrentProfile } from "@/lib/server-data-scope"
+import { isAdmin, type CurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { summarizeError } from "@/lib/safe-error"
 
 const logger = createLogger('API:WechatAccounts')
@@ -23,7 +24,7 @@ function summarizeWechatAccountPayload(payload: Record<string, unknown>) {
 }
 
 async function requireAdminProfile(request: NextRequest): Promise<AdminAccess> {
-  const profile = await getCurrentProfile(request)
+  const profile = await getProfileFromHeaders(request)
 
   if (!profile) {
     return {

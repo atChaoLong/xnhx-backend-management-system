@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { getAccessibleFormalOrderIds, hasScopedIdAccess } from "@/lib/server-business-scope"
 import { createSafeErrorResponse, summarizeError } from "@/lib/safe-error"
 import { COURSE_RESPONSE_SELECT, formatCourseResponse } from "@/lib/server-course-selects"
@@ -25,7 +25,7 @@ export async function GET(
 
     logger.debug('根据订单ID获取课程', { orderId })
 
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const accessibleOrderIds = await getAccessibleFormalOrderIds(profile)
 
     if (!hasScopedIdAccess(accessibleOrderIds, orderId)) {

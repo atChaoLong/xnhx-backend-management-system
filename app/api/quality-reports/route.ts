@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createUserScopedServerClient } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
 import { summarizeError } from "@/lib/safe-error"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { getRequestAccessToken } from "@/lib/server-auth-token"
 
 const logger = createLogger("API:QualityReports")
@@ -170,7 +170,7 @@ function normalizeMetadata(value: unknown): Record<string, any> {
 
 export async function GET(request: NextRequest) {
   try {
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     if (!profile) {
       return qualityReportError("未登录", 401)
     }
@@ -256,7 +256,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     if (!profile) {
       return qualityReportError("未登录", 401)
     }
@@ -352,7 +352,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     if (!profile) {
       return qualityReportError("未登录", 401)
     }

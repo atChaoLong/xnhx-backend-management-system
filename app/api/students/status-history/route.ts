@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { authenticateUser } from '@/lib/middleware'
 import { createLogger } from '@/lib/logger'
-import { getCurrentProfile } from '@/lib/server-data-scope'
+import { getProfileFromHeaders } from '@/lib/server-profile-from-headers'
 import { getAccessibleStudentIds, hasScopedIdAccess } from '@/lib/server-business-scope'
 import { summarizeError } from '@/lib/safe-error'
 
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     if (!profile) {
       return NextResponse.json(
         { error: '用户档案未配置，请联系管理员' },

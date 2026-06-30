@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
 import { batchCalculateTrialLessonStatus } from "@/lib/status-calculator"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { getAccessibleStudentIds, hasScopedIdAccess } from "@/lib/server-business-scope"
 import { redactStudentClassInSecrets } from "@/lib/server-student-redaction"
 import { redactFormalOrdersSensitiveFields, redactTrialLessonsSensitiveFields } from "@/lib/server-formal-order-redaction"
@@ -149,7 +149,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const studentId = searchParams.get('id')
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     if (!studentId) {
       return NextResponse.json(

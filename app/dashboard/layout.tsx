@@ -4,41 +4,36 @@ import { useEffect } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { useTokenRefresh } from "@/lib/hooks/useTokenRefresh"
+import { AuthProvider } from "@/contexts/AuthContext"
+import { DictionaryProvider } from "@/contexts/DictionaryContext"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { canAccessDashboardRoute, getDashboardRouteRule } from "@/lib/dashboard-route-access"
 import type { Role } from "@/lib/permissions"
 import { AlertTriangle, Loader2 } from "lucide-react"
 import Link from "next/link"
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+function DashboardContent({ children }: { children: React.ReactNode }) {
   const { user, isLoading, handleLogout } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
 
-  // 启动 token 自动刷新
   useTokenRefresh()
 
-  // 监听 token 刷新失败事件，自动跳转登录页
   useEffect(() => {
     const handleAuthExpired = () => {
-      sessionStorage.removeItem('currentUser')
-      router.replace('/login')
-      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-        window.location.replace('/login')
+      sessionStorage.removeItem("currentUser")
+      router.replace("/login")
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+        window.location.replace("/login")
       }
     }
-    window.addEventListener('auth:expired', handleAuthExpired)
-    return () => window.removeEventListener('auth:expired', handleAuthExpired)
+    window.addEventListener("auth:expired", handleAuthExpired)
+    return () => window.removeEventListener("auth:expired", handleAuthExpired)
   }, [router])
 
   useEffect(() => {
     if (!isLoading && !user) {
       router.replace("/login")
-
       if (typeof window !== "undefined" && window.location.pathname !== "/login") {
         window.location.replace("/login")
       }
@@ -109,5 +104,15 @@ export default function DashboardLayout({
       <Sidebar user={user} onLogout={handleLogout} />
       <main className="flex-1 overflow-auto">{children}</main>
     </div>
+  )
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <AuthProvider>
+      <DictionaryProvider>
+        <DashboardContent>{children}</DashboardContent>
+      </DictionaryProvider>
+    </AuthProvider>
   )
 }

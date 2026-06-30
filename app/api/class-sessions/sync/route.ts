@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
 import { createSafeErrorResponse, summarizeError } from "@/lib/safe-error"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { getAccessibleCourseIds, hasScopedIdAccess } from "@/lib/server-business-scope"
 
 const logger = createLogger('API:ClassSessions:Sync')
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     logger.debug('同步课节状态', { courseId, sessionId })
 
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const accessibleCourseIds = await getAccessibleCourseIds(profile)
 
     let sessions: any[] = []

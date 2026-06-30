@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
 import { summarizeError } from '@/lib/safe-error'
-import { getCurrentProfile } from '@/lib/server-data-scope'
+import { getProfileFromHeaders } from '@/lib/server-profile-from-headers'
 
 const logger = createLogger('API:TeacherForm')
 const TEACHER_FORM_SUBMISSION_SELECT = 'id, candidate_id, created_at'
@@ -292,7 +292,7 @@ export async function POST(request: NextRequest) {
 // GET: 获取所有表单提交记录（管理员）
 export async function GET(request: NextRequest) {
   try {
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     if (!profile) {
       return NextResponse.json({ error: '未登录或账号不可用' }, { status: 401 })

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
 import { summarizeError } from '@/lib/safe-error'
-import { getCurrentProfile } from '@/lib/server-data-scope'
+import { getProfileFromHeaders } from '@/lib/server-profile-from-headers'
 import { attachTodoSla, startAndEndOfToday } from '@/lib/todo-sla'
 
 const logger = createLogger('API:Todos')
@@ -306,7 +306,7 @@ export async function GET(request: NextRequest) {
     const status = normalizedString(searchParams.get('status'))
     const priority = normalizedString(searchParams.get('priority'))
 
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     if (!profile) {
       return todoError('未登录', 401)
     }
@@ -390,7 +390,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const bodySummary = summarizeTodoPayload(body)
 
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     if (!profile) {
       return todoError('未登录', 401)
     }
@@ -496,7 +496,7 @@ export async function PUT(request: NextRequest) {
       return todoError('缺少待办ID', 400)
     }
 
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     if (!profile) {
       return todoError('未登录', 401)
     }
@@ -556,7 +556,7 @@ export async function DELETE(request: NextRequest) {
       return todoError('缺少待办ID', 400)
     }
 
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     if (!profile) {
       return todoError('未登录', 401)
     }

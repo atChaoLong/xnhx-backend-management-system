@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
-import { getCurrentProfile } from '@/lib/server-data-scope'
+import { getProfileFromHeaders } from '@/lib/server-profile-from-headers'
 import { getAccessibleCourseIds, restrictByIds } from '@/lib/server-business-scope'
 import { createLogger } from '@/lib/logger'
 import { summarizeError } from '@/lib/safe-error'
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const studentId = searchParams.get('studentId')
     const { from, to } = parseBoundedRange(searchParams)
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const accessibleCourseIds = await getAccessibleCourseIds(profile)
 
     // 基础查询：获取所有课程

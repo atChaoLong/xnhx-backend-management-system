@@ -3,7 +3,7 @@ import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
 import { handleDatabaseError } from "@/lib/utils"
 import { getClassInSDKService } from "@/lib/services/classin-sdk/service"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { canViewStudentClassInSecrets, redactStudentClassInSecrets, redactStudentsClassInSecrets } from "@/lib/server-student-redaction"
 import { createSafeErrorResponse, summarizeError } from "@/lib/safe-error"
 import {
@@ -179,7 +179,7 @@ async function buildFormalStudentSummaries(studentIds: string[]): Promise<Map<st
   }
 }
 
-async function getAccessibleStudentIds(profile: Awaited<ReturnType<typeof getCurrentProfile>>): Promise<string[]> {
+async function getAccessibleStudentIds(profile: Awaited<ReturnType<typeof getProfileFromHeaders>>): Promise<string[]> {
   if (!profile || profile.role === 'admin' || profile.role === 'academic_affairs') return []
 
   if (profile.role === 'head_teacher') {
@@ -221,7 +221,7 @@ async function getAccessibleStudentIds(profile: Awaited<ReturnType<typeof getCur
   return []
 }
 
-function applyStudentScope(query: any, profile: Awaited<ReturnType<typeof getCurrentProfile>>, studentIds: string[]) {
+function applyStudentScope(query: any, profile: Awaited<ReturnType<typeof getProfileFromHeaders>>, studentIds: string[]) {
   if (!profile) return query.eq('id', EMPTY_UUID)
   if (profile.role === 'admin' || profile.role === 'academic_affairs') return query
 
@@ -237,7 +237,7 @@ function applyStudentScope(query: any, profile: Awaited<ReturnType<typeof getCur
   return query.eq('id', EMPTY_UUID)
 }
 
-async function assertStudentAccess(profile: Awaited<ReturnType<typeof getCurrentProfile>>, studentId: string) {
+async function assertStudentAccess(profile: Awaited<ReturnType<typeof getProfileFromHeaders>>, studentId: string) {
   const accessibleStudentIds = await getAccessibleStudentIds(profile)
   let accessQuery = supabaseServer
     .from('students')
@@ -275,7 +275,7 @@ export async function GET(request: NextRequest) {
     const headTeacherId = searchParams.get('head_teacher_id') // 新增：按班主任过滤
     const formalOnly = searchParams.get('formal') === 'true'
     const includeSummary = searchParams.get('include_summary') === 'true' || formalOnly
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const accessibleStudentIds = await getAccessibleStudentIds(profile)
 
     logger.debug('获取学生数据', { id, from, to, headTeacherId, formalOnly, includeSummary })
@@ -517,7 +517,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     if (!profile) {
       return NextResponse.json(
@@ -647,7 +647,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     const { id, ...updateData } = body
     const updateSummary = summarizeStudentPayload(updateData)
@@ -768,7 +768,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     if (!id) {
       return NextResponse.json(

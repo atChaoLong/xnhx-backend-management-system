@@ -3,7 +3,7 @@ import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
 import { handleDatabaseError } from "@/lib/utils"
 import { createSafeErrorResponse, getErrorMessage, summarizeError } from "@/lib/safe-error"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { batchCalculateTrialLessonStatus } from "@/lib/status-calculator"
 import { getAccessibleStudentIds } from "@/lib/server-business-scope"
 import { redactFormalOrderSensitiveFields, redactFormalOrdersSensitiveFields } from "@/lib/server-formal-order-redaction"
@@ -147,7 +147,7 @@ async function addComputedStatusToOrders<T extends { id?: string }>(orders: T[])
   })
 }
 
-async function getAccessibleLeadIds(profile: Awaited<ReturnType<typeof getCurrentProfile>>): Promise<string[]> {
+async function getAccessibleLeadIds(profile: Awaited<ReturnType<typeof getProfileFromHeaders>>): Promise<string[]> {
   if (!profile || profile.role === 'admin' || profile.role === 'academic_affairs' || profile.role === 'finance') return []
   const meName = profile.name || ''
   let query = supabaseServer.from('leads').select('id')
@@ -177,7 +177,7 @@ async function getAccessibleLeadIds(profile: Awaited<ReturnType<typeof getCurren
   return (data || []).map((lead: any) => lead.id).filter(Boolean)
 }
 
-async function getHeadTeacherStudentIds(profile: Awaited<ReturnType<typeof getCurrentProfile>>): Promise<string[]> {
+async function getHeadTeacherStudentIds(profile: Awaited<ReturnType<typeof getProfileFromHeaders>>): Promise<string[]> {
   if (!profile || profile.role !== 'head_teacher') return []
 
   const { data } = await supabaseServer
@@ -188,7 +188,7 @@ async function getHeadTeacherStudentIds(profile: Awaited<ReturnType<typeof getCu
   return (data || []).map((student: any) => student.id).filter(Boolean)
 }
 
-async function getScopedStudentIds(profile: Awaited<ReturnType<typeof getCurrentProfile>>): Promise<string[]> {
+async function getScopedStudentIds(profile: Awaited<ReturnType<typeof getProfileFromHeaders>>): Promise<string[]> {
   if (!profile) return []
   if (profile.role === 'admin' || profile.role === 'academic_affairs' || profile.role === 'finance') return []
 
@@ -202,7 +202,7 @@ async function getScopedStudentIds(profile: Awaited<ReturnType<typeof getCurrent
 
 function applyOrderScope(
   query: any,
-  profile: Awaited<ReturnType<typeof getCurrentProfile>>,
+  profile: Awaited<ReturnType<typeof getProfileFromHeaders>>,
   leadIds: string[],
   accessibleStudentIds: string[]
 ) {
@@ -238,7 +238,7 @@ function applyOrderScope(
 
 function applyTrialLessonSourceScope(
   query: any,
-  profile: Awaited<ReturnType<typeof getCurrentProfile>>,
+  profile: Awaited<ReturnType<typeof getProfileFromHeaders>>,
   leadIds: string[],
   studentIds: string[] | null,
 ) {
@@ -263,7 +263,7 @@ function applyTrialLessonSourceScope(
 
 async function getScopedTrialLessonSource(
   trialLessonId: string,
-  profile: Awaited<ReturnType<typeof getCurrentProfile>>,
+  profile: Awaited<ReturnType<typeof getProfileFromHeaders>>,
   accessibleLeadIds: string[],
   accessibleStudentIds: string[] | null,
 ) {
@@ -436,7 +436,7 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get('id')
     const from = parseInt(searchParams.get('from') || '0')
     const to = parseInt(searchParams.get('to') || '19')
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const [accessibleLeadIds, scopedStudentIds] = await Promise.all([
       getAccessibleLeadIds(profile),
       getScopedStudentIds(profile),
@@ -558,7 +558,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const bodySummary = summarizeFormalOrderPayload(body)
 
     logger.debug('创建正式订单 - 接收到的数据', { body_summary: bodySummary })
@@ -872,7 +872,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     const { id, ...updateData } = body
     const updateSummary = summarizeFormalOrderPayload(updateData)
@@ -1023,7 +1023,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     if (!id) {
       return NextResponse.json(

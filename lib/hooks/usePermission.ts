@@ -1,51 +1,26 @@
-/**
- * 前端权限控制 Hook
- * 用于在 React 组件中检查权限
- */
+"use client"
 
-'use client'
+import { useAuthContext } from "@/contexts/AuthContext"
+import { hasPermission, hasAnyPermission, getPermissions } from "@/lib/permissions"
+import { RESOURCES, ACTIONS, type Role, type Resource, type Action } from "@/lib/permissions"
 
-import { useCurrentUser } from '@/lib/hooks/useCurrentUser'
-import { hasPermission, hasAnyPermission, getPermissions } from '@/lib/permissions'
-import { RESOURCES, ACTIONS, Role, Resource, Action } from '@/lib/permissions'
-
-/**
- * 权限控制 Hook
- */
 export function usePermission() {
-  const { user, isLoading } = useCurrentUser()
+  const { user, isLoading } = useAuthContext()
   const role = user?.role as Role | undefined
 
-  /**
-   * 检查是否有指定权限
-   */
   const checkPermission = (resource: Resource, action: Action): boolean => {
-    if (!user) {
-      return false
-    }
-    if (!role) {
-      return false
-    }
+    if (!user || !role) return false
     return hasPermission(role, resource, action)
   }
 
-  /**
-   * 检查是否有任意一个权限
-   */
   const checkAnyPermission = (permissions: Array<{ resource: Resource; action: Action }>): boolean => {
     return hasAnyPermission(role, permissions)
   }
 
-  /**
-   * 获取指定资源的所有权限
-   */
   const getResourcePermissions = (resource: Resource): Action[] => {
     return getPermissions(role, resource)
   }
 
-  /**
-   * 快捷检查方法 - 线索
-   */
   const leads = {
     view: () => checkPermission(RESOURCES.leads, ACTIONS.view),
     create: () => checkPermission(RESOURCES.leads, ACTIONS.create),
@@ -55,9 +30,6 @@ export function usePermission() {
     convert: () => checkPermission(RESOURCES.leads, ACTIONS.convert),
   }
 
-  /**
-   * 快捷检查方法 - 试听
-   */
   const trialLessons = {
     view: () => checkPermission(RESOURCES.trialLessons, ACTIONS.view),
     create: () => checkPermission(RESOURCES.trialLessons, ACTIONS.create),
@@ -70,9 +42,6 @@ export function usePermission() {
     convert: () => checkPermission(RESOURCES.trialLessons, ACTIONS.convert),
   }
 
-  /**
-   * 快捷检查方法 - 学生
-   */
   const students = {
     view: () => checkPermission(RESOURCES.students, ACTIONS.view),
     create: () => checkPermission(RESOURCES.students, ACTIONS.create),
@@ -83,9 +52,6 @@ export function usePermission() {
     visit: () => checkPermission(RESOURCES.students, ACTIONS.visit),
   }
 
-  /**
-   * 快捷检查方法 - 订单
-   */
   const formalOrders = {
     view: () => checkPermission(RESOURCES.formalOrders, ACTIONS.view),
     create: () => checkPermission(RESOURCES.formalOrders, ACTIONS.create),
@@ -94,9 +60,6 @@ export function usePermission() {
     addLink: () => checkPermission(RESOURCES.formalOrders, ACTIONS.addLink),
   }
 
-  /**
-   * 快捷检查方法 - 课节
-   */
   const classSessions = {
     view: () => checkPermission(RESOURCES.classSessions, ACTIONS.view),
     create: () => checkPermission(RESOURCES.classSessions, ACTIONS.create),
@@ -104,9 +67,6 @@ export function usePermission() {
     delete: () => checkPermission(RESOURCES.classSessions, ACTIONS.delete),
   }
 
-  /**
-   * 快捷检查方法 - 异动
-   */
   const transactions = {
     view: () => checkPermission(RESOURCES.transactions, ACTIONS.view),
     create: () => checkPermission(RESOURCES.transactions, ACTIONS.create),
@@ -117,9 +77,6 @@ export function usePermission() {
     verifyPerformance: () => checkPermission(RESOURCES.transactions, ACTIONS.verifyPerformance),
   }
 
-  /**
-   * 快捷检查方法 - 老师面试
-   */
   const teacherCandidates = {
     view: () => checkPermission(RESOURCES.teacherCandidates, ACTIONS.view),
     create: () => checkPermission(RESOURCES.teacherCandidates, ACTIONS.create),
@@ -132,9 +89,6 @@ export function usePermission() {
     reviewVideo: () => checkPermission(RESOURCES.teacherCandidates, ACTIONS.reviewVideo),
   }
 
-  /**
-   * 快捷检查方法 - 老师库
-   */
   const teachers = {
     view: () => checkPermission(RESOURCES.teachers, ACTIONS.view),
     create: () => checkPermission(RESOURCES.teachers, ACTIONS.create),
@@ -143,9 +97,6 @@ export function usePermission() {
     notes: () => checkPermission(RESOURCES.teachers, ACTIONS.notes),
   }
 
-  /**
-   * 快捷检查方法 - 字典
-   */
   const dictionaries = {
     view: () => checkPermission(RESOURCES.dictionaries, ACTIONS.view),
     create: () => checkPermission(RESOURCES.dictionaries, ACTIONS.create),
@@ -153,9 +104,6 @@ export function usePermission() {
     delete: () => checkPermission(RESOURCES.dictionaries, ACTIONS.delete),
   }
 
-  /**
-   * 快捷检查方法 - 待办
-   */
   const todos = {
     view: () => checkPermission(RESOURCES.todos, ACTIONS.view),
     create: () => checkPermission(RESOURCES.todos, ACTIONS.create),
@@ -163,9 +111,6 @@ export function usePermission() {
     delete: () => checkPermission(RESOURCES.todos, ACTIONS.delete),
   }
 
-  /**
-   * 快捷检查方法 - 用户
-   */
   const users = {
     view: () => checkPermission(RESOURCES.users, ACTIONS.view),
     create: () => checkPermission(RESOURCES.users, ACTIONS.create),
@@ -180,7 +125,6 @@ export function usePermission() {
     checkPermission,
     checkAnyPermission,
     getResourcePermissions,
-    // 快捷方法
     leads,
     trialLessons,
     students,

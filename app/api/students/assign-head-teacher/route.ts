@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { summarizeError } from "@/lib/safe-error"
 
 const logger = createLogger('API:Students:AssignHeadTeacher')
@@ -24,7 +24,7 @@ function canAssignHeadTeacher(role: string | undefined): boolean {
 // POST: 分配班主任给学生
 export async function POST(request: NextRequest) {
   try {
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     if (!profile) {
       return NextResponse.json(
         { error: '用户档案未配置，请联系管理员' },

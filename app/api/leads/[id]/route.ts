@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
 import { handleDatabaseError } from '@/lib/utils'
-import { getCurrentProfile } from '@/lib/server-data-scope'
+import { getProfileFromHeaders } from '@/lib/server-profile-from-headers'
 import {
   isLeadAssignedToProfile,
   isLeadCreatedByProfile,
@@ -81,7 +81,7 @@ function isMissingLeadColumnError(error: unknown) {
 
 function canAccessLead(
   lead: any,
-  profile: Awaited<ReturnType<typeof getCurrentProfile>>,
+  profile: Awaited<ReturnType<typeof getProfileFromHeaders>>,
   relatedLeadIds: string[] = []
 ) {
   if (!profile) return false
@@ -106,7 +106,7 @@ function canAccessLead(
   return false
 }
 
-function maskLeadForProfile(lead: any, profile: Awaited<ReturnType<typeof getCurrentProfile>>) {
+function maskLeadForProfile(lead: any, profile: Awaited<ReturnType<typeof getProfileFromHeaders>>) {
   if (!profile || profile.role !== 'sales') return lead
   const isMine = isLeadAssignedToProfile(lead, profile) || isLeadCreatedByProfile(lead, profile)
 
@@ -123,7 +123,7 @@ export async function GET(
     const { id } = await params
 
     logger.debug('获取线索详情', { leadId: id })
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     let relatedLeadIds: string[] = []
     if (profile?.role === 'head_teacher') {
@@ -206,7 +206,7 @@ export async function DELETE(
 
     logger.info('删除线索', { leadId: id })
 
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     if (!profile) {
       return NextResponse.json(

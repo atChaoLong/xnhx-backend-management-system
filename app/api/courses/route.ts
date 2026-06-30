@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
 import { handleDatabaseError } from "@/lib/utils"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { getAccessibleFormalOrderIds, hasScopedIdAccess, restrictByIds } from "@/lib/server-business-scope"
 import { createSafeErrorResponse, summarizeError } from "@/lib/safe-error"
 import { COURSE_RESPONSE_SELECT, formatCourseResponse } from "@/lib/server-course-selects"
@@ -11,7 +11,7 @@ import { ACTIONS, RESOURCES, Role, hasPermission, type Action } from "@/lib/perm
 const logger = createLogger('API:Courses')
 
 function requireCoursePermission(
-  profile: Awaited<ReturnType<typeof getCurrentProfile>>,
+  profile: Awaited<ReturnType<typeof getProfileFromHeaders>>,
   action: Action
 ): NextResponse | null {
   if (!profile) {
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     const studentId = searchParams.get('student_id')
     const from = parseInt(searchParams.get('from') || '0')
     const to = parseInt(searchParams.get('to') || '19')
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const permissionError = requireCoursePermission(profile, ACTIONS.view)
     if (permissionError) return permissionError
 
@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const bodySummary = summarizeCoursePayload(body)
     const permissionError = requireCoursePermission(profile, ACTIONS.create)
     if (permissionError) return permissionError
@@ -261,7 +261,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     const { id, ...updateData } = body
     const updateSummary = summarizeCoursePayload(updateData)
@@ -355,7 +355,7 @@ export async function DELETE(request: NextRequest) {
 
     logger.debug('删除课程', { id })
 
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const permissionError = requireCoursePermission(profile, ACTIONS.delete)
     if (permissionError) return permissionError
 

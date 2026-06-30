@@ -32,7 +32,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { TrialLessonsService, TrialLesson } from "@/lib/services/trialLessons"
 import { type ClassInTeacherOption, TeachersService } from "@/lib/services/teachers"
-import { DictionaryService } from "@/lib/services/dictionary"
+import { useDictionaryContext } from "@/contexts/DictionaryContext"
 import { api } from "@/lib/fetch"
 import { useToast } from "@/hooks/use-toast"
 import { usePermission } from "@/lib/hooks/usePermission"
@@ -41,10 +41,10 @@ import { usePagination } from "@/lib/hooks/usePagination"
 export default function TrialLessonsPage() {
   const router = useRouter()
   const { trialLessons: trialLessonsPerm } = usePermission()
+  const { dicts } = useDictionaryContext()
   const [lessons, setLessons] = useState<TrialLesson[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
-  const [isLoadingDict, setIsLoadingDict] = useState(true)
   const [isLoadingTeachers, setIsLoadingTeachers] = useState(true)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
   const [isMatching, setIsMatching] = useState<string | null>(null)
@@ -80,20 +80,14 @@ export default function TrialLessonsPage() {
     onPageChange: (page, size) => fetchLessons(page, size),
   })
 
-  // 字典数据
-  const [dictOptions, setDictOptions] = useState<{
-    grades: Array<{ code: string; label: string }>
-    subjects: Array<{ code: string; label: string }>
-    regions: Array<{ code: string; label: string }>
-    courseStatuses: Array<{ code: string; label: string }>
-    studentTypes: Array<{ code: string; label: string }>
-  }>({
-    grades: [],
-    subjects: [],
-    regions: [],
-    courseStatuses: [],
-    studentTypes: [],
-  })
+  // 字典数据（从 context 派生，无需独立请求）
+  const dictOptions = {
+    grades: (dicts?.grade || []) as Array<{ code: string; label: string }>,
+    subjects: (dicts?.subject || []) as Array<{ code: string; label: string }>,
+    regions: (dicts?.province || []) as Array<{ code: string; label: string }>,
+    courseStatuses: (dicts?.trial_course_status || []) as Array<{ code: string; label: string }>,
+    studentTypes: (dicts?.student_type || []) as Array<{ code: string; label: string }>,
+  }
 
   // 教师数据
   const [teachers, setTeachers] = useState<ClassInTeacherOption[]>([])
@@ -118,35 +112,16 @@ export default function TrialLessonsPage() {
     }
   }
 
-  // 并行加载字典、教师、试听课程数据
+  // 并行加载教师和试听课程数据（字典由 layout 层的 DictionaryProvider 提供）
   useEffect(() => {
     let cancelled = false
     const loadAll = async () => {
-      const [dictResult, teacherResult, lessonResult] = await Promise.allSettled([
-        DictionaryService.getAllDictionaries(),
+      const [teacherResult, lessonResult] = await Promise.allSettled([
         TeachersService.getClassInTeachers(),
         TrialLessonsService.getTrialLessons(0, 20),
       ])
 
       if (cancelled) return
-
-      if (dictResult.status === 'fulfilled') {
-        const dicts = dictResult.value
-        setDictOptions({
-          grades: dicts.grade || [],
-          subjects: dicts.subject || [],
-          regions: dicts.province || [],
-          courseStatuses: dicts.trial_course_status || [],
-          studentTypes: dicts.student_type || [],
-        })
-      } else {
-        toast({
-          variant: "destructive",
-          title: "加载字典失败",
-          description: "无法加载试听课程字典",
-        })
-      }
-      setIsLoadingDict(false)
 
       if (teacherResult.status === 'fulfilled') {
         const data = teacherResult.value
@@ -499,7 +474,7 @@ export default function TrialLessonsPage() {
     }
   }
 
-  if (isLoading || isLoadingDict) {
+  if (isLoading) {
     return (
       <div className="flex flex-col h-full">
         <Header title="试听课程管理" description="管理试听课程安排" />

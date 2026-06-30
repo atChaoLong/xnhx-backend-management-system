@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { getCurrentProfile } from '@/lib/server-data-scope'
+import { getProfileFromHeaders } from '@/lib/server-profile-from-headers'
 import { createLogger } from '@/lib/logger'
 import { summarizeError } from '@/lib/safe-error'
 
@@ -59,7 +59,7 @@ interface ClassInClassroomResponse {
  */
 export async function POST(request: NextRequest) {
   try {
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     if (!profile || !['admin', 'academic_affairs'].includes(profile.role)) {
       return NextResponse.json({ error: '权限不足' }, { status: 403 })
     }

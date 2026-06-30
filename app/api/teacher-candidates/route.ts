@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
 import { handleDatabaseError } from "@/lib/utils"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { summarizeError } from "@/lib/safe-error"
 import { ACTIONS, RESOURCES, Role, hasPermission } from "@/lib/permissions"
 import { calculateInterviewStatus, getInterviewStatusName } from "@/lib/status-calculator"
@@ -430,7 +430,7 @@ function buildTeacherCandidateListQuery(selectFields: string, name?: string, que
 // GET: 获取老师面试列表（支持ID查询单个和分页）
 export async function GET(request: NextRequest) {
   try {
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     if (!profile) {
       return NextResponse.json(
         { error: '没有查看老师面试记录的权限' },
@@ -564,7 +564,7 @@ export async function GET(request: NextRequest) {
 // POST: 创建新老师面试
 export async function POST(request: NextRequest) {
   try {
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     if (!profile) {
       return NextResponse.json(
         { error: '没有创建老师面试记录的权限' },
@@ -692,7 +692,7 @@ export async function POST(request: NextRequest) {
 // PUT: 更新老师面试
 export async function PUT(request: NextRequest) {
   try {
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const allowedFields = getAllowedUpdateFields(profile?.role)
 
     if (!profile || allowedFields.size === 0) {
@@ -856,7 +856,7 @@ export async function PUT(request: NextRequest) {
 // DELETE: 删除老师面试
 export async function DELETE(request: NextRequest) {
   try {
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     if (!profile || !isAdminRole(profile.role)) {
       return NextResponse.json(
         { error: '没有删除老师面试记录的权限' },

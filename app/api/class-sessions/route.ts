@@ -3,7 +3,7 @@ import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
 import { handleDatabaseError } from "@/lib/utils"
 import { getClassInSDKService } from "@/lib/services/classin-sdk/service"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { getAccessibleCourseIds, hasScopedIdAccess, restrictByIds } from "@/lib/server-business-scope"
 import { createSafeErrorResponse, summarizeError } from "@/lib/safe-error"
 
@@ -187,7 +187,7 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('end_date')
     const status = searchParams.get('status')
     const { from, to } = parseBoundedRange(searchParams)
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const accessibleCourseIds = await getAccessibleCourseIds(profile)
 
     logger.debug('获取课时数据', {
@@ -292,7 +292,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const accessibleCourseIds = await getAccessibleCourseIds(profile)
     const bodySummary = summarizeClassSessionPayload(body)
 
@@ -418,7 +418,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const accessibleCourseIds = await getAccessibleCourseIds(profile)
 
     const { id, ...updateData } = body
@@ -637,7 +637,7 @@ export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
     const deleteClassIn = searchParams.get('delete_classin') === 'true'
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const accessibleCourseIds = await getAccessibleCourseIds(profile)
 
     if (!id) {

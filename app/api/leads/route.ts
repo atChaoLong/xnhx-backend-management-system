@@ -3,7 +3,7 @@ import { supabaseServer } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
 import { handleDatabaseError } from '@/lib/utils'
 import { batchCalculateLeadStatus, calculateLeadAddStatusFromFlags, calculateLeadConvertStatusFromFlags, getLeadAddStatusName, getLeadConvertStatusName } from '@/lib/status-calculator'
-import { getCurrentProfile } from '@/lib/server-data-scope'
+import { getProfileFromHeaders } from '@/lib/server-profile-from-headers'
 import {
   isLeadAssignedToProfile,
   leadCreatedByEqualsProfileFilter,
@@ -12,6 +12,7 @@ import {
 import { summarizeError } from '@/lib/safe-error'
 
 const logger = createLogger('API:Leads')
+const LEAD_CACHE_HEADER = 'private, max-age=15, stale-while-revalidate=30'
 const LEAD_REPORT_RPC_TIMEOUT_MS = 2500
 const LEAD_DUPLICATE_CHECK_TIMEOUT_MS = 2500
 const LEAD_REPORT_NUMBER_MAX_LENGTH = 20
@@ -151,7 +152,7 @@ function stripLeadChannelFields<T extends Record<string, any>>(payload: T) {
   return fallbackPayload
 }
 
-async function getHeadTeacherFormalLeadIds(profile: Awaited<ReturnType<typeof getCurrentProfile>>): Promise<string[]> {
+async function getHeadTeacherFormalLeadIds(profile: Awaited<ReturnType<typeof getProfileFromHeaders>>): Promise<string[]> {
   if (!profile || profile.role !== 'head_teacher') return []
 
   const { data: students, error: studentsError } = await supabaseServer
@@ -186,7 +187,7 @@ async function getHeadTeacherFormalLeadIds(profile: Awaited<ReturnType<typeof ge
 
 function applyLeadScope(
   query: any,
-  profile: Awaited<ReturnType<typeof getCurrentProfile>>,
+  profile: Awaited<ReturnType<typeof getProfileFromHeaders>>,
   relatedLeadIds: string[] = []
 ) {
   if (!profile) return query.eq('id', '00000000-0000-0000-0000-000000000000')
@@ -225,7 +226,7 @@ function applyLeadScope(
 
 function applyLeadWriteScope(
   query: any,
-  profile: Awaited<ReturnType<typeof getCurrentProfile>>,
+  profile: Awaited<ReturnType<typeof getProfileFromHeaders>>,
   relatedLeadIds: string[] = []
 ) {
   if (!profile) return query.eq('id', '00000000-0000-0000-0000-000000000000')
@@ -268,7 +269,7 @@ function applyPublicLeadScope(query: any) {
     .or('grab_wechat.is.null,grab_wechat.eq.')
 }
 
-function maskLeadForProfile(lead: any, profile: Awaited<ReturnType<typeof getCurrentProfile>>) {
+function maskLeadForProfile(lead: any, profile: Awaited<ReturnType<typeof getProfileFromHeaders>>) {
   if (!profile || profile.role !== 'sales') return lead
 
   const isMine = isLeadAssignedToProfile(lead, profile)
@@ -427,7 +428,7 @@ function formatDuplicateCollision(lead: any) {
 }
 
 function buildLeadQueries(
-  profile: Awaited<ReturnType<typeof getCurrentProfile>>,
+  profile: Awaited<ReturnType<typeof getProfileFromHeaders>>,
   scope: string | null,
   selectFields: string,
   relatedLeadIds: string[] = []
@@ -471,7 +472,7 @@ export async function getLeadsResponse(request: NextRequest, fixedScope?: string
     const scope = fixedScope || searchParams.get('scope')
 
     // 当前用户档案（用于销售角色筛选）
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const relatedLeadIds = await getHeadTeacherFormalLeadIds(profile)
     const t1 = Date.now()
 
@@ -592,12 +593,14 @@ export async function getLeadsResponse(request: NextRequest, fixedScope?: string
       })
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       data: leadsWithStatus,
       count: totalCount || 0,
       from,
       to,
     })
+    response.headers.set('Cache-Control', LEAD_CACHE_HEADER)
+    return response
   } catch (error) {
     logger.error('获取线索异常', summarizeError(error))
     return NextResponse.json(
@@ -617,7 +620,7 @@ export async function POST(request: NextRequest) {
     const rawLeadData = await request.json()
     const leadData: Record<string, any> = isRecord(rawLeadData) ? { ...rawLeadData } : {}
 
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     if (!profile) {
       return NextResponse.json({ error: '未登录或用户档案不存在' }, { status: 401 })
     }
@@ -722,7 +725,7 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     if (!profile) {
       return NextResponse.json({ error: '未登录或用户档案不存在' }, { status: 401 })
     }

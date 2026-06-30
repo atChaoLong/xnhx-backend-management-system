@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseAdmin, supabaseServer } from "@/lib/supabase"
 import { checkPermission } from "@/lib/middleware"
 import { ACTIONS, RESOURCES } from "@/lib/permissions"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { createLogger } from "@/lib/logger"
 import { summarizeError } from "@/lib/safe-error"
 
@@ -276,7 +276,7 @@ function buildTeacherException(teacher: any): TeacherException | null {
 
 export async function GET(request: NextRequest) {
   return checkPermission(request, RESOURCES.teachers, ACTIONS.view, async () => {
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     if (!profile || !["admin", "academic_affairs"].includes(profile.role)) {
       return NextResponse.json(
@@ -341,7 +341,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   return checkPermission(request, RESOURCES.teachers, ACTIONS.view, async () => {
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     if (!profile || !["admin", "academic_affairs"].includes(profile.role)) {
       return NextResponse.json(

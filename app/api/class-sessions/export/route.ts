@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { getAccessibleCourseIds, restrictByIds } from "@/lib/server-business-scope"
 import { createSafeErrorResponse, summarizeError } from "@/lib/safe-error"
 
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const accessibleCourseIds = await getAccessibleCourseIds(profile)
 
     let query = supabaseServer

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
 import { handleDatabaseError } from '@/lib/utils'
-import { getCurrentProfile } from '@/lib/server-data-scope'
+import { getProfileFromHeaders } from '@/lib/server-profile-from-headers'
 import { summarizeError } from '@/lib/safe-error'
 
 const logger = createLogger('API:LeadsGrab')
@@ -37,7 +37,7 @@ const LEAD_SELECT = `
 
 export async function POST(request: NextRequest) {
   try {
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     if (!profile) {
       return NextResponse.json({ error: '未登录或权限不足' }, { status: 403 })
     }

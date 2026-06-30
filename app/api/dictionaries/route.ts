@@ -6,6 +6,13 @@ import { summarizeError } from '@/lib/safe-error'
 
 const logger = createLogger('API:Dictionaries')
 const DICTIONARY_SELECT = 'id,created_at,updated_at,category,code,label,sort_order,is_active'
+const DICT_CACHE_HEADER = 'public, max-age=300, stale-while-revalidate=600'
+
+function cachedJson(body: unknown, init?: ResponseInit) {
+  const response = NextResponse.json(body, init)
+  response.headers.set('Cache-Control', DICT_CACHE_HEADER)
+  return response
+}
 
 const DICT_CACHE_TTL_MS = 5 * 60 * 1000
 const dictCache = new Map<string, { data: any[]; fetchedAt: number }>()
@@ -64,7 +71,7 @@ export async function GET(request: NextRequest) {
       }
 
       logger.debug('获取字典项成功', { id })
-      return NextResponse.json({ data })
+      return cachedJson({ data })
     }
 
     // 否则按分类筛选或获取所有
@@ -72,7 +79,7 @@ export async function GET(request: NextRequest) {
     const cached = getCachedDicts(cacheKey)
     if (cached) {
       logger.debug('字典缓存命中', { category: cacheKey, count: cached.length })
-      return NextResponse.json({ data: cached })
+      return cachedJson({ data: cached })
     }
 
     let query = supabaseServer
@@ -97,7 +104,7 @@ export async function GET(request: NextRequest) {
 
     setCachedDicts(cacheKey, data || [])
     logger.debug('获取字典项成功', { count: data?.length || 0 })
-    return NextResponse.json({ data })
+    return cachedJson({ data })
   } catch (error: any) {
     logger.error('获取字典项异常', { error_summary: summarizeError(error) })
     return NextResponse.json(

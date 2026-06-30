@@ -34,7 +34,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { LeadsService, Lead } from "@/lib/services/leads"
 import { TodosService } from "@/lib/services/todos"
-import { DictionaryService } from "@/lib/services/dictionary"
+import { useDictionaryContext } from "@/contexts/DictionaryContext"
 import { CHAT_SCREENSHOT_ACCEPT, uploadChatScreenshot, validateChatScreenshotFile } from "@/lib/services/upload"
 import { api } from "@/lib/fetch"
 import { useToast } from "@/hooks/use-toast"
@@ -43,12 +43,12 @@ import { usePagination } from "@/lib/hooks/usePagination"
 
 export default function LeadsPage() {
   const router = useRouter()
-  const { leads: leadsPerm, user, isLoading: isUserLoading } = usePermission()
+  const { leads: leadsPerm, user } = usePermission()
+  const { dicts } = useDictionaryContext()
   const [leads, setLeads] = useState<Lead[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
-  const [isLoadingDict, setIsLoadingDict] = useState(true)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [leadToDelete, setLeadToDelete] = useState<string | null>(null)
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
@@ -58,20 +58,14 @@ export default function LeadsPage() {
 
   const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
 
-  // 字典数据映射
-  const [dictMaps, setDictMaps] = useState<{
-    grades: Map<string, string>
-    subjects: Map<string, string>
-    addMethods: Map<string, string>
-    regions: Map<string, string>
-    sources: Map<string, string>
-  }>({
-    grades: new Map(),
-    subjects: new Map(),
-    addMethods: new Map(),
-    regions: new Map(),
-    sources: new Map(),
-  })
+  // 字典数据映射（从 context 派生，零额外请求）
+  const dictMaps = {
+    grades: new Map((dicts?.grade || []).map((item: { code: string; label: string }) => [item.code, item.label])),
+    subjects: new Map((dicts?.subject || []).map((item: { code: string; label: string }) => [item.code, item.label])),
+    addMethods: new Map((dicts?.add_method || []).map((item: { code: string; label: string }) => [item.code, item.label])),
+    regions: new Map((dicts?.province || []).map((item: { code: string; label: string }) => [item.code, item.label])),
+    sources: new Map((dicts?.xhs_source || []).map((item: { code: string; label: string }) => [item.code, item.label])),
+  }
 
   // 加载线索列表
   const fetchLeads = async (page: number = 1, size: number = pageSize) => {
@@ -114,43 +108,36 @@ export default function LeadsPage() {
     },
   })
 
-  // 并行加载字典和线索列表
+  // 加载线索列表（字典由 layout 层的 DictionaryProvider 并行加载，无需在此重复请求）
   useEffect(() => {
-    if (isUserLoading) return
     let cancelled = false
 
-    const loadAll = async () => {
+    const loadLeads = async () => {
       const scope = user?.role === 'sales' ? 'owned' : undefined
-      const [dictResult, leadsResult] = await Promise.allSettled([
-        DictionaryService.getAllDictionaries(),
-        LeadsService.getLeads(0, pageSize - 1, { scope }),
-      ])
-
-      if (cancelled) return
-
-      if (dictResult.status === 'fulfilled') {
-        const dicts = dictResult.value
-        setDictMaps({
-          grades: new Map((dicts.grade || []).map(item => [item.code, item.label])),
-          subjects: new Map((dicts.subject || []).map(item => [item.code, item.label])),
-          addMethods: new Map((dicts.add_method || []).map(item => [item.code, item.label])),
-          regions: new Map((dicts.province || []).map(item => [item.code, item.label])),
-          sources: new Map((dicts.xhs_source || []).map(item => [item.code, item.label])),
-        })
+      try {
+        const { data, count } = await LeadsService.getLeads(0, pageSize - 1, { scope })
+        if (!cancelled) {
+          setLeads(data)
+          setTotalCount(count)
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          toast({
+            variant: "destructive",
+            title: "加载失败",
+            description: error.message || "无法加载线索列表",
+          })
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false)
       }
-      setIsLoadingDict(false)
-
-      if (leadsResult.status === 'fulfilled') {
-        setLeads(leadsResult.value.data)
-        setTotalCount(leadsResult.value.count)
-      }
-      setIsLoading(false)
     }
 
     setIsLoading(true)
-    loadAll()
+    loadLeads()
     return () => { cancelled = true }
-  }, [isUserLoading, user?.role])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role])
 
   const canWriteLead = (lead: Lead) => {
     if (!user) return false
@@ -517,7 +504,7 @@ export default function LeadsPage() {
   const leadPendingDelete = leadToDelete ? leads.find((item) => item.id === leadToDelete) : null
   const canDeletePendingLead = Boolean(leadPendingDelete && leadsPerm.delete() && canWriteLead(leadPendingDelete))
 
-  if (isLoading || isUserLoading) {
+  if (isLoading) {
     return (
       <div className="flex flex-col h-full">
         <Header title="线索管理" description="管理和查看所有销售线索信息" />

@@ -5,7 +5,7 @@ import { ensureChinaTimezone } from "@/lib/utils/timezone"
 import { ensureClassInStudentAccount } from "@/lib/server-classin-students"
 import { summarizeError } from "@/lib/safe-error"
 import { createLogger } from "@/lib/logger"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { getAccessibleTrialLessonIds, hasScopedIdAccess } from "@/lib/server-business-scope"
 
 const logger = createLogger('API:TrialLessonscreateClassIn')
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '试听课程ID不能为空' }, { status: 400 })
     }
 
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     if (!profile) {
       return NextResponse.json(

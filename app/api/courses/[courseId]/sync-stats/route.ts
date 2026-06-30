@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
 import { handleDatabaseError } from "@/lib/utils"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { getAccessibleCourseIds, hasScopedIdAccess } from "@/lib/server-business-scope"
 import { createSafeErrorResponse, summarizeError } from "@/lib/safe-error"
 import { COURSE_RESPONSE_SELECT, formatCourseResponse } from "@/lib/server-course-selects"
@@ -30,7 +30,7 @@ export async function POST(
 
     logger.debug('同步课程统计信息', { courseId })
 
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const accessibleCourseIds = await getAccessibleCourseIds(profile)
 
     if (!hasScopedIdAccess(accessibleCourseIds, courseId)) {

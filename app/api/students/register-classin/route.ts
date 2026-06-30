@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { getClassInSDKService } from "@/lib/services/classin-sdk/service"
 import { createLogger } from "@/lib/logger"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { getAccessibleStudentIds, restrictByIds } from "@/lib/server-business-scope"
 import { canViewStudentClassInSecrets } from "@/lib/server-student-redaction"
 import { summarizeError } from "@/lib/safe-error"
@@ -11,7 +11,7 @@ const logger = createLogger('API:StudentsRegisterClassIn')
 
 export async function POST(request: NextRequest) {
   try {
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
 
     if (!profile) {
       return NextResponse.json(

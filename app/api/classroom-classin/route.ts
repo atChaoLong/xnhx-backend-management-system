@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase"
 import { createLogger } from "@/lib/logger"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { getAccessibleCourseIds, restrictByIds } from "@/lib/server-business-scope"
 import { summarizeError } from "@/lib/safe-error"
 
@@ -60,7 +60,7 @@ async function getClassroomAccessFilter(
   request: NextRequest,
   studentId: string | null
 ): Promise<{ accessFilter?: ClassroomAccessFilter; response?: NextResponse }> {
-  const profile = await getCurrentProfile(request)
+  const profile = await getProfileFromHeaders(request)
   if (!profile) {
     return {
       response: NextResponse.json(

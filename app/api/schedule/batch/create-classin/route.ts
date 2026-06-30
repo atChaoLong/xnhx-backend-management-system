@@ -3,7 +3,7 @@ import { supabaseServer } from "@/lib/supabase"
 import { getClassInSDKService } from "@/lib/services/classin-sdk/service"
 import { createLogger } from "@/lib/logger"
 import { ensureClassInStudentAccount } from "@/lib/server-classin-students"
-import { getCurrentProfile } from "@/lib/server-data-scope"
+import { getProfileFromHeaders } from "@/lib/server-profile-from-headers"
 import { getAccessibleFormalOrderIds, hasScopedIdAccess } from "@/lib/server-business-scope"
 import { createSafeErrorResponse, summarizeError } from "@/lib/safe-error"
 
@@ -329,7 +329,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "缺少 orderId" }, { status: 400 })
     }
 
-    const profile = await getCurrentProfile(request)
+    const profile = await getProfileFromHeaders(request)
     const accessibleOrderIds = await getAccessibleFormalOrderIds(profile)
     if (!hasScopedIdAccess(accessibleOrderIds, orderId)) {
       logger.warn("批量创建 ClassIn 失败 - 无权访问订单", { orderId, profileId: profile?.id })
